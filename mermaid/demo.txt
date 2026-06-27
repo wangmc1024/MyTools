@@ -1,0 +1,105 @@
+flowchart TD
+    %% ========== 大圆角卡片模块 lg 系列（rx=16，顶层大模块） ==========
+    A["项目总目标<br/>后端系统稳定交付上线"]:::core-lg
+    B["需求深度分析<br/>业务场景&技术难点拆解"]:::analysis-lg
+    C["用户侧整体方案<br/>权限&账号分层设计"]:::user-lg
+
+    %% ========== 基础业务色系标准节点（rx=12） ==========
+    D["故障诊断排查<br/>线上性能瓶颈定位"]:::diag
+    E["代码内容产出<br/>接口文档、编码规范、模板库"]:::content
+    F["开发者社群维护<br/>协作规范、自动化通知"]:::fans
+    G["标准化研发体系<br/>迭代排期、指标追踪、执行流程"]:::system
+    H["60/30/10研发资源配比<br/>开发/联调/线上运维分配规则"]:::ratio
+
+    %% ========== 拓展全场景业务色系节点（rx=12） ==========
+    I["中长期技术规划<br/>架构迭代、中间件布局方案"]:::plan
+    J["版本迭代活动<br/>灰度发布、功能推广、迭代执行"]:::activity
+    K["技术风险预警<br/>并发、安全、存储隐患清单"]:::warn
+    L["上线验收标准<br/>压测通过、全链路可用指标"]:::success
+    M["辅助备注说明<br/>技术边界、兼容约束条件"]:::note
+    N["研发数据统计<br/>工时、成本、缺陷核算表"]:::data
+    O["季度研发KPI<br/>响应速度、可用性指标"]:::target
+    P["需求分层拆解<br/>多角色使用场景研判"]:::analysis
+    Q["账号分层运营<br/>管理员/普通用户/游客权限"]:::user
+
+    %% ========== 小圆角紧凑细分节点 sm 系列（rx=8，细分步骤） ==========
+    R["细分小目标：接口响应<200ms"]:::core-sm
+    S["细分分析步骤：慢SQL链路拆解"]:::analysis-sm
+    T["细分用户分层：付费管理员权限组"]:::user-sm
+
+    %% ========== 加粗高亮重点节点 highlight 系列（边框1.5px，突出关键） ==========
+    U["核心战略重点：微服务架构升级"]:::core-highlight
+    V["高风险紧急项：数据泄露安全漏洞"]:::warn-highlight
+    W["关键验收节点：全量线上发布完成"]:::success-highlight
+
+    %% 业务流转连线逻辑
+    A --> B & C
+    B --> D & P & S
+    C --> F & Q & T
+    D --> E & N
+    E --> H & R
+    G --> I & J
+    I --> U
+    J --> L & W
+    K --> V
+    M -.-> H
+    O --> A
+
+    %% ====================== 完整样式定义库 ======================
+    %% --------------- 基础业务色系 ---------------
+    %% core：核心总目标、顶层结论、最终成果框（图表头部/底部汇总模块）
+    classDef core fill:#E1F5EE,stroke:#0F6E56,rx:12,stroke-width:0.8
+    %% diag：诊断、调研、问题分析、数据排查模块
+    classDef diag fill:#E6F1FB,stroke:#185FA5,rx:12,stroke-width:0.8
+    %% content：内容生产、文案、创作、素材、排版相关模块
+    classDef content fill:#FAEEDA,stroke:#854F0B,rx:12,stroke-width:0.8
+    %% fans：粉丝、用户、社群、私域、客户运营模块
+    classDef fans fill:#FBEAF0,stroke:#993556,rx:12,stroke-width:0.8
+    %% system：流程体系、管理机制、后台运营、标准化流程模块
+    classDef system fill:#EEEDFE,stroke:#534AB7,rx:12,stroke-width:0.8
+    %% ratio：配比规则、数据标准、备注说明、基准参数模块
+    classDef ratio fill:#F1EFE8,stroke:#5F5E5A,rx:12,stroke-width:0.8
+
+    %% --------------- 拓展全场景色系（通用业务全场景补充，跨项目复用） ---------------
+    %% plan：战略、方案、规划、顶层策划、中长期布局模块
+    classDef plan fill:#EEEDFE,stroke:#534AB7,rx:12,stroke-width:0.8
+    %% activity：活动、投放、营销、推广、促销执行模块
+    classDef activity fill:#FAECE7,stroke:#993C1D,rx:12,stroke-width:0.8
+    %% warn：风险、告警、隐患、禁止项、待整改问题模块
+    classDef warn fill:#FCEBEB,stroke:#A32D2D,rx:12,stroke-width:0.8
+    %% success：落地、完成、验收、正向结果、成功步骤模块
+    classDef success fill:#EAF3DE,stroke:#3B6D11,rx:12,stroke-width:0.8
+    %% note：补充注释、次要说明、备用备注、辅助信息框
+    classDef note fill:#F1EFE8,stroke:#5F5E5A,rx:12,stroke-width:0.8
+    %% data：数据统计、预算、指标核算、成本收益模块
+    classDef data fill:#FAEEDA,stroke:#854F0B,rx:12,stroke-width:0.8
+    %% target：KPI、目标值、预期成果、核心指标框（同core色系，语义区分）
+    classDef target fill:#E1F5EE,stroke:#0F6E56,rx:12,stroke-width:0.8
+    %% analysis：市场分析、需求拆解、复盘研判（同diag色系，语义区分）
+    classDef analysis fill:#E6F1FB,stroke:#185FA5,rx:12,stroke-width:0.8
+    %% user：用户画像、客户分层、人群运营（同fans色系，语义区分）
+    classDef user fill:#FBEAF0,stroke:#993556,rx:12,stroke-width:0.8
+
+    %% --------------- 尺寸变体 - 大圆角卡片 lg（rx=16，宽幅大模块、主标题卡片） ---------------
+    %% core-lg：大号圆角核心成果框，图表最外层大标题模块
+    classDef core-lg fill:#E1F5EE,stroke:#0F6E56,rx:16,stroke-width:0.8
+    %% analysis-lg：大号圆角分析模块，独立大板块分析卡片
+    classDef analysis-lg fill:#E6F1FB,stroke:#185FA5,rx:16,stroke-width:0.8
+    %% user-lg：大号圆角用户运营大卡片，独立用户板块
+    classDef user-lg fill:#FBEAF0,stroke:#993556,rx:16,stroke-width:0.8
+
+    %% --------------- 尺寸变体 - 小圆角紧凑节点 sm（rx=8，分支步骤、细分小点、列表项） ---------------
+    %% core-sm：紧凑小号核心节点，细分成果、小目标
+    classDef core-sm fill:#E1F5EE,stroke:#0F6E56,rx:8,stroke-width:0.8
+    %% analysis-sm：紧凑小号分析节点，细分排查步骤
+    classDef analysis-sm fill:#E6F1FB,stroke:#185FA5,rx:8,stroke-width:0.8
+    %% user-sm：紧凑小号用户节点，细分用户分层条目
+    classDef user-sm fill:#FBEAF0,stroke:#993556,rx:8,stroke-width:0.8
+
+    %% --------------- 加粗高亮重点框 highlight（stroke-width=1.5，突出关键、核心流程、风险项） ---------------
+    %% core-highlight：加粗边框核心重点，图表最重要的目标/结论
+    classDef core-highlight fill:#E1F5EE,stroke:#0F6E56,rx:12,stroke-width:1.5
+    %% warn-highlight：加粗边框风险高亮，高优先级隐患、紧急问题
+    classDef warn-highlight fill:#FCEBEB,stroke:#A32D2D,rx:12,stroke-width:1.5
+    %% success-highlight：加粗边框成功高亮，关键落地步骤、核心验收节点
+    classDef success-highlight fill:#EAF3DE,stroke:#3B6D11,rx:12,stroke-width:1.5
