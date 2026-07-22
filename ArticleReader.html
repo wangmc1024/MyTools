@@ -1,0 +1,2582 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Article Reader - 文章阅读器</title>
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #111827;
+  --bg-card: rgba(255,255,255,0.14);
+  --bg-card-hover: rgba(255,255,255,0.18);
+  --text-primary: #e8eaf0;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-glow: rgba(99,102,241,0.15);
+  --border: rgba(255,255,255,0.16);
+  --border-hover: rgba(255,255,255,0.28);
+  --shadow: 0 8px 32px rgba(0,0,0,0.3);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --bold-bg: rgba(99,102,241,0.12);
+  --bold-border: rgba(99,102,241,0.3);
+  --reading-border: rgba(99,102,241,0.5);
+  --modal-bg: #2d3357;
+  --modal-input: #1e2440;
+  --modal-border: rgba(255,255,255,0.28);
+  --overlay: rgba(0,0,0,0.35);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f0f2f5;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(0,0,0,0.06);
+  --bg-card-hover: rgba(0,0,0,0.09);
+  --text-primary: #1a1a2e;
+  --text-secondary: #555;
+  --text-muted: #999;
+  --accent: #4f46e5;
+  --accent-light: #6366f1;
+  --accent-glow: rgba(79,70,229,0.1);
+  --border: rgba(0,0,0,0.1);
+  --border-hover: rgba(0,0,0,0.2);
+  --shadow: 0 8px 32px rgba(0,0,0,0.08);
+  --bold-bg: rgba(79,70,229,0.08);
+  --bold-border: rgba(79,70,229,0.25);
+  --reading-border: rgba(79,70,229,0.4);
+  --modal-bg: #ffffff;
+  --modal-input: #f4f5f7;
+  --modal-border: rgba(0,0,0,0.12);
+  --overlay: rgba(0,0,0,0.25);
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Noto Sans SC', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.8;
+  transition: background var(--transition), color var(--transition);
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -200px; left: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -200px; right: -200px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+#progressBar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  z-index: 1000;
+  transition: width 0.1s ease;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  width: 38px; height: 38px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.icon-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+#stopAudio {
+  display: none;
+  padding: 0 14px;
+  width: auto;
+  gap: 6px;
+  font-size: 14px;
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+#stopAudio:hover { background: var(--accent-light); }
+
+/* ============================================================
+   TAB NAVIGATION (Browser-style)
+   ============================================================ */
+.tabs-bar {
+  position: relative;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.tabs-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  gap: 3px;
+  overflow: hidden;
+  align-items: flex-end;
+}
+
+.tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--bg-card);
+  border-radius: 12px 12px 0 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all var(--transition);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.tab-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+.tab-btn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border);
+  z-index: 1;
+  margin-bottom: -1px;
+  border-bottom: 1px solid var(--bg-primary);
+  font-weight: 600;
+}
+.tab-btn .tab-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  background: rgba(255,255,255,0.15);
+}
+.tab-btn.active .tab-num { background: var(--accent); color: #fff; }
+.tab-btn .tab-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-btn .tab-lang {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(99,102,241,0.2);
+  color: var(--accent-light);
+  font-weight: 600;
+}
+.tab-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  margin-left: 4px;
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 1;
+  background: rgba(255,255,255,0.15);
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.tab-delete:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+
+/* ============================================================
+   ARTICLE CONTAINER
+   ============================================================ */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.article-section {
+  display: none;
+  animation: fadeInUp 0.5s ease;
+}
+.article-section.active { display: block; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.article-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.article-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.article-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.tool-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tool-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+.tool-btn.active {
+  background: var(--accent-glow);
+  color: var(--accent-light);
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   PARAGRAPHS & SENTENCES
+   ============================================================ */
+.paragraph {
+  margin-bottom: 20px;
+}
+
+.sentence-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 10px;
+  transition: all var(--transition);
+  position: relative;
+}
+.sentence-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.sentence-card.reading {
+  border-color: rgba(16,185,129,0.4);
+  box-shadow: 0 0 0 1px rgba(16,185,129,0.3), 0 4px 24px rgba(16,185,129,0.12);
+  background: linear-gradient(135deg, var(--bg-card), rgba(16,185,129,0.03));
+}
+.sentence-card.reading[data-engine="system"] {
+  border-color: var(--reading-border);
+  box-shadow: 0 0 0 1px var(--reading-border), 0 4px 20px var(--accent-glow);
+  background: var(--bg-card);
+}
+
+.sentence-en {
+  font-size: 17px;
+  line-height: 2;
+  color: var(--text-primary);
+  margin-bottom: 0;
+  transition: margin-bottom 0.3s ease;
+}
+
+/* Words */
+.word {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 0;
+  transition: background 0.15s ease;
+  display: inline;
+  position: relative;
+}
+.word:hover {
+  background: var(--accent-glow);
+}
+.word.bold-word {
+  background: var(--bold-bg);
+  border-bottom: 2px solid var(--bold-border);
+  font-weight: 600;
+}
+.word.bold-word:hover {
+  background: var(--accent-glow);
+}
+
+/* Translation area */
+.sentence-zh {
+  margin-top: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, margin-top 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.sentence-card.show-translation .sentence-zh {
+  margin-top: 12px;
+  max-height: 200px;
+  opacity: 1;
+}
+.sentence-zh-inner {
+  padding: 10px 14px;
+  background: var(--accent-glow);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.sentence-zh-loading {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Speaker button */
+.speaker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 16px;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  margin-left: 6px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+}
+.speaker-btn:hover {
+  color: var(--accent-light);
+  background: var(--accent-glow);
+  transform: scale(1.1);
+}
+.speaker-btn.playing {
+  color: #10b981;
+  background: rgba(16,185,129,0.1);
+  animation: speakerPulse 1.2s infinite;
+}
+@keyframes speakerPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+  50% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+}
+.speaker-btn.loading {
+  color: var(--accent-light);
+  pointer-events: none;
+}
+.speaker-btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 2px solid transparent;
+  border-top-color: var(--accent-light);
+  border-right-color: var(--accent-light);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.speaker-btn.loading .speaker-icon { opacity: 0.3; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.speaker-btn .cloud-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 10px; height: 10px;
+  background: #10b981;
+  border-radius: 50%;
+  border: 2px solid var(--bg-secondary);
+  font-size: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.speaker-btn[data-engine="cloud"] .cloud-badge { opacity: 1; }
+
+/* Translation toggle */
+.translate-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  border: 1px solid var(--border);
+}
+.translate-toggle:hover {
+  color: var(--accent-light);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* ============================================================
+   WORD TOOLTIP
+   ============================================================ */
+#wordTooltip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-hover);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow);
+  max-width: 300px;
+  display: none;
+  pointer-events: none;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+#wordTooltip .tooltip-word {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 4px;
+  color: var(--accent-light);
+}
+#wordTooltip .tooltip-translation {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+#wordTooltip .tooltip-loading {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ============================================================
+   TTS ENGINE INDICATOR
+   ============================================================ */
+#ttsEngineBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+#ttsEngineBadge .engine-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+#ttsEngineBadge[data-engine="cloud"] {
+  background: rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.3);
+  color: #10b981;
+}
+#ttsEngineBadge[data-engine="cloud"] .engine-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16,185,129,0.6);
+}
+#ttsEngineBadge[data-engine="system"] {
+  background: rgba(245,158,11,0.1);
+  border-color: rgba(245,158,11,0.3);
+  color: #f59e0b;
+}
+#ttsEngineBadge[data-engine="system"] .engine-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245,158,11,0.5);
+}
+#ttsEngineBadge[data-engine="connecting"] {
+  background: rgba(99,102,241,0.1);
+  border-color: rgba(99,102,241,0.3);
+  color: var(--accent-light);
+}
+#ttsEngineBadge[data-engine="connecting"] .engine-dot {
+  background: var(--accent-light);
+  animation: enginePulse 1s infinite;
+}
+@keyframes enginePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ============================================================
+   SPEED CONTROL & VOICE SELECT
+   ============================================================ */
+#voiceSelect {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 10px;
+  height: 38px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition);
+  outline: none;
+  max-width: 170px;
+}
+#voiceSelect:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+#voiceSelect option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+#speedControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 10px;
+  height: 38px;
+  transition: all var(--transition);
+}
+#speedControl:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+#speedControl .speed-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+#speedControl input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+#speedControl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transition: transform 0.15s ease;
+}
+#speedControl input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+#speedControl input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid #fff;
+}
+#speedControl .speed-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-light);
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   ARTICLE NAVIGATION
+   ============================================================ */
+.article-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  flex: 1;
+  max-width: 200px;
+}
+.nav-btn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.nav-btn.nav-prev { justify-content: flex-start; }
+.nav-btn.nav-next { justify-content: flex-end; text-align: right; }
+.nav-btn .nav-arrow { font-size: 18px; flex-shrink: 0; }
+.nav-btn .nav-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.nav-btn .nav-label { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.nav-btn .nav-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============================================================
+   IMPORT BUTTON & MODAL
+   ============================================================ */
+.import-btn {
+  padding: 8px 16px;
+  border: 1px dashed var(--border-hover);
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.import-btn:hover {
+  background: var(--bg-card-hover);
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--overlay);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.modal-overlay.show {
+  display: flex;
+  opacity: 1;
+}
+.modal-box {
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 32px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+  transform: scale(0.95);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-overlay.show .modal-box { transform: scale(1); }
+.modal-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+.modal-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.modal-field { margin-bottom: 16px; }
+.modal-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+.modal-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--modal-input);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.modal-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.modal-textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--modal-input);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.8;
+  font-family: 'Georgia', 'Noto Serif SC', serif;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.modal-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.modal-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.modal-hint code {
+  background: var(--modal-input);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+.modal-btn {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.modal-btn-cancel:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+.modal-btn-import {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.modal-btn-import:hover {
+  background: var(--accent-light);
+  transform: translateY(-1px);
+}
+.modal-btn-import:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.file-import-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.file-import-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.file-import-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+.file-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state {
+  text-align: center;
+  padding: 80px 24px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.empty-icon {
+  font-size: 72px;
+  margin-bottom: 24px;
+  animation: floatUp 3s ease-in-out infinite;
+}
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.empty-state h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.empty-state p {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  line-height: 1.8;
+}
+.empty-import-btn {
+  padding: 14px 32px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  color: #fff;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all var(--transition);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+.empty-import-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px var(--accent-glow);
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+#toastContainer {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.toast {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-info { background: var(--accent); }
+.toast-success { background: #10b981; }
+.toast-error { background: #e74c3c; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .header-inner { padding: 10px 16px; gap: 8px; }
+  .logo { font-size: 16px; }
+  .tabs-bar { padding: 0 16px; }
+  .tab-btn { padding: 8px 10px; font-size: 12px; gap: 4px; }
+  .tab-btn .tab-num { width: 18px; height: 18px; font-size: 10px; }
+  .tab-btn .tab-lang { display: none; }
+  .container { padding: 16px; }
+  .article-title { font-size: 22px; }
+  .sentence-en { font-size: 15px; line-height: 1.9; }
+  .sentence-card { padding: 14px 16px; }
+  #voiceSelect { max-width: 110px; font-size: 11px; padding: 4px 6px; }
+  .nav-btn { padding: 8px 12px; max-width: 160px; }
+  .nav-btn .nav-title { font-size: 12px; }
+  .import-btn { padding: 6px 12px; font-size: 13px; }
+  .import-btn span:first-child { font-size: 16px; }
+  .modal-box { padding: 20px; }
+  #speedControl .speed-label { display: none; }
+  #speedControl input[type="range"] { width: 60px; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+</style>
+</head>
+<body>
+
+<div id="progressBar"></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">Article Reader</div>
+    <div class="header-actions">
+      <button id="importBtn" class="import-btn" title="Import a new article">
+        <span>+</span> Import
+      </button>
+      <button id="stopAudio" class="icon-btn">
+        <span>⏹</span> Stop
+      </button>
+      <div id="ttsEngineBadge" data-engine="connecting" title="TTS Engine Status">
+        <span class="engine-dot"></span>
+        <span id="engineLabel">Connecting...</span>
+      </div>
+      <div id="speedControl" title="Adjust speech rate">
+        <span class="speed-label">Speed</span>
+        <input type="range" id="speedSlider" min="0.5" max="1.5" step="0.05" value="0.95">
+        <span class="speed-value" id="speedValue">0.95x</span>
+      </div>
+      <select id="voiceSelect" title="Select voice"></select>
+      <button id="themeToggle" class="icon-btn" title="Toggle theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+    </div>
+  </div>
+  <div class="tabs-bar" id="tabsBar" style="display:none">
+    <div class="tabs-wrapper" id="tabsWrapper"></div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="container" id="mainContainer">
+  <div id="emptyState" class="empty-state">
+    <div class="empty-icon">📚</div>
+    <h2>Welcome to Article Reader</h2>
+    <p>Import Markdown files or paste article text directly. Articles will be split into sentences with translation, TTS playback, and word lookup - all stored locally in your browser.</p>
+    <button class="empty-import-btn" onclick="openImportModal()">Import Article</button>
+  </div>
+</div>
+
+<!-- WORD TOOLTIP -->
+<div id="wordTooltip">
+  <div class="tooltip-word" id="tooltipWord"></div>
+  <div class="tooltip-translation" id="tooltipTranslation"></div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <div class="modal-title">Import New Article</div>
+    <div class="modal-desc">Paste an English or Chinese article below, or import a .md/.txt file. Language is auto-detected.</div>
+    <div class="file-import-row">
+      <button class="file-import-btn" onclick="document.getElementById('fileInput').click()">
+        <span>📄</span> Choose File
+      </button>
+      <span class="file-name" id="fileName">No file selected</span>
+      <input type="file" id="fileInput" accept=".md,.txt,.markdown" style="display:none">
+    </div>
+    <div class="modal-field">
+      <label>Article Title</label>
+      <input type="text" class="modal-input" id="importTitle" placeholder="e.g. The Art of Learning" maxlength="120">
+    </div>
+    <div class="modal-field">
+      <label>Article Text</label>
+      <textarea class="modal-textarea" id="importText" placeholder="Paste your article here...&#10;&#10;Tips:&#10;• Separate paragraphs with a blank line&#10;• Wrap key vocabulary with **double asterisks** to highlight them&#10;• Example: The **courage** to begin is the first step."></textarea>
+      <div class="modal-hint">
+        Separate paragraphs with blank lines. Wrap vocabulary words with <code>**word**</code> to highlight them (e.g. <code>**courage**</code>). Supports both English and Chinese text.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" id="importCancel">Cancel</button>
+      <button class="modal-btn modal-btn-import" id="importConfirm">Import Article</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<script>
+// ============================================================
+//  INDEXEDDB STORAGE LAYER
+// ============================================================
+const DB_NAME = 'ArticleReader';
+const DB_VERSION = 1;
+let db = null;
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => { db = request.result; resolve(db); };
+    request.onupgradeneeded = (event) => {
+      const database = event.target.result;
+      if (!database.objectStoreNames.contains('articles')) {
+        database.createObjectStore('articles', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!database.objectStoreNames.contains('translations')) {
+        database.createObjectStore('translations', { keyPath: 'key' });
+      }
+      if (!database.objectStoreNames.contains('wordTranslations')) {
+        database.createObjectStore('wordTranslations', { keyPath: 'key' });
+      }
+    };
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(store, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbAdd(store, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).add(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ============================================================
+//  VOICES
+// ============================================================
+const VOICES = {
+  en: [
+    { id: 'en-US-JennyNeural', name: 'Jenny (US)' },
+    { id: 'en-US-GuyNeural', name: 'Guy (US)' },
+    { id: 'en-US-AriaNeural', name: 'Aria (US)' },
+    { id: 'en-US-DavisNeural', name: 'Davis (US)' },
+    { id: 'en-US-EmmaNeural', name: 'Emma (US)' },
+    { id: 'en-US-BrianNeural', name: 'Brian (US)' },
+    { id: 'en-US-AmberNeural', name: 'Amber (US)' },
+    { id: 'en-GB-SoniaNeural', name: 'Sonia (UK)' },
+    { id: 'en-GB-RyanNeural', name: 'Ryan (UK)' },
+    { id: 'en-AU-NatashaNeural', name: 'Natasha (AU)' }
+  ],
+  zh: [
+    // Mandarin - Female (13)
+    { id: 'zh-CN-XiaoxiaoNeural', name: '晓晓 (女·温柔)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoyiNeural', name: '晓伊 (女·甜美)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaochenNeural', name: '晓辰 (女·知性)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaohanNeural', name: '晓涵 (女·优雅)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaomengNeural', name: '晓梦 (女·梦幻)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaomoNeural', name: '晓墨 (女·文艺)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoqiuNeural', name: '晓秋 (女·成熟)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoruiNeural', name: '晓睿 (女·智慧)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoshuangNeural', name: '晓双 (女·活泼)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoxuanNeural', name: '晓萱 (女·清新)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoyanNeural', name: '晓颜 (女·柔美)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaoyouNeural', name: '晓悠 (女·悠扬)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-XiaozhenNeural', name: '晓甄 (女·端庄)', group: '普通话 Mandarin' },
+    // Mandarin - Male (8)
+    { id: 'zh-CN-YunxiNeural', name: '云希 (男·清朗)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunyangNeural', name: '云扬 (男·阳光)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunjianNeural', name: '云健 (男·稳重)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunfengNeural', name: '云枫 (男·磁性)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunhaoNeural', name: '云皓 (男·豪迈)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunxiaNeural', name: '云夏 (男·热情)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunyeNeural', name: '云野 (男·野性)', group: '普通话 Mandarin' },
+    { id: 'zh-CN-YunzeNeural', name: '云泽 (男·深沉)', group: '普通话 Mandarin' },
+    // Cantonese (2)
+    { id: 'zh-HK-HiuMaanNeural', name: '曉明 (女·粵語)', group: '粵語 Cantonese' },
+    { id: 'zh-HK-WanLungNeural', name: '雲龍 (男·粵語)', group: '粵語 Cantonese' },
+    // Taiwanese (2)
+    { id: 'zh-TW-HsiaoChenNeural', name: '曉臻 (女·台灣)', group: '台灣話 Taiwanese' },
+    { id: 'zh-TW-HsiaoYuNeural', name: '曉雨 (女·台灣)', group: '台灣話 Taiwanese' }
+  ]
+};
+
+// ============================================================
+//  STATE
+// ============================================================
+let ARTICLES = [];
+let currentArticle = 0;
+let currentArticleLang = 'en';
+let theme = 'dark';
+let speechRate = 0.95;
+let edgeTTSAvailable = null;
+let EDGE_TTS_VOICE = '';
+let lastUsedVoice = { en: 'en-US-JennyNeural', zh: 'zh-CN-XiaoxiaoNeural' };
+
+// Load preferences from localStorage (small settings only)
+try { theme = localStorage.getItem('theme') || 'dark'; } catch(e) {}
+try { speechRate = parseFloat(localStorage.getItem('speechRate')) || 0.95; } catch(e) {}
+try {
+  const saved = localStorage.getItem('lastUsedVoice');
+  if (saved) { const obj = JSON.parse(saved); lastUsedVoice = Object.assign(lastUsedVoice, obj); }
+} catch(e) {}
+
+// In-memory caches
+const translationCache = {};
+const wordCache = {};
+const ttsAudioCache = new Map();
+
+// Translation result validation
+const TRANSLATION_ERROR_MARKERS = [
+  '\u7FFB\u8BD1\u5931\u8D25', '\u65E0\u8BD1\u6587', '\u8BF7\u68C0\u67E5\u7F51\u7EDC',
+  'mymemory warning', 'query limit', 'rate limit',
+  'please select two distinct', 'invalid lang', 'timeout',
+  'service unavailable', 'internal error', 'bad gateway',
+  'please try again', 'too many requests', 'access denied',
+  'endpoint', 'cloudflare', 'worker error', '502', '503', '524'
+];
+
+function isValidTranslation(text) {
+  if (!text || typeof text !== 'string' || text.length < 1) return false;
+  const lower = text.toLowerCase();
+  for (const marker of TRANSLATION_ERROR_MARKERS) {
+    if (lower.includes(marker.toLowerCase())) return false;
+  }
+  return true;
+}
+
+// ============================================================
+//  TOAST NOTIFICATIONS
+// ============================================================
+function showToast(message, type) {
+  type = type || 'info';
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  document.getElementById('toastContainer').appendChild(toast);
+  setTimeout(function() { toast.classList.add('show'); }, 10);
+  setTimeout(function() {
+    toast.classList.remove('show');
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 3000);
+}
+
+// ============================================================
+//  THEME
+// ============================================================
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeIcon').textContent = theme === 'dark' ? '\u{1F319}' : '\u2600';
+}
+applyTheme();
+
+document.getElementById('themeToggle').addEventListener('click', function() {
+  theme = theme === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem('theme', theme); } catch(e) {}
+  applyTheme();
+});
+
+// ============================================================
+//  SPEED CONTROL
+// ============================================================
+var speedSlider = document.getElementById('speedSlider');
+var speedValueEl = document.getElementById('speedValue');
+speedSlider.value = speechRate;
+speedValueEl.textContent = speechRate.toFixed(2) + 'x';
+
+speedSlider.addEventListener('input', function() {
+  speechRate = parseFloat(this.value);
+  speedValueEl.textContent = speechRate.toFixed(2) + 'x';
+  try { localStorage.setItem('speechRate', speechRate); } catch(e) {}
+  ttsAudioCache.clear();
+});
+
+// ============================================================
+//  VOICE SELECT
+// ============================================================
+var voiceSelect = document.getElementById('voiceSelect');
+
+function populateVoices(lang) {
+  voiceSelect.innerHTML = '';
+  var voices = VOICES[lang] || VOICES.en;
+
+  // Check if voices have group field (for optgroup rendering)
+  var hasGroups = voices.some(function(v) { return v.group; });
+
+  if (hasGroups) {
+    // Group voices using optgroup
+    var groupMap = {};
+    var groupOrder = [];
+    voices.forEach(function(v) {
+      if (!groupMap[v.group]) {
+        groupMap[v.group] = [];
+        groupOrder.push(v.group);
+      }
+      groupMap[v.group].push(v);
+    });
+    groupOrder.forEach(function(groupName) {
+      var optgroup = document.createElement('optgroup');
+      optgroup.label = groupName;
+      groupMap[groupName].forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = v.name;
+        optgroup.appendChild(opt);
+      });
+      voiceSelect.appendChild(optgroup);
+    });
+  } else {
+    // Flat list for English
+    voices.forEach(function(v) {
+      var opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.name;
+      voiceSelect.appendChild(opt);
+    });
+  }
+
+  // Set to last used voice for this language (with fallback to first voice)
+  var voiceIds = voices.map(function(v) { return v.id; });
+  var saved = lastUsedVoice[lang];
+  EDGE_TTS_VOICE = (saved && voiceIds.indexOf(saved) >= 0) ? saved : voices[0].id;
+  voiceSelect.value = EDGE_TTS_VOICE;
+}
+
+voiceSelect.addEventListener('change', function() {
+  EDGE_TTS_VOICE = this.value;
+  lastUsedVoice[currentArticleLang] = EDGE_TTS_VOICE;
+  try { localStorage.setItem('lastUsedVoice', JSON.stringify(lastUsedVoice)); } catch(e) {}
+  ttsAudioCache.clear();
+});
+
+// Initialize with English voices
+populateVoices('en');
+
+// ============================================================
+//  LANGUAGE DETECTION
+// ============================================================
+function detectLanguage(text) {
+  var cjkCount = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+  var latinCount = (text.match(/[a-zA-Z]/g) || []).length;
+  return cjkCount > latinCount ? 'zh' : 'en';
+}
+
+function getLangPair(lang) {
+  if (lang === 'zh') {
+    return {
+      deeplx: { source: 'ZH', target: 'EN' },
+      mymemory: 'zh-CN|en',
+      google: { sl: 'zh-CN', tl: 'en' }
+    };
+  }
+  return {
+    deeplx: { source: 'EN', target: 'ZH' },
+    mymemory: 'en|zh-CN',
+    google: { sl: 'en', tl: 'zh-CN' }
+  };
+}
+
+// ============================================================
+//  ARTICLE PARSING
+// ============================================================
+function parseArticleText(title, rawText) {
+  var lang = detectLanguage(rawText);
+
+  // Split into paragraphs by double newline
+  var rawParas = rawText.trim().split(/\n\s*\n/).filter(function(p) { return p.trim(); });
+  if (rawParas.length === 0) return null;
+
+  var paragraphs = [];
+
+  rawParas.forEach(function(rawPara) {
+    var para = rawPara.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!para) return;
+
+    // Escape HTML first to prevent XSS, then parse markdown bold
+    var escaped = escapeHtml(para);
+
+    // Extract bold words: **word** -> <b>word</b>
+    var boldWords = [];
+    var processed = escaped.replace(/\*\*([^*]+)\*\*/g, function(match, word) {
+      boldWords.push(word);
+      return '<b>' + word + '</b>';
+    });
+
+    // Split into sentences
+    var sentences;
+    if (lang === 'zh') {
+      // Chinese: split by Chinese sentence-ending punctuation
+      var parts = processed.split(/([。！？；])/);
+      sentences = [];
+      for (var i = 0; i < parts.length; i += 2) {
+        var s = parts[i] || '';
+        if (parts[i + 1]) s += parts[i + 1];
+        if (s.trim()) sentences.push(s.trim());
+      }
+    } else {
+      // English: split by . ! ? followed by space or end
+      var sentenceRegex = /[^.!?]+[.!?]+(?:["'\u201D\u2019)\]]+)?(?:\s|$)/g;
+      sentences = processed.match(sentenceRegex);
+      if (!sentences || sentences.length === 0) {
+        sentences = [processed];
+      } else {
+        // Check for remaining text after last match
+        var matchedText = sentences.join('');
+        var remaining = processed.substring(matchedText.length).trim();
+        if (remaining) sentences.push(remaining);
+      }
+    }
+
+    // Clean up sentences
+    sentences = sentences.map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+
+    var sentObjs = sentences.map(function(sentHtml) {
+      var sentBold = [];
+      sentHtml.replace(/<b>([^<]+)<\/b>/g, function(match, word) {
+        sentBold.push(word);
+        return match;
+      });
+      return { en: sentHtml, boldWords: sentBold };
+    });
+
+    if (sentObjs.length > 0) {
+      paragraphs.push({ sentences: sentObjs });
+    }
+  });
+
+  if (paragraphs.length === 0) return null;
+
+  return {
+    title: (title || '').trim() || 'Untitled Article',
+    lang: lang,
+    paragraphs: paragraphs,
+    createdAt: Date.now()
+  };
+}
+
+// ============================================================
+//  RENDER TABS
+// ============================================================
+var tabsWrapper = document.getElementById('tabsWrapper');
+var tabsBar = document.getElementById('tabsBar');
+
+function renderTabs() {
+  tabsWrapper.innerHTML = '';
+  if (ARTICLES.length === 0) {
+    tabsBar.style.display = 'none';
+    return;
+  }
+  tabsBar.style.display = 'block';
+
+  ARTICLES.forEach(function(article, i) {
+    var btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === currentArticle ? ' active' : '');
+    var langLabel = article.lang === 'zh' ? 'ZH' : 'EN';
+    var html = '<span class="tab-num">' + (i + 1) + '</span>' +
+               '<span class="tab-lang">' + langLabel + '</span>' +
+               '<span class="tab-text">' + escapeHtml(article.title) + '</span>' +
+               '<button class="tab-delete" onclick="event.stopPropagation(); deleteArticle(' + i + ')" title="Remove this article">\u2715</button>';
+    btn.innerHTML = html;
+    btn.addEventListener('click', function() { switchArticle(i); });
+    tabsWrapper.appendChild(btn);
+  });
+}
+
+// ============================================================
+//  RENDER ARTICLE
+// ============================================================
+var mainContainer = document.getElementById('mainContainer');
+var emptyState = document.getElementById('emptyState');
+
+function switchArticle(index) {
+  currentArticle = index;
+  if (ARTICLES[index]) {
+    currentArticleLang = ARTICLES[index].lang || 'en';
+    // Update voice selection for the new article's language
+    populateVoices(currentArticleLang);
+  }
+
+  var sections = document.querySelectorAll('.article-section');
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(function(b, i) { b.classList.toggle('active', i === index); });
+  sections.forEach(function(s, i) { s.classList.toggle('active', i === index); });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateProgress();
+}
+
+function renderArticles() {
+  // Remove all article sections but keep empty state
+  var sections = mainContainer.querySelectorAll('.article-section');
+  sections.forEach(function(s) { s.remove(); });
+
+  if (ARTICLES.length === 0) {
+    emptyState.style.display = 'block';
+    return;
+  }
+  emptyState.style.display = 'none';
+
+  ARTICLES.forEach(function(article, ai) {
+    var section = document.createElement('div');
+    section.className = 'article-section' + (ai === currentArticle ? ' active' : '');
+
+    var totalSentences = 0;
+    var totalBold = new Set();
+    article.paragraphs.forEach(function(p) {
+      totalSentences += p.sentences.length;
+      p.sentences.forEach(function(s) {
+        s.boldWords.forEach(function(w) { totalBold.add(w); });
+      });
+    });
+
+    var langBadge = article.lang === 'zh' ? 'Chinese' : 'English';
+
+    section.innerHTML =
+      '<h1 class="article-title">' + escapeHtml(article.title) + '</h1>' +
+      '<div class="article-meta">' +
+        '<span>' + langBadge + '</span>' +
+        '<span>' + totalSentences + ' sentences</span>' +
+        '<span>' + totalBold.size + ' vocabulary words</span>' +
+        '<span>' + article.paragraphs.length + ' paragraphs</span>' +
+      '</div>' +
+      '<div class="toolbar">' +
+        '<button class="tool-btn" onclick="toggleAllTranslations(' + ai + ', this)">' +
+          '<span>\u{1F441}</span> Show All Translations' +
+        '</button>' +
+        '<button class="tool-btn" onclick="speakArticle(' + ai + ', this)">' +
+          '<span>\u{1F50A}</span> Read Article' +
+        '</button>' +
+      '</div>' +
+      '<div class="article-body" id="articleBody_' + ai + '"></div>' +
+      '<div class="article-nav" id="articleNav_' + ai + '"></div>';
+
+    mainContainer.appendChild(section);
+
+    var body = section.querySelector('.article-body');
+    article.paragraphs.forEach(function(para, pi) {
+      var paraDiv = document.createElement('div');
+      paraDiv.className = 'paragraph';
+
+      para.sentences.forEach(function(sent, si) {
+        var card = document.createElement('div');
+        card.className = 'sentence-card';
+        card.dataset.article = ai;
+        card.dataset.para = pi;
+        card.dataset.sentence = si;
+
+        var sentHtml = buildSentenceHtml(sent.en, sent.boldWords, article.lang);
+
+        card.innerHTML =
+          '<div class="sentence-en">' +
+            '<span class="sentence-text">' + sentHtml + '</span>' +
+            '<button class="translate-toggle" onclick="toggleTranslation(this)">' +
+              '<span>\u{1F4AC}</span> \u8BD1' +
+            '</button>' +
+            '<button class="speaker-btn" onclick="speakSentence(this)" title="Read this sentence">' +
+              '<span class="speaker-icon">\u{1F508}</span>' +
+              '<span class="cloud-badge" title="Cloud TTS"></span>' +
+            '</button>' +
+          '</div>' +
+          '<div class="sentence-zh">' +
+            '<div class="sentence-zh-inner">' +
+              '<span class="sentence-zh-loading">Loading translation...</span>' +
+            '</div>' +
+          '</div>';
+
+        paraDiv.appendChild(card);
+      });
+
+      body.appendChild(paraDiv);
+    });
+
+    // Add prev/next navigation
+    var navDiv = section.querySelector('#articleNav_' + ai);
+    var hasPrev = ai > 0;
+    var hasNext = ai < ARTICLES.length - 1;
+    var prevTitle = hasPrev ? ARTICLES[ai - 1].title : '';
+    var nextTitle = hasNext ? ARTICLES[ai + 1].title : '';
+
+    navDiv.innerHTML =
+      '<button class="nav-btn nav-prev" ' + (hasPrev ? '' : 'disabled') + ' ' + (hasPrev ? 'onclick="switchArticle(' + (ai - 1) + ')"' : '') + '>' +
+        '<span class="nav-arrow">\u2190</span>' +
+        '<span class="nav-info">' +
+          '<span class="nav-label">Previous</span>' +
+          '<span class="nav-title">' + (hasPrev ? escapeHtml(prevTitle) : '\u2014') + '</span>' +
+        '</span>' +
+      '</button>' +
+      '<button class="nav-btn nav-next" ' + (hasNext ? '' : 'disabled') + ' ' + (hasNext ? 'onclick="switchArticle(' + (ai + 1) + ')"' : '') + '>' +
+        '<span class="nav-info">' +
+          '<span class="nav-label">Next</span>' +
+          '<span class="nav-title">' + (hasNext ? escapeHtml(nextTitle) : '\u2014') + '</span>' +
+        '</span>' +
+        '<span class="nav-arrow">\u2192</span>' +
+      '</button>';
+  });
+}
+
+function buildSentenceHtml(text, boldWords, lang) {
+  var parts = text.split(/(<b>[^<]+<\/b>)/g);
+  var html = '';
+  parts.forEach(function(part) {
+    var boldMatch = part.match(/^<b>([^<]+)<\/b>$/);
+    if (boldMatch) {
+      html += wrapWord(boldMatch[1], true, lang);
+    } else {
+      // Split by whitespace and wrap each token (works for both en/zh)
+      var tokens = part.split(/(\s+)/);
+      tokens.forEach(function(token) {
+        if (/^\s+$/.test(token)) {
+          html += token;
+        } else if (token) {
+          html += wrapWord(token, false, lang);
+        }
+      });
+    }
+  });
+  return html;
+}
+
+function wrapWord(token, isBold, lang) {
+  if (lang === 'zh') {
+    // For Chinese, use the whole token as the lookup key
+    var cleanWord = token.replace(/[^\u4e00-\u9fff\u3400-\u4dbfa-zA-Z]/g, '');
+    if (!cleanWord) return escapeHtml(token);
+    var cls = 'word' + (isBold ? ' bold-word' : '');
+    return '<span class="' + cls + '" data-word="' + escapeAttr(cleanWord) + '" data-full="' + escapeAttr(token) + '">' + escapeHtml(token) + '</span>';
+  }
+  // For English
+  var cleanWord = token.replace(/[^a-zA-Z'-]/g, '');
+  if (!cleanWord) return escapeHtml(token);
+  var cls = 'word' + (isBold ? ' bold-word' : '');
+  return '<span class="' + cls + '" data-word="' + escapeAttr(cleanWord.toLowerCase()) + '" data-full="' + escapeAttr(token) + '">' + escapeHtml(token) + '</span>';
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(str) {
+  return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================================================
+//  TRANSLATION (DeepLX primary, MyMemory fallback, Google last)
+// ============================================================
+var DEEPLX_API = 'https://deeplx.wangmc1024.workers.dev/deepl';
+
+async function translateText(text, lang) {
+  lang = lang || currentArticleLang;
+  var pair = getLangPair(lang);
+  var cacheKey = lang + '|' + text.trim().substring(0, 200);
+
+  // Check memory cache
+  if (translationCache[cacheKey]) return translationCache[cacheKey];
+
+  // Check IndexedDB
+  try {
+    var stored = await dbGet('translations', cacheKey);
+    if (stored && isValidTranslation(stored.value)) {
+      translationCache[cacheKey] = stored.value;
+      return stored.value;
+    }
+  } catch(e) {}
+
+  // 1st: DeepLX API
+  try {
+    var resp = await fetch(DEEPLX_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text.substring(0, 1500),
+        source_lang: pair.deeplx.source,
+        target_lang: pair.deeplx.target
+      })
+    });
+    var data = await resp.json();
+    if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
+      translationCache[cacheKey] = data.data;
+      try { await dbPut('translations', { key: cacheKey, value: data.data }); } catch(e) {}
+      return data.data;
+    }
+  } catch(e) {
+    console.log('DeepLX API error:', e);
+  }
+
+  // 2nd: MyMemory API
+  try {
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0, 500)) + '&langpair=' + pair.mymemory;
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if (data && data.responseData && data.responseData.translatedText) {
+      if (isValidTranslation(data.responseData.translatedText)) {
+        translationCache[cacheKey] = data.responseData.translatedText;
+        try { await dbPut('translations', { key: cacheKey, value: data.responseData.translatedText }); } catch(e) {}
+        return data.responseData.translatedText;
+      }
+    }
+  } catch(e) {
+    console.log('MyMemory API error:', e);
+  }
+
+  // 3rd: Google Translate via CORS proxy
+  try {
+    var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
+      'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + pair.google.sl + '&tl=' + pair.google.tl + '&dt=t&q=' + encodeURIComponent(text.substring(0, 500))
+    );
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if (data && data[0]) {
+      var translation = '';
+      data[0].forEach(function(seg) { if (seg[0]) translation += seg[0]; });
+      if (isValidTranslation(translation)) {
+        translationCache[cacheKey] = translation;
+        try { await dbPut('translations', { key: cacheKey, value: translation }); } catch(e) {}
+        return translation;
+      }
+    }
+  } catch(e) {
+    console.log('Google translate error:', e);
+  }
+
+  return '\u7FFB\u8BD1\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5';
+}
+
+async function translateWord(word, lang) {
+  lang = lang || currentArticleLang;
+  var cacheKey = lang + '|' + (lang === 'zh' ? word : word.toLowerCase());
+
+  if (wordCache[cacheKey]) return wordCache[cacheKey];
+
+  try {
+    var stored = await dbGet('wordTranslations', cacheKey);
+    if (stored && isValidTranslation(stored.value)) {
+      wordCache[cacheKey] = stored.value;
+      return stored.value;
+    }
+  } catch(e) {}
+
+  var pair = getLangPair(lang);
+
+  // 1st: DeepLX API
+  try {
+    var resp = await fetch(DEEPLX_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: word,
+        source_lang: pair.deeplx.source,
+        target_lang: pair.deeplx.target
+      })
+    });
+    var data = await resp.json();
+    if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
+      wordCache[cacheKey] = data.data;
+      try { await dbPut('wordTranslations', { key: cacheKey, value: data.data }); } catch(e) {}
+      return data.data;
+    }
+  } catch(e) {}
+
+  // 2nd: MyMemory API
+  try {
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=' + pair.mymemory;
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if (data && data.responseData && data.responseData.translatedText) {
+      if (isValidTranslation(data.responseData.translatedText)) {
+        wordCache[cacheKey] = data.responseData.translatedText;
+        try { await dbPut('wordTranslations', { key: cacheKey, value: data.responseData.translatedText }); } catch(e) {}
+        return data.responseData.translatedText;
+      }
+    }
+  } catch(e) {}
+
+  return '\u65E0\u8BD1\u6587';
+}
+
+// ============================================================
+//  TRANSLATION TOGGLE
+// ============================================================
+function toggleTranslation(btn) {
+  var card = btn.closest('.sentence-card');
+  var zhArea = card.querySelector('.sentence-zh');
+  var zhInner = card.querySelector('.sentence-zh-inner');
+  var isShown = card.classList.contains('show-translation');
+  var article = ARTICLES[parseInt(card.dataset.article)];
+  var lang = article ? article.lang : currentArticleLang;
+
+  if (isShown) {
+    card.classList.remove('show-translation');
+    btn.innerHTML = '<span>\u{1F4AC}</span> \u8BD1';
+  } else {
+    card.classList.add('show-translation');
+    btn.innerHTML = '<span>\u{1F441}</span> \u8BD1';
+
+    if (!zhInner.dataset.loaded) {
+      var sentText = card.querySelector('.sentence-text');
+      var fullText = sentText.textContent.trim();
+      translateText(fullText, lang).then(function(trans) {
+        zhInner.innerHTML = '<span>' + escapeHtml(trans) + '</span>';
+        if (isValidTranslation(trans)) {
+          zhInner.dataset.loaded = 'true';
+        }
+      });
+    }
+  }
+}
+
+function toggleAllTranslations(articleIndex, btn) {
+  var section = document.querySelectorAll('.article-section')[articleIndex];
+  var cards = section.querySelectorAll('.sentence-card');
+  var anyHidden = Array.from(cards).some(function(c) { return !c.classList.contains('show-translation'); });
+
+  cards.forEach(function(card) {
+    var toggle = card.querySelector('.translate-toggle');
+    if (anyHidden && !card.classList.contains('show-translation')) {
+      toggleTranslation(toggle);
+    } else if (!anyHidden && card.classList.contains('show-translation')) {
+      toggleTranslation(toggle);
+    }
+  });
+
+  btn.innerHTML = anyHidden
+    ? '<span>\u{1F441}</span> Hide All Translations'
+    : '<span>\u{1F4AC}</span> Show All Translations';
+}
+
+// ============================================================
+//  WORD HOVER TOOLTIP
+// ============================================================
+var tooltip = document.getElementById('wordTooltip');
+var tooltipWord = document.getElementById('tooltipWord');
+var tooltipTranslation = document.getElementById('tooltipTranslation');
+var hoverTimeout = null;
+var currentHoveredWord = null;
+
+document.addEventListener('mouseover', function(e) {
+  var wordEl = e.target.closest('.word');
+  if (!wordEl) return;
+
+  var word = wordEl.dataset.word;
+  if (!word) return;
+
+  // Get article language
+  var card = wordEl.closest('.sentence-card');
+  var lang = currentArticleLang;
+  if (card) {
+    var article = ARTICLES[parseInt(card.dataset.article)];
+    if (article) lang = article.lang;
+  }
+
+  currentHoveredWord = word;
+  tooltipWord.textContent = word;
+  tooltipTranslation.innerHTML = '<span class="tooltip-loading">Loading...</span>';
+  tooltip.style.display = 'block';
+
+  var rect = wordEl.getBoundingClientRect();
+  var top = rect.bottom + 8;
+  var left = rect.left;
+  setTimeout(function() {
+    var tRect = tooltip.getBoundingClientRect();
+    if (left + tRect.width > window.innerWidth - 16) {
+      left = window.innerWidth - tRect.width - 16;
+    }
+    if (top + tRect.height > window.innerHeight - 16) {
+      top = rect.top - tRect.height - 8;
+    }
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }, 0);
+
+  translateWord(word, lang).then(function(trans) {
+    if (currentHoveredWord === word) {
+      tooltipTranslation.textContent = trans;
+    }
+  });
+});
+
+document.addEventListener('mouseout', function(e) {
+  var wordEl = e.target.closest('.word');
+  if (!wordEl) return;
+  hoverTimeout = setTimeout(function() {
+    tooltip.style.display = 'none';
+    currentHoveredWord = null;
+  }, 200);
+});
+
+document.addEventListener('mousemove', function(e) {
+  if (e.target.closest('#wordTooltip') || e.target.closest('.word')) {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+  }
+});
+
+// ============================================================
+//  EDGE-TTS CLOUD ENGINE
+// ============================================================
+var TTS_API_URL = 'https://tts.wangwangit.com/v1/audio/speech';
+var EDGE_TTS_TIMEOUT = 15000;
+var currentAudioEl = null;
+
+async function edgeTTSSynthesize(text, opts) {
+  opts = opts || {};
+  var voice = opts.voice || EDGE_TTS_VOICE;
+  var rate = opts.rate || speechRate;
+  var timeout = opts.timeout || EDGE_TTS_TIMEOUT;
+
+  var cacheKey = voice + '|' + rate + '|' + text.trim().substring(0, 300);
+  if (ttsAudioCache.has(cacheKey)) return ttsAudioCache.get(cacheKey);
+
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, timeout);
+
+  try {
+    var response = await fetch(TTS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: text,
+        voice: voice,
+        speed: rate,
+        pitch: '0',
+        style: 'general'
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      var errText = await response.text().catch(function() { return 'HTTP ' + response.status; });
+      throw new Error('TTS API error: ' + response.status + ' ' + errText);
+    }
+
+    var blob = await response.blob();
+    if (blob.size === 0) throw new Error('TTS API returned empty audio');
+
+    var url = URL.createObjectURL(blob);
+    ttsAudioCache.set(cacheKey, url);
+    return url;
+  } catch(e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
+}
+
+function setEngineStatus(engine, label) {
+  var badge = document.getElementById('ttsEngineBadge');
+  var lbl = document.getElementById('engineLabel');
+  badge.setAttribute('data-engine', engine);
+  lbl.textContent = label;
+}
+
+async function detectEdgeTTS() {
+  if (edgeTTSAvailable !== null) return edgeTTSAvailable;
+  if (!navigator.onLine) { edgeTTSAvailable = false; return false; }
+  try {
+    await edgeTTSSynthesize('Hello.', { timeout: 8000 });
+    edgeTTSAvailable = true;
+  } catch(e) {
+    edgeTTSAvailable = false;
+  }
+  return edgeTTSAvailable;
+}
+
+// ============================================================
+//  SYSTEM TTS (Fallback)
+// ============================================================
+var selectedVoice = null;
+var currentUtterances = [];
+var currentSpeakerBtn = null;
+var currentCard = null;
+var currentArticleBtn = null;
+
+function loadVoices() {
+  var voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return;
+  // Reset and select voice based on current article language
+  selectedVoice = null;
+  var langPrefix = currentArticleLang === 'zh' ? 'zh' : 'en';
+  var priorities = [
+    function(v) { return /natural/i.test(v.name) && new RegExp(langPrefix, 'i').test(v.lang); },
+    function(v) { return /aria|jenny|guy|xiaoxiao|yunxi|tingting|meijia/i.test(v.name); },
+    function(v) { return /google/i.test(v.name) && new RegExp(langPrefix, 'i').test(v.lang); },
+    function(v) { return new RegExp(langPrefix, 'i').test(v.lang); }
+  ];
+  for (var i = 0; i < priorities.length; i++) {
+    var found = voices.find(priorities[i]);
+    if (found) { selectedVoice = found; break; }
+  }
+  if (!selectedVoice) selectedVoice = voices[0];
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function splitIntoChunks(text) {
+  var segments = text.split(/([,.;:!?。！？；，、])/);
+  var chunks = [];
+  for (var i = 0; i < segments.length; i += 2) {
+    var chunk = segments[i] || '';
+    if (segments[i + 1]) chunk += segments[i + 1];
+    chunk = chunk.trim();
+    if (chunk) chunks.push(chunk);
+  }
+  if (chunks.length === 0) chunks.push(text);
+  return chunks;
+}
+
+function getPauseMs(lastChar) {
+  if (lastChar === '.' || lastChar === '\u3002') return 120;       // . / 。
+  if (lastChar === '!' || lastChar === '?' || lastChar === '\uFF01' || lastChar === '\uFF1F') return 150;  // ! ? ！ ？
+  if (lastChar === ';' || lastChar === ':' || lastChar === '\uFF1B' || lastChar === '\uFF1A') return 90;  // ; : ；
+  if (lastChar === ',' || lastChar === '\uFF0C' || lastChar === '\u3001') return 80;  // , ， 。
+  return 50;
+}
+
+function speakSentenceSystem(btn, card, fullText) {
+  card.setAttribute('data-engine', 'system');
+  var chunks = splitIntoChunks(fullText);
+  var chunkIdx = 0;
+  var lang = currentArticleLang === 'zh' ? 'zh-CN' : 'en-US';
+
+  function speakNext() {
+    if (chunkIdx >= chunks.length) {
+      cleanupSpeech();
+      return;
+    }
+    var chunk = chunks[chunkIdx];
+    var utter = new SpeechSynthesisUtterance(chunk);
+    if (selectedVoice) utter.voice = selectedVoice;
+    utter.lang = lang;
+    utter.rate = speechRate;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+    var pauseMs = getPauseMs(chunk[chunk.length - 1]);
+
+    utter.onend = function() {
+      chunkIdx++;
+      if (chunkIdx < chunks.length) {
+        setTimeout(speakNext, pauseMs);
+      } else {
+        cleanupSpeech();
+      }
+    };
+    utter.onerror = function() { cleanupSpeech(); };
+    currentUtterances.push(utter);
+    window.speechSynthesis.speak(utter);
+  }
+  speakNext();
+}
+
+function cleanupSpeech() {
+  if (currentSpeakerBtn) currentSpeakerBtn.classList.remove('playing', 'loading');
+  if (currentCard) currentCard.classList.remove('reading');
+  currentUtterances = [];
+  currentSpeakerBtn = null;
+  currentCard = null;
+  document.getElementById('stopAudio').style.display = 'none';
+}
+
+// ============================================================
+//  UNIFIED SPEAK (Cloud-first, System-fallback)
+// ============================================================
+function speakSentence(btn) {
+  stopSpeech();
+  var card = btn.closest('.sentence-card');
+  var sentText = card.querySelector('.sentence-text');
+  var fullText = sentText.textContent.trim();
+
+  // Reload voices for current language
+  loadVoices();
+
+  currentSpeakerBtn = btn;
+  currentCard = card;
+
+  btn.classList.add('playing');
+  card.classList.add('reading');
+  document.getElementById('stopAudio').style.display = 'inline-flex';
+
+  if (edgeTTSAvailable === true) {
+    speakSentenceCloud(btn, card, fullText);
+  } else if (edgeTTSAvailable === null) {
+    btn.classList.add('loading');
+    detectEdgeTTS().then(function(available) {
+      btn.classList.remove('loading');
+      if (currentSpeakerBtn !== btn) return;
+      if (available) {
+        speakSentenceCloud(btn, card, fullText);
+      } else {
+        speakSentenceSystem(btn, card, fullText);
+      }
+    });
+  } else {
+    speakSentenceSystem(btn, card, fullText);
+  }
+}
+
+async function speakSentenceCloud(btn, card, fullText) {
+  card.setAttribute('data-engine', 'cloud');
+  btn.setAttribute('data-engine', 'cloud');
+  btn.classList.add('loading');
+
+  try {
+    var audioUrl = await edgeTTSSynthesize(fullText, { rate: speechRate });
+    btn.classList.remove('loading');
+
+    if (currentSpeakerBtn !== btn) return;
+
+    var audio = new Audio(audioUrl);
+    currentAudioEl = audio;
+    audio.onended = function() {
+      cleanupSpeech();
+      currentAudioEl = null;
+    };
+    audio.onerror = function() {
+      cleanupSpeech();
+      btn.classList.add('playing');
+      card.classList.add('reading');
+      document.getElementById('stopAudio').style.display = 'inline-flex';
+      currentSpeakerBtn = btn;
+      currentCard = card;
+      speakSentenceSystem(btn, card, fullText);
+    };
+    await audio.play();
+  } catch(e) {
+    btn.classList.remove('loading');
+    if (currentSpeakerBtn !== btn) return;
+    speakSentenceSystem(btn, card, fullText);
+  }
+}
+
+function speakArticle(articleIndex, btn) {
+  stopSpeech();
+  var section = document.querySelectorAll('.article-section')[articleIndex];
+  var cards = section.querySelectorAll('.sentence-card');
+
+  // Reload voices for current language
+  loadVoices();
+
+  currentArticleBtn = btn;
+  var cardIdx = 0;
+  var stopAudioBtn = document.getElementById('stopAudio');
+  stopAudioBtn.style.display = 'inline-flex';
+  btn.innerHTML = '<span>\u23F3</span> Reading...';
+
+  function readNextCard() {
+    if (cardIdx >= cards.length) {
+      btn.innerHTML = '<span>\u{1F50A}</span> Read Article';
+      stopAudioBtn.style.display = 'none';
+      currentArticleBtn = null;
+      return;
+    }
+
+    var card = cards[cardIdx];
+    var speaker = card.querySelector('.speaker-btn');
+    var sentText = card.querySelector('.sentence-text');
+    var fullText = sentText.textContent.trim();
+
+    card.classList.add('reading');
+    speaker.classList.add('playing');
+    currentCard = card;
+    currentSpeakerBtn = speaker;
+
+    function onDone() {
+      card.classList.remove('reading');
+      speaker.classList.remove('playing');
+      cardIdx++;
+      setTimeout(readNextCard, 150);
+    }
+
+    if (edgeTTSAvailable === true) {
+      readCardCloud(card, speaker, fullText, onDone);
+    } else if (edgeTTSAvailable === null) {
+      speaker.classList.add('loading');
+      detectEdgeTTS().then(function(available) {
+        speaker.classList.remove('loading');
+        if (available) {
+          readCardCloud(card, speaker, fullText, onDone);
+        } else {
+          readCardSystem(card, speaker, fullText, onDone);
+        }
+      });
+    } else {
+      readCardSystem(card, speaker, fullText, onDone);
+    }
+  }
+
+  readNextCard();
+}
+
+async function readCardCloud(card, speaker, fullText, onDone) {
+  card.setAttribute('data-engine', 'cloud');
+  speaker.setAttribute('data-engine', 'cloud');
+  speaker.classList.add('loading');
+
+  try {
+    var audioUrl = await edgeTTSSynthesize(fullText, { rate: speechRate });
+    speaker.classList.remove('loading');
+
+    var audio = new Audio(audioUrl);
+    currentAudioEl = audio;
+    audio.onended = onDone;
+    audio.onerror = function() {
+      speaker.classList.remove('loading');
+      readCardSystem(card, speaker, fullText, onDone);
+    };
+    await audio.play();
+  } catch(e) {
+    speaker.classList.remove('loading');
+    readCardSystem(card, speaker, fullText, onDone);
+  }
+}
+
+function readCardSystem(card, speaker, fullText, onDone) {
+  card.setAttribute('data-engine', 'system');
+  speaker.setAttribute('data-engine', 'system');
+  var chunks = splitIntoChunks(fullText);
+  var chunkIdx = 0;
+  var lang = currentArticleLang === 'zh' ? 'zh-CN' : 'en-US';
+
+  function speakNext() {
+    if (chunkIdx >= chunks.length) {
+      onDone();
+      return;
+    }
+    var chunk = chunks[chunkIdx];
+    var utter = new SpeechSynthesisUtterance(chunk);
+    if (selectedVoice) utter.voice = selectedVoice;
+    utter.lang = lang;
+    utter.rate = speechRate;
+    utter.pitch = 1.0;
+    var pauseMs = getPauseMs(chunk[chunk.length - 1]);
+
+    utter.onend = function() {
+      chunkIdx++;
+      if (chunkIdx < chunks.length) {
+        setTimeout(speakNext, pauseMs);
+      } else {
+        onDone();
+      }
+    };
+    utter.onerror = function() { onDone(); };
+    currentUtterances.push(utter);
+    window.speechSynthesis.speak(utter);
+  }
+  speakNext();
+}
+
+function stopSpeech() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  currentUtterances = [];
+
+  if (currentAudioEl) {
+    currentAudioEl.pause();
+    currentAudioEl.currentTime = 0;
+    currentAudioEl = null;
+  }
+
+  document.querySelectorAll('.speaker-btn.playing, .speaker-btn.loading').forEach(function(b) {
+    b.classList.remove('playing', 'loading');
+  });
+  document.querySelectorAll('.sentence-card.reading').forEach(function(c) {
+    c.classList.remove('reading');
+  });
+
+  currentSpeakerBtn = null;
+  currentCard = null;
+
+  if (currentArticleBtn) {
+    currentArticleBtn.innerHTML = '<span>\u{1F50A}</span> Read Article';
+    currentArticleBtn = null;
+  }
+
+  document.getElementById('stopAudio').style.display = 'none';
+}
+
+document.getElementById('stopAudio').addEventListener('click', stopSpeech);
+
+// ============================================================
+//  PROGRESS BAR
+// ============================================================
+function updateProgress() {
+  var scrollTop = window.scrollY;
+  var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  var progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+  document.getElementById('progressBar').style.width = progress + '%';
+}
+window.addEventListener('scroll', updateProgress);
+
+// ============================================================
+//  IMPORT ARTICLE
+// ============================================================
+var importModal = document.getElementById('importModal');
+var importTitle = document.getElementById('importTitle');
+var importText = document.getElementById('importText');
+var importConfirm = document.getElementById('importConfirm');
+var importCancel = document.getElementById('importCancel');
+var importBtn = document.getElementById('importBtn');
+var fileInput = document.getElementById('fileInput');
+var fileNameEl = document.getElementById('fileName');
+
+function openImportModal() {
+  importModal.classList.add('show');
+  setTimeout(function() { importTitle.focus(); }, 100);
+}
+
+function closeImportModal() {
+  importModal.classList.remove('show');
+  importTitle.value = '';
+  importText.value = '';
+  fileNameEl.textContent = 'No file selected';
+}
+
+importBtn.addEventListener('click', openImportModal);
+importCancel.addEventListener('click', closeImportModal);
+importModal.addEventListener('click', function(e) {
+  if (e.target === importModal) closeImportModal();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && importModal.classList.contains('show')) {
+    closeImportModal();
+  }
+});
+
+// File import
+fileInput.addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  fileNameEl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var content = ev.target.result;
+
+    // Try to extract title from markdown heading
+    var title = file.name.replace(/\.[^.]+$/, '');
+    var lines = content.split('\n');
+    var firstLine = (lines[0] || '').trim();
+    if (firstLine.startsWith('# ')) {
+      title = firstLine.substring(2).trim();
+      content = lines.slice(1).join('\n');
+    } else if (firstLine.startsWith('## ')) {
+      title = firstLine.substring(3).trim();
+      content = lines.slice(1).join('\n');
+    }
+
+    importTitle.value = title;
+    importText.value = content;
+  };
+  reader.onerror = function() {
+    showToast('Failed to read file', 'error');
+  };
+  reader.readAsText(file);
+  // Reset file input so same file can be re-selected
+  fileInput.value = '';
+});
+
+async function importArticle() {
+  var title = importTitle.value.trim();
+  var text = importText.value.trim();
+
+  if (!text) {
+    importText.focus();
+    importText.style.borderColor = '#e74c3c';
+    setTimeout(function() { importText.style.borderColor = ''; }, 1500);
+    return;
+  }
+
+  importConfirm.disabled = true;
+  importConfirm.textContent = 'Importing...';
+
+  // Use setTimeout to allow UI update
+  setTimeout(async function() {
+    var article = parseArticleText(title, text);
+    if (!article) {
+      importConfirm.disabled = false;
+      importConfirm.textContent = 'Import Article';
+      importText.focus();
+      showToast('Failed to parse article', 'error');
+      return;
+    }
+
+    try {
+      // Save to IndexedDB
+      var id = await dbAdd('articles', article);
+      article.id = id;
+
+      // Add to ARTICLES array
+      ARTICLES.push(article);
+
+      // Re-render
+      renderTabs();
+      renderArticles();
+
+      // Switch to the new article
+      var newIndex = ARTICLES.length - 1;
+      switchArticle(newIndex);
+
+      // Reset modal
+      closeImportModal();
+      importConfirm.disabled = false;
+      importConfirm.textContent = 'Import Article';
+      showToast('Article imported successfully', 'success');
+    } catch(e) {
+      console.error('Import error:', e);
+      importConfirm.disabled = false;
+      importConfirm.textContent = 'Import Article';
+      showToast('Failed to save article: ' + (e.message || 'Unknown error'), 'error');
+    }
+  }, 100);
+}
+
+importConfirm.addEventListener('click', importArticle);
+
+// Ctrl+Enter to import
+importText.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    importArticle();
+  }
+});
+
+// ============================================================
+//  DELETE ARTICLE
+// ============================================================
+async function deleteArticle(index) {
+  if (!confirm('Remove this article? This cannot be undone.')) return;
+
+  stopSpeech();
+
+  var article = ARTICLES[index];
+  if (!article) return;
+
+  try {
+    // Delete from IndexedDB
+    if (article.id) {
+      await dbDelete('articles', article.id);
+    }
+  } catch(e) {
+    console.error('Delete error:', e);
+  }
+
+  // Remove from array
+  ARTICLES.splice(index, 1);
+
+  // Adjust current article index
+  if (currentArticle >= ARTICLES.length) {
+    currentArticle = Math.max(0, ARTICLES.length - 1);
+  } else if (currentArticle > index) {
+    currentArticle--;
+  }
+
+  renderTabs();
+  renderArticles();
+
+  if (ARTICLES.length > 0) {
+    switchArticle(currentArticle);
+  } else {
+    // Show empty state
+    emptyState.style.display = 'block';
+    tabsBar.style.display = 'none';
+  }
+
+  showToast('Article removed', 'info');
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+async function init() {
+  try {
+    await initDB();
+
+    // Load all articles from IndexedDB
+    var articles = await dbGetAll('articles');
+    // Sort by id (creation order)
+    articles.sort(function(a, b) { return (a.id || 0) - (b.id || 0); });
+    ARTICLES = articles;
+
+    // Render
+    renderTabs();
+    renderArticles();
+
+    if (ARTICLES.length > 0) {
+      switchArticle(0);
+    }
+
+    updateProgress();
+
+    // Detect TTS engine
+    setEngineStatus('connecting', 'Detecting...');
+    var available = await detectEdgeTTS();
+    if (available) {
+      setEngineStatus('cloud', 'Cloud TTS');
+    } else {
+      setEngineStatus('system', 'System TTS');
+    }
+
+  } catch(e) {
+    console.error('Init error:', e);
+    showToast('Failed to initialize: ' + (e.message || 'Unknown error'), 'error');
+  }
+}
+
+init();
+
+</script>
+</body>
+</html>
