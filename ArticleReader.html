@@ -472,6 +472,10 @@ body::after {
   color: var(--text-muted);
   font-style: italic;
 }
+.translation-error {
+  color: #fca5a5;
+  font-size: 13px;
+}
 
 /* Speaker button */
 .speaker-btn {
@@ -646,33 +650,7 @@ body::after {
   50% { opacity: 0.4; transform: scale(0.7); }
 }
 
-/* ============================================================
-   PRELOAD INDICATOR
-   ============================================================ */
-#preloadIndicator {
-  display: none;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  border: 1px solid rgba(99,102,241,0.3);
-  background: rgba(99,102,241,0.1);
-  color: var(--accent-light);
-  white-space: nowrap;
-  transition: opacity 0.3s ease;
-}
-#preloadIndicator .preload-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--accent-light);
-  animation: preloadPulse 1.2s infinite;
-}
-@keyframes preloadPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.3; transform: scale(0.6); }
-}
+
 
 /* ============================================================
    SPEED CONTROL & VOICE SELECT
@@ -1252,7 +1230,6 @@ body::after {
   .import-btn span:first-child { font-size: 16px; }
   .modal-box { padding: 20px; }
   #speedControl .speed-label { display: none; }
-  #preloadIndicator { display: none !important; }
   #speedControl input[type="range"] { width: 60px; }
 }
 
@@ -1285,10 +1262,7 @@ body::after {
         <span class="engine-dot"></span>
         <span id="engineLabel">Connecting...</span>
       </div>
-      <div id="preloadIndicator" title="Preloading translations and audio">
-        <span class="preload-dot"></span>
-        <span>Preloading</span>
-      </div>
+      
       <div id="speedControl" title="Adjust speech rate">
         <span class="speed-label">Speed</span>
         <input type="range" id="speedSlider" min="0.5" max="1.5" step="0.05" value="0.95">
@@ -1370,14 +1344,19 @@ body::after {
 //  INDEXEDDB STORAGE LAYER
 // ============================================================
 const DB_NAME = 'ArticleReader';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let db = null;
 
 function initDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => { db = request.result; resolve(db); };
+    request.onblocked = () => reject(new Error('IndexedDB upgrade is blocked by another tab'));
+    request.onsuccess = () => {
+      db = request.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onupgradeneeded = (event) => {
       const database = event.target.result;
       if (!database.objectStoreNames.contains('articles')) {
@@ -1395,46 +1374,56 @@ function initDB() {
 
 function dbGetAll(store) {
   return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('IndexedDB is not initialized')); return; }
     const tx = db.transaction(store, 'readonly');
     const req = tx.objectStore(store).getAll();
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB read failed'));
   });
 }
 
 function dbGet(store, key) {
   return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('IndexedDB is not initialized')); return; }
     const tx = db.transaction(store, 'readonly');
     const req = tx.objectStore(store).get(key);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB read failed'));
   });
 }
 
 function dbPut(store, value) {
   return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('IndexedDB is not initialized')); return; }
     const tx = db.transaction(store, 'readwrite');
     const req = tx.objectStore(store).put(value);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
   });
 }
 
 function dbDelete(store, key) {
   return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('IndexedDB is not initialized')); return; }
     const tx = db.transaction(store, 'readwrite');
     const req = tx.objectStore(store).delete(key);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB delete failed'));
   });
 }
 
 function dbAdd(store, value) {
   return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('IndexedDB is not initialized')); return; }
     const tx = db.transaction(store, 'readwrite');
     const req = tx.objectStore(store).add(value);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
   });
 }
 
@@ -1513,10 +1502,11 @@ try {
   if (saved) { const obj = JSON.parse(saved); lastUsedVoice = Object.assign(lastUsedVoice, obj); }
 } catch(e) {}
 
-// In-memory caches
+// In-memory caches with size limits
 const translationCache = {};
 const wordCache = {};
 const ttsAudioCache = new Map();
+const MAX_CACHE_ENTRIES = 50;
 
 // Translation result validation
 const TRANSLATION_ERROR_MARKERS = [
@@ -1524,7 +1514,7 @@ const TRANSLATION_ERROR_MARKERS = [
   'mymemory warning', 'query limit', 'rate limit',
   'please select two distinct', 'invalid lang', 'timeout',
   'service unavailable', 'internal error', 'bad gateway',
-  'please try again', 'too many requests', 'access denied',
+  'please try again', 'too many requests', 'access denied', '429',
   'endpoint', 'cloudflare', 'worker error', '502', '503', '524'
 ];
 
@@ -1580,7 +1570,7 @@ speedSlider.addEventListener('input', function() {
   speechRate = parseFloat(this.value);
   speedValueEl.textContent = speechRate.toFixed(2) + 'x';
   try { localStorage.setItem('speechRate', speechRate); } catch(e) {}
-  ttsAudioCache.clear();
+  clearTTSCache();
 });
 
 // ============================================================
@@ -1638,7 +1628,7 @@ voiceSelect.addEventListener('change', function() {
   EDGE_TTS_VOICE = this.value;
   lastUsedVoice[currentArticleLang] = EDGE_TTS_VOICE;
   try { localStorage.setItem('lastUsedVoice', JSON.stringify(lastUsedVoice)); } catch(e) {}
-  ttsAudioCache.clear();
+  clearTTSCache();
 });
 
 // Initialize with English voices
@@ -1658,13 +1648,11 @@ function getLangPair(lang) {
     return {
       deeplx: { source: 'ZH', target: 'EN' },
       mymemory: 'zh-CN|en',
-      google: { sl: 'zh-CN', tl: 'en' }
     };
   }
   return {
     deeplx: { source: 'EN', target: 'ZH' },
     mymemory: 'en|zh-CN',
-    google: { sl: 'en', tl: 'zh-CN' }
   };
 }
 
@@ -1836,11 +1824,6 @@ function switchArticle(index) {
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
   updateProgress();
-
-  // Trigger preloading for the new article
-  preloadFirstSentences(index, 5);
-  // Setup scroll-based preloading observer
-  setTimeout(setupPreloadObserver, 300);
 }
 
 function renderArticles() {
@@ -2003,26 +1986,64 @@ function escapeAttr(str) {
 }
 
 // ============================================================
-//  TRANSLATION (DeepLX primary, MyMemory fallback, Google last)
+//  TRANSLATION (DeepLX primary, MyMemory fallback)
 // ============================================================
 var DEEPLX_API = 'https://deeplx.wangmc1024.workers.dev/deepl';
+
+function createTranslationRecord(key, text, lang, value) {
+  return {
+    key: key,
+    source: text,
+    lang: lang,
+    value: value,
+    updatedAt: Date.now()
+  };
+}
+
+async function saveTranslation(store, key, text, lang, value) {
+  if (!isValidTranslation(value)) return false;
+  try {
+    await dbPut(store, createTranslationRecord(key, text, lang, value));
+    return true;
+  } catch (e) {
+    console.warn('Failed to cache translation:', e);
+    return false;
+  }
+}
+
+async function readCachedTranslation(store, key, text, lang, cache) {
+  try {
+    var stored = await dbGet(store, key);
+    if (stored && isValidTranslation(stored.value)) {
+      cache[key] = stored.value;
+      if (stored.source !== text || stored.lang !== lang) {
+        saveTranslation(store, key, text, lang, stored.value);
+      }
+      return stored.value;
+    }
+    if (stored) await dbDelete(store, key);
+  } catch (e) {
+    console.warn('Failed to read translation cache:', e);
+  }
+  return null;
+}
 
 async function translateText(text, lang) {
   lang = lang || currentArticleLang;
   var pair = getLangPair(lang);
-  var cacheKey = lang + '|' + text.trim().substring(0, 200);
+  var cacheKey = lang + '|' + text.trim();
 
   // Check memory cache
   if (translationCache[cacheKey]) return translationCache[cacheKey];
 
   // Check IndexedDB
-  try {
-    var stored = await dbGet('translations', cacheKey);
-    if (stored && isValidTranslation(stored.value)) {
-      translationCache[cacheKey] = stored.value;
-      return stored.value;
-    }
-  } catch(e) {}
+  var cachedTranslation = await readCachedTranslation('translations', cacheKey, text, lang, translationCache);
+  if (cachedTranslation) return cachedTranslation;
+
+  var lastError = null;
+  function recordError(error) {
+    if (!lastError || (error && error.code)) lastError = error;
+  }
 
   // 1st: DeepLX API
   try {
@@ -2035,53 +2056,64 @@ async function translateText(text, lang) {
         target_lang: pair.deeplx.target
       })
     });
-    var data = await resp.json();
-    if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-      translationCache[cacheKey] = data.data;
-      try { await dbPut('translations', { key: cacheKey, value: data.data }); } catch(e) {}
-      return data.data;
+    if (!resp.ok) {
+      recordError({ code: resp.status, message: 'DeepLX API error' });
+    } else {
+      var data = await resp.json();
+      if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
+        translationCache[cacheKey] = data.data;
+        saveTranslation('translations', cacheKey, text, lang, data.data);
+        cleanCache(translationCache);
+        return data.data;
+      }
+      if (data && data.code && data.code !== 200) {
+        recordError({ code: data.code, message: 'DeepLX service error' });
+      }
     }
   } catch(e) {
     console.log('DeepLX API error:', e);
+    recordError({ code: 0, message: e.message });
   }
 
   // 2nd: MyMemory API
   try {
     var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0, 500)) + '&langpair=' + pair.mymemory;
     var resp = await fetch(url);
-    var data = await resp.json();
-    if (data && data.responseData && data.responseData.translatedText) {
-      if (isValidTranslation(data.responseData.translatedText)) {
-        translationCache[cacheKey] = data.responseData.translatedText;
-        try { await dbPut('translations', { key: cacheKey, value: data.responseData.translatedText }); } catch(e) {}
-        return data.responseData.translatedText;
+    if (!resp.ok) {
+      recordError({ code: resp.status, message: 'MyMemory API error' });
+    } else {
+      var data = await resp.json();
+      if (data && data.responseData && data.responseData.translatedText) {
+        if (isValidTranslation(data.responseData.translatedText)) {
+          translationCache[cacheKey] = data.responseData.translatedText;
+          saveTranslation('translations', cacheKey, text, lang, data.responseData.translatedText);
+          cleanCache(translationCache);
+          return data.responseData.translatedText;
+        }
+      }
+      if (data && data.responseStatus && data.responseStatus >= 400) {
+        recordError({ code: data.responseStatus, message: 'MyMemory service error' });
       }
     }
   } catch(e) {
     console.log('MyMemory API error:', e);
+    recordError({ code: 0, message: e.message });
   }
 
-  // 3rd: Google Translate via CORS proxy
-  try {
-    var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
-      'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + pair.google.sl + '&tl=' + pair.google.tl + '&dt=t&q=' + encodeURIComponent(text.substring(0, 500))
-    );
-    var resp = await fetch(url);
-    var data = await resp.json();
-    if (data && data[0]) {
-      var translation = '';
-      data[0].forEach(function(seg) { if (seg[0]) translation += seg[0]; });
-      if (isValidTranslation(translation)) {
-        translationCache[cacheKey] = translation;
-        try { await dbPut('translations', { key: cacheKey, value: translation }); } catch(e) {}
-        return translation;
-      }
-    }
-  } catch(e) {
-    console.log('Google translate error:', e);
+  var errorMsg = '\u7FFB\u8BD1\u5931\u8D25';
+  if (lastError && lastError.code) {
+    errorMsg += ' (Error ' + lastError.code + ')';
   }
+  return errorMsg;
+}
 
-  return '\u7FFB\u8BD1\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5';
+function cleanCache(cache) {
+  var keys = Object.keys(cache);
+  if (keys.length > MAX_CACHE_ENTRIES) {
+    keys.slice(0, keys.length - MAX_CACHE_ENTRIES).forEach(function(key) {
+      delete cache[key];
+    });
+  }
 }
 
 async function translateWord(word, lang) {
@@ -2090,15 +2122,11 @@ async function translateWord(word, lang) {
 
   if (wordCache[cacheKey]) return wordCache[cacheKey];
 
-  try {
-    var stored = await dbGet('wordTranslations', cacheKey);
-    if (stored && isValidTranslation(stored.value)) {
-      wordCache[cacheKey] = stored.value;
-      return stored.value;
-    }
-  } catch(e) {}
+  var cachedWord = await readCachedTranslation('wordTranslations', cacheKey, word, lang, wordCache);
+  if (cachedWord) return cachedWord;
 
   var pair = getLangPair(lang);
+  var lastError = null;
 
   // 1st: DeepLX API
   try {
@@ -2111,29 +2139,53 @@ async function translateWord(word, lang) {
         target_lang: pair.deeplx.target
       })
     });
-    var data = await resp.json();
-    if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-      wordCache[cacheKey] = data.data;
-      try { await dbPut('wordTranslations', { key: cacheKey, value: data.data }); } catch(e) {}
-      return data.data;
+    if (!resp.ok) {
+      lastError = { code: resp.status, message: 'DeepLX API error' };
+    } else {
+      var data = await resp.json();
+      if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
+        wordCache[cacheKey] = data.data;
+        saveTranslation('wordTranslations', cacheKey, word, lang, data.data);
+        cleanCache(wordCache);
+        return data.data;
+      }
+      if (data && data.code && data.code !== 200) {
+        lastError = { code: data.code, message: 'DeepLX service error' };
+      }
     }
-  } catch(e) {}
+  } catch(e) {
+    lastError = { code: 0, message: e.message };
+  }
 
   // 2nd: MyMemory API
   try {
     var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=' + pair.mymemory;
     var resp = await fetch(url);
-    var data = await resp.json();
-    if (data && data.responseData && data.responseData.translatedText) {
-      if (isValidTranslation(data.responseData.translatedText)) {
-        wordCache[cacheKey] = data.responseData.translatedText;
-        try { await dbPut('wordTranslations', { key: cacheKey, value: data.responseData.translatedText }); } catch(e) {}
-        return data.responseData.translatedText;
+    if (!resp.ok) {
+      lastError = { code: resp.status, message: 'MyMemory API error' };
+    } else {
+      var data = await resp.json();
+      if (data && data.responseData && data.responseData.translatedText) {
+        if (isValidTranslation(data.responseData.translatedText)) {
+          wordCache[cacheKey] = data.responseData.translatedText;
+          saveTranslation('wordTranslations', cacheKey, word, lang, data.responseData.translatedText);
+          cleanCache(wordCache);
+          return data.responseData.translatedText;
+        }
+      }
+      if (data && data.responseStatus && data.responseStatus >= 400) {
+        lastError = { code: data.responseStatus, message: 'MyMemory service error' };
       }
     }
-  } catch(e) {}
+  } catch(e) {
+    lastError = { code: 0, message: e.message };
+  }
 
-  return '\u65E0\u8BD1\u6587';
+  var errorMsg = '\u65E0\u8BD1\u6587';
+  if (lastError && lastError.code) {
+    errorMsg += ' (Error ' + lastError.code + ')';
+  }
+  return errorMsg;
 }
 
 // ============================================================
@@ -2155,13 +2207,20 @@ function toggleTranslation(btn) {
     btn.innerHTML = '<span>\u{1F441}</span> \u8BD1';
 
     if (!zhInner.dataset.loaded) {
+      if (zhInner.dataset.loading) return;
+      zhInner.dataset.loading = 'true';
       var sentText = card.querySelector('.sentence-text');
       var fullText = sentText.textContent.trim();
+      zhInner.innerHTML = '<span class="sentence-zh-loading">Loading translation...</span>';
       translateText(fullText, lang).then(function(trans) {
         zhInner.innerHTML = '<span>' + escapeHtml(trans) + '</span>';
         if (isValidTranslation(trans)) {
           zhInner.dataset.loaded = 'true';
         }
+        delete zhInner.dataset.loading;
+      }).catch(function(error) {
+        zhInner.innerHTML = '<span class="translation-error">Translation failed: ' + escapeHtml(error.message || String(error)) + '</span>';
+        delete zhInner.dataset.loading;
       });
     }
   }
@@ -2255,7 +2314,7 @@ document.addEventListener('mousemove', function(e) {
 // ============================================================
 //  EDGE-TTS CLOUD ENGINE
 // ============================================================
-var TTS_API_URL = 'https://tts.wangwangit.com/v1/audio/speech';
+var TTS_API_URL = 'https://edge-tts-voice-magic.wangmc1024.workers.dev/v1/audio/speech';
 var EDGE_TTS_TIMEOUT = 15000;
 var currentAudioEl = null;
 
@@ -2265,7 +2324,7 @@ async function edgeTTSSynthesize(text, opts) {
   var rate = opts.rate || speechRate;
   var timeout = opts.timeout || EDGE_TTS_TIMEOUT;
 
-  var cacheKey = voice + '|' + rate + '|' + text.trim().substring(0, 300);
+  var cacheKey = voice + '|' + rate + '|' + text.trim();
   if (ttsAudioCache.has(cacheKey)) return ttsAudioCache.get(cacheKey);
 
   var controller = new AbortController();
@@ -2296,6 +2355,7 @@ async function edgeTTSSynthesize(text, opts) {
 
     var url = URL.createObjectURL(blob);
     ttsAudioCache.set(cacheKey, url);
+    evictOldestTTSCache();
     return url;
   } catch(e) {
     clearTimeout(timeoutId);
@@ -2308,18 +2368,6 @@ function setEngineStatus(engine, label) {
   var lbl = document.getElementById('engineLabel');
   badge.setAttribute('data-engine', engine);
   lbl.textContent = label;
-}
-
-async function detectEdgeTTS() {
-  if (edgeTTSAvailable !== null) return edgeTTSAvailable;
-  if (!navigator.onLine) { edgeTTSAvailable = false; return false; }
-  try {
-    await edgeTTSSynthesize('Hello.', { timeout: 8000 });
-    edgeTTSAvailable = true;
-  } catch(e) {
-    edgeTTSAvailable = false;
-  }
-  return edgeTTSAvailable;
 }
 
 // ============================================================
@@ -2442,15 +2490,7 @@ function speakSentence(btn) {
     speakSentenceCloud(btn, card, fullText);
   } else if (edgeTTSAvailable === null) {
     btn.classList.add('loading');
-    detectEdgeTTS().then(function(available) {
-      btn.classList.remove('loading');
-      if (currentSpeakerBtn !== btn) return;
-      if (available) {
-        speakSentenceCloud(btn, card, fullText);
-      } else {
-        speakSentenceSystem(btn, card, fullText);
-      }
-    });
+    speakSentenceCloud(btn, card, fullText);
   } else {
     speakSentenceSystem(btn, card, fullText);
   }
@@ -2463,6 +2503,8 @@ async function speakSentenceCloud(btn, card, fullText) {
 
   try {
     var audioUrl = await edgeTTSSynthesize(fullText, { rate: speechRate });
+    edgeTTSAvailable = true;
+    setEngineStatus('cloud', 'Cloud TTS');
     btn.classList.remove('loading');
 
     if (currentSpeakerBtn !== btn) return;
@@ -2483,9 +2525,9 @@ async function speakSentenceCloud(btn, card, fullText) {
       speakSentenceSystem(btn, card, fullText);
     };
     await audio.play();
-    // While this sentence plays, preload the next sentence's resources
-    preloadNextResources(card);
   } catch(e) {
+    edgeTTSAvailable = false;
+    setEngineStatus('system', 'System TTS');
     btn.classList.remove('loading');
     if (currentSpeakerBtn !== btn) return;
     speakSentenceSystem(btn, card, fullText);
@@ -2535,14 +2577,7 @@ function speakArticle(articleIndex, btn) {
       readCardCloud(card, speaker, fullText, onDone);
     } else if (edgeTTSAvailable === null) {
       speaker.classList.add('loading');
-      detectEdgeTTS().then(function(available) {
-        speaker.classList.remove('loading');
-        if (available) {
-          readCardCloud(card, speaker, fullText, onDone);
-        } else {
-          readCardSystem(card, speaker, fullText, onDone);
-        }
-      });
+      readCardCloud(card, speaker, fullText, onDone);
     } else {
       readCardSystem(card, speaker, fullText, onDone);
     }
@@ -2558,6 +2593,8 @@ async function readCardCloud(card, speaker, fullText, onDone) {
 
   try {
     var audioUrl = await edgeTTSSynthesize(fullText, { rate: speechRate });
+    edgeTTSAvailable = true;
+    setEngineStatus('cloud', 'Cloud TTS');
     speaker.classList.remove('loading');
 
     var audio = new Audio(audioUrl);
@@ -2568,9 +2605,9 @@ async function readCardCloud(card, speaker, fullText, onDone) {
       readCardSystem(card, speaker, fullText, onDone);
     };
     await audio.play();
-    // While this sentence plays, preload the next sentence's TTS
-    preloadNextResources(card);
   } catch(e) {
+    edgeTTSAvailable = false;
+    setEngineStatus('system', 'System TTS');
     speaker.classList.remove('loading');
     readCardSystem(card, speaker, fullText, onDone);
   }
@@ -2795,26 +2832,12 @@ importText.addEventListener('keydown', function(e) {
 });
 
 // ============================================================
-//  PRELOAD SYSTEM
-//  Pre-fetches translations and TTS audio for upcoming
-//  sentences to reduce perceived latency.
+//  CACHE MANAGEMENT
 // ============================================================
-var preloadInFlight = new Set();
-var preloadActiveCount = 0;
-var preloadObserver = null;
-var TTS_CACHE_MAX = 60;
-
-function updatePreloadIndicator() {
-  var el = document.getElementById('preloadIndicator');
-  if (!el) return;
-  el.style.display = preloadActiveCount > 0 ? 'flex' : 'none';
-}
-
-// Evict oldest TTS cache entries when cache grows too large
-function evictTTSCache() {
-  if (ttsAudioCache.size <= TTS_CACHE_MAX) return;
+function evictOldestTTSCache() {
+  if (ttsAudioCache.size <= MAX_CACHE_ENTRIES) return;
   var keysToDelete = [];
-  var count = ttsAudioCache.size - TTS_CACHE_MAX;
+  var count = ttsAudioCache.size - MAX_CACHE_ENTRIES;
   var iter = ttsAudioCache.keys();
   for (var i = 0; i < count; i++) {
     keysToDelete.push(iter.next().value);
@@ -2828,150 +2851,13 @@ function evictTTSCache() {
   });
 }
 
-// Preload a single sentence's translation (best-effort, cache-only, silent)
-function preloadTranslation(text, lang) {
-  if (!text || text.length < 2) return;
-  var memKey = lang + '|' + text.trim().substring(0, 200);
-  if (translationCache[memKey]) return; // Already in memory
-  var flightKey = 'tr:' + memKey;
-  if (preloadInFlight.has(flightKey)) return; // Already in flight
-  preloadInFlight.add(flightKey);
-  preloadActiveCount++;
-  updatePreloadIndicator();
-
-  translateText(text, lang)
-    .then(function() { preloadInFlight.delete(flightKey); })
-    .catch(function() { preloadInFlight.delete(flightKey); })
-    .then(function() {
-      preloadActiveCount--;
-      updatePreloadIndicator();
-    });
-}
-
-// Preload a single sentence's TTS audio (best-effort, cache-only, silent)
-function preloadTTS(text) {
-  if (!text || text.length < 2) return;
-  if (edgeTTSAvailable !== true) return; // Only for cloud TTS
-  var ttsKey = EDGE_TTS_VOICE + '|' + speechRate + '|' + text.trim().substring(0, 300);
-  if (ttsAudioCache.has(ttsKey)) return; // Already cached
-  var flightKey = 'tts:' + ttsKey;
-  if (preloadInFlight.has(flightKey)) return; // Already in flight
-  preloadInFlight.add(flightKey);
-  preloadActiveCount++;
-  updatePreloadIndicator();
-
-  edgeTTSSynthesize(text, { rate: speechRate })
-    .then(function() {
-      preloadInFlight.delete(flightKey);
-      evictTTSCache();
-    })
-    .catch(function() { preloadInFlight.delete(flightKey); })
-    .then(function() {
-      preloadActiveCount--;
-      updatePreloadIndicator();
-    });
-}
-
-// Collect plain-text sentences from an article (strip <b> tags etc.)
-function collectSentenceTexts(articleIndex) {
-  var article = ARTICLES[articleIndex];
-  if (!article) return [];
-  var texts = [];
-  article.paragraphs.forEach(function(para) {
-    para.sentences.forEach(function(sent) {
-      var plainText = sent.en.replace(/<[^>]+>/g, '').trim();
-      if (plainText) texts.push(plainText);
-    });
+function clearTTSCache() {
+  ttsAudioCache.forEach(function(url) {
+    if (url && url.startsWith('blob:')) {
+      try { URL.revokeObjectURL(url); } catch(e) {}
+    }
   });
-  return texts;
-}
-
-// Preload first N sentences' translations and TTS
-function preloadFirstSentences(articleIndex, count) {
-  var texts = collectSentenceTexts(articleIndex);
-  var article = ARTICLES[articleIndex];
-  if (!article) return;
-  var lang = article.lang || currentArticleLang;
-  var n = Math.min(count, texts.length);
-
-  for (var i = 0; i < n; i++) {
-    (function(text, l, delay) {
-      setTimeout(function() {
-        preloadTranslation(text, l);
-      }, delay);
-      setTimeout(function() {
-        preloadTTS(text);
-      }, delay + 150);
-    })(texts[i], lang, i * 200);
-  }
-}
-
-// Preload next sentence's resources while current TTS is playing
-function preloadNextResources(currentCard) {
-  var activeSection = document.querySelector('.article-section.active');
-  if (!activeSection) return;
-  var allCards = Array.from(activeSection.querySelectorAll('.sentence-card'));
-  var idx = allCards.indexOf(currentCard);
-  if (idx < 0 || idx + 1 >= allCards.length) return;
-
-  var nextCard = allCards[idx + 1];
-  var sentText = nextCard.querySelector('.sentence-text');
-  if (!sentText) return;
-  var text = sentText.textContent.trim();
-  var article = ARTICLES[currentArticle];
-  var lang = article ? article.lang : currentArticleLang;
-  preloadTranslation(text, lang);
-  preloadTTS(text);
-}
-
-// IntersectionObserver: preload sentences as they scroll near viewport
-function setupPreloadObserver() {
-  if (preloadObserver) {
-    preloadObserver.disconnect();
-    preloadObserver = null;
-  }
-  if (!('IntersectionObserver' in window)) return;
-
-  var activeSection = document.querySelector('.article-section.active');
-  if (!activeSection) return;
-  var allCards = Array.from(activeSection.querySelectorAll('.sentence-card'));
-  if (allCards.length === 0) return;
-
-  preloadObserver = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (!entry.isIntersecting) return;
-      var card = entry.target;
-      var idx = allCards.indexOf(card);
-      if (idx < 0) return;
-
-      var article = ARTICLES[currentArticle];
-      var lang = article ? article.lang : currentArticleLang;
-
-      // Preload next 3 sentences after the visible one
-      for (var i = 1; i <= 3; i++) {
-        if (idx + i < allCards.length) {
-          var nextCard = allCards[idx + i];
-          var sentText = nextCard.querySelector('.sentence-text');
-          if (sentText) {
-            var text = sentText.textContent.trim();
-            (function(t, l, delay) {
-              setTimeout(function() {
-                preloadTranslation(t, l);
-                preloadTTS(t);
-              }, delay);
-            })(text, lang, i * 120);
-          }
-        }
-      }
-    });
-  }, {
-    rootMargin: '300px 0px 300px 0px',
-    threshold: 0.01
-  });
-
-  allCards.forEach(function(card) {
-    preloadObserver.observe(card);
-  });
+  ttsAudioCache.clear();
 }
 
 // ============================================================
@@ -3013,7 +2899,6 @@ function hideArticle(index) {
   if (ARTICLES.length > 0) {
     switchArticle(currentArticle);
   } else {
-    if (preloadObserver) { preloadObserver.disconnect(); preloadObserver = null; }
     emptyState.style.display = 'block';
     tabsBar.style.display = 'none';
   }
@@ -3207,18 +3092,8 @@ async function init() {
 
     updateProgress();
 
-    // Detect TTS engine
-    setEngineStatus('connecting', 'Detecting...');
-    var available = await detectEdgeTTS();
-    if (available) {
-      setEngineStatus('cloud', 'Cloud TTS');
-      // Now that cloud TTS is confirmed, preload TTS audio for first sentences
-      if (ARTICLES.length > 0) {
-        preloadFirstSentences(0, 5);
-      }
-    } else {
-      setEngineStatus('system', 'System TTS');
-    }
+    // Cloud TTS is checked only when the user starts reading.
+    setEngineStatus('connecting', 'Click speaker to detect...');
 
   } catch(e) {
     console.error('Init error:', e);

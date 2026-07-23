@@ -1100,9 +1100,9 @@ try {
 
 function saveCustomArticles() {
   const custom = ARTICLES.slice(BUILTIN_COUNT);
-  try {
-    localStorage.setItem('customArticles', JSON.stringify(custom));
-  } catch(e) { console.log('Failed to save custom articles:', e); }
+  if (!saveToLS('customArticles', JSON.stringify(custom))) {
+    console.log('Failed to save custom articles: localStorage may be full');
+  }
 }
 
 // ============================================================
@@ -1121,7 +1121,7 @@ const TRANSLATION_ERROR_MARKERS = [
   'please select two distinct', 'invalid lang', 'timeout',
   'service unavailable', 'internal error', 'bad gateway',
   'please try again', 'too many requests', 'access denied',
-  'endpoint', 'cloudflare', 'worker error', '502', '503', '524'
+  'endpoint', 'cloudflare', 'worker error', '429', '502', '503', '504', '524'
 ];
 
 function isValidTranslation(text) {
@@ -1155,8 +1155,10 @@ speedSlider.addEventListener('input', function() {
   speechRate = parseFloat(this.value);
   speedValueEl.textContent = speechRate.toFixed(2) + 'x';
   localStorage.setItem('speechRate', speechRate);
-  // Clear TTS audio cache since rate changed
+  // Revoke old Blob URLs and clear TTS audio cache since rate changed
+  ttsAudioCache.forEach(function(url) { URL.revokeObjectURL(url); });
   ttsAudioCache.clear();
+  ttsCacheKeys.length = 0;
 });
 
 document.getElementById('themeToggle').addEventListener('click', () => {
@@ -1190,8 +1192,14 @@ function renderTabs() {
 //  RENDER ARTICLE
 // ============================================================
 const mainContainer = document.getElementById('mainContainer');
+const renderedArticles = new Set(); // Track which articles have been rendered
 
 function switchArticle(index) {
+  stopSpeech();
+  // Lazy-render: render target article on demand if not yet rendered
+  if (!renderedArticles.has(index)) {
+    renderSingleArticle(index);
+  }
   currentArticle = index;
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
     b.classList.toggle('active', i === index);
@@ -1203,103 +1211,109 @@ function switchArticle(index) {
   updateProgress();
 }
 
-function renderArticles() {
-  mainContainer.innerHTML = '';
-  ARTICLES.forEach((article, ai) => {
-    const section = document.createElement('div');
-    section.className = 'article-section' + (ai === currentArticle ? ' active' : '');
+function renderSingleArticle(ai) {
+  if (renderedArticles.has(ai)) return;
+  renderedArticles.add(ai);
+  var article = ARTICLES[ai];
+  var section = document.createElement('div');
+  section.className = 'article-section' + (ai === currentArticle ? ' active' : '');
 
-    let totalSentences = 0;
-    let totalBold = new Set();
-    article.paragraphs.forEach(p => {
-      totalSentences += p.sentences.length;
-      p.sentences.forEach(s => s.boldWords.forEach(w => totalBold.add(w)));
-    });
-
-    section.innerHTML = `
-      <h1 class="article-title">${escapeHtml(article.title)}</h1>
-      <div class="article-meta">
-        <span>📖 ${totalSentences} sentences</span>
-        <span>📝 ${totalBold.size} vocabulary words</span>
-        <span>📄 ${article.paragraphs.length} paragraphs</span>
-      </div>
-      <div class="toolbar">
-        <button class="tool-btn" onclick="toggleAllTranslations(${ai}, this)">
-          <span>👁</span> Show All Translations
-        </button>
-        <button class="tool-btn" onclick="speakArticle(${ai}, this)">
-          <span>🔊</span> Read Article
-        </button>
-      </div>
-      <div class="article-body" id="articleBody_${ai}"></div>
-      <div class="article-nav" id="articleNav_${ai}"></div>
-    `;
-
-    mainContainer.appendChild(section);
-
-    const body = section.querySelector('.article-body');
-    article.paragraphs.forEach((para, pi) => {
-      const paraDiv = document.createElement('div');
-      paraDiv.className = 'paragraph';
-
-      para.sentences.forEach((sent, si) => {
-        const card = document.createElement('div');
-        card.className = 'sentence-card';
-        card.dataset.article = ai;
-        card.dataset.para = pi;
-        card.dataset.sentence = si;
-
-        // Build sentence HTML with word spans
-        const sentHtml = buildSentenceHtml(sent.en, sent.boldWords);
-
-        card.innerHTML = `
-          <div class="sentence-en">
-            ${sentHtml}
-            <button class="translate-toggle" onclick="toggleTranslation(this)">
-              <span>💬</span> 译
-            </button>
-            <button class="speaker-btn" onclick="speakSentence(this)" title="Read this sentence">
-              <span class="speaker-icon">🔈</span>
-              <span class="cloud-badge" title="Cloud TTS"></span>
-            </button>
-          </div>
-          <div class="sentence-zh">
-            <div class="sentence-zh-inner">
-              <span class="sentence-zh-loading">Loading translation...</span>
-            </div>
-          </div>
-        `;
-
-        paraDiv.appendChild(card);
-      });
-
-      body.appendChild(paraDiv);
-    });
-
-    // Add prev/next navigation
-    const navDiv = section.querySelector('#articleNav_' + ai);
-    const hasPrev = ai > 0;
-    const hasNext = ai < ARTICLES.length - 1;
-    const prevTitle = hasPrev ? ARTICLES[ai - 1].title : '';
-    const nextTitle = hasNext ? ARTICLES[ai + 1].title : '';
-
-    navDiv.innerHTML = `
-      <button class="nav-btn nav-prev" ${hasPrev ? '' : 'disabled'} ${hasPrev ? 'onclick="switchArticle(' + (ai - 1) + ')"' : ''}>
-        <span class="nav-arrow">←</span>
-        <span class="nav-info">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">${hasPrev ? escapeHtml(prevTitle) : '—'}</span>
-        </span>
-      </button>
-      <button class="nav-btn nav-next" ${hasNext ? '' : 'disabled'} ${hasNext ? 'onclick="switchArticle(' + (ai + 1) + ')"' : ''}>
-        <span class="nav-info">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">${hasNext ? escapeHtml(nextTitle) : '—'}</span>
-        </span>
-        <span class="nav-arrow">→</span>
-      </button>
-    `;
+  var totalSentences = 0;
+  var totalBold = new Set();
+  article.paragraphs.forEach(function(p) {
+    totalSentences += p.sentences.length;
+    p.sentences.forEach(function(s) { s.boldWords.forEach(function(w) { totalBold.add(w); }); });
   });
+
+  section.innerHTML = `
+    <h1 class="article-title">${escapeHtml(article.title)}</h1>
+    <div class="article-meta">
+      <span>📖 ${totalSentences} sentences</span>
+      <span>📝 ${totalBold.size} vocabulary words</span>
+      <span>📄 ${article.paragraphs.length} paragraphs</span>
+    </div>
+    <div class="toolbar">
+      <button class="tool-btn" onclick="toggleAllTranslations(${ai}, this)">
+        <span>👁</span> Show All Translations
+      </button>
+      <button class="tool-btn" onclick="speakArticle(${ai}, this)">
+        <span>🔊</span> Read Article
+      </button>
+    </div>
+    <div class="article-body" id="articleBody_${ai}"></div>
+    <div class="article-nav" id="articleNav_${ai}"></div>
+  `;
+
+  mainContainer.appendChild(section);
+
+  var body = section.querySelector('.article-body');
+  article.paragraphs.forEach(function(para, pi) {
+    var paraDiv = document.createElement('div');
+    paraDiv.className = 'paragraph';
+
+    para.sentences.forEach(function(sent, si) {
+      var card = document.createElement('div');
+      card.className = 'sentence-card';
+      card.dataset.article = ai;
+      card.dataset.para = pi;
+      card.dataset.sentence = si;
+
+      var sentHtml = buildSentenceHtml(sent.en, sent.boldWords);
+
+      card.innerHTML = `
+        <div class="sentence-en">
+          ${sentHtml}
+          <button class="translate-toggle" onclick="toggleTranslation(this)">
+            <span>💬</span> 译
+          </button>
+          <button class="speaker-btn" onclick="speakSentence(this)" title="Read this sentence">
+            <span class="speaker-icon">🔈</span>
+            <span class="cloud-badge" title="Cloud TTS"></span>
+          </button>
+        </div>
+        <div class="sentence-zh">
+          <div class="sentence-zh-inner">
+            <span class="sentence-zh-loading">Loading translation...</span>
+          </div>
+        </div>
+      `;
+
+      paraDiv.appendChild(card);
+    });
+
+    body.appendChild(paraDiv);
+  });
+
+  // Add prev/next navigation
+  var navDiv = section.querySelector('#articleNav_' + ai);
+  var hasPrev = ai > 0;
+  var hasNext = ai < ARTICLES.length - 1;
+  var prevTitle = hasPrev ? ARTICLES[ai - 1].title : '';
+  var nextTitle = hasNext ? ARTICLES[ai + 1].title : '';
+
+  navDiv.innerHTML = `
+    <button class="nav-btn nav-prev" ${hasPrev ? '' : 'disabled'} ${hasPrev ? 'onclick="switchArticle(' + (ai - 1) + ')"' : ''}>
+      <span class="nav-arrow">←</span>
+      <span class="nav-info">
+        <span class="nav-label">Previous</span>
+        <span class="nav-title">${hasPrev ? escapeHtml(prevTitle) : '—'}</span>
+      </span>
+    </button>
+    <button class="nav-btn nav-next" ${hasNext ? '' : 'disabled'} ${hasNext ? 'onclick="switchArticle(' + (ai + 1) + ')"' : ''}>
+      <span class="nav-info">
+        <span class="nav-label">Next</span>
+        <span class="nav-title">${hasNext ? escapeHtml(nextTitle) : '—'}</span>
+      </span>
+      <span class="nav-arrow">→</span>
+    </button>
+  `;
+}
+
+function renderArticles() {
+  // Only render the active article (lazy rendering for others)
+  mainContainer.innerHTML = '';
+  renderedArticles.clear();
+  renderSingleArticle(currentArticle);
 }
 
 function buildSentenceHtml(text, boldWords) {
@@ -1358,29 +1372,66 @@ function escapeAttr(str) {
 // ============================================================
 const DEEPLX_API = 'https://deeplx.wangmc1024.workers.dev/deepl';
 
-async function translateText(text) {
-  // Check memory cache
-  const cacheKey = text.trim().substring(0, 200);
-  if (translationCache[cacheKey]) return translationCache[cacheKey];
-
-  // Check localStorage — validate to skip cached error messages
-  const lsKey = 'tr_' + cacheKey.replace(/[^a-zA-Z0-9]/g, c => c.charCodeAt(0).toString(16)).substring(0, 50);
+// Helper: save to localStorage with cleanup on quota exceeded
+function saveToLS(key, value) {
   try {
-    const stored = localStorage.getItem(lsKey);
+    localStorage.setItem(key, value);
+    return true;
+  } catch(e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && (k.startsWith('tr_') || k.startsWith('wd_'))) keys.push(k);
+      }
+      var removeCount = Math.max(1, Math.floor(keys.length * 0.2));
+      for (var j = 0; j < removeCount && j < keys.length; j++) {
+        localStorage.removeItem(keys[j]);
+      }
+      try { localStorage.setItem(key, value); return true; } catch(e2) {}
+    }
+    return false;
+  }
+}
+
+// Helper: check memory cache + localStorage, return cached value or null
+function lookupCache(memCache, memKey, lsKey) {
+  if (memCache[memKey]) return memCache[memKey];
+  try {
+    var stored = localStorage.getItem(lsKey);
     if (stored) {
       if (isValidTranslation(stored)) {
-        translationCache[cacheKey] = stored;
+        memCache[memKey] = stored;
         return stored;
-      } else {
-        // Remove stale error from cache so API can be retried
-        localStorage.removeItem(lsKey);
       }
+      localStorage.removeItem(lsKey);
     }
   } catch(e) {}
+  return null;
+}
+
+// Helper: fetch with timeout and status code checking
+async function fetchWithTimeout(url, options, timeoutMs) {
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeoutMs || 15000);
+  try {
+    return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function translateText(text) {
+  var cacheKey = text.trim().substring(0, 200);
+  if (translationCache[cacheKey]) return translationCache[cacheKey];
+
+  var lsKey = 'tr_' + cacheKey.replace(/[^a-zA-Z0-9]/g, function(c) { return c.charCodeAt(0).toString(16); }).substring(0, 50);
+  var cached = lookupCache(translationCache, cacheKey, lsKey);
+  if (cached) return cached;
 
   // 1st: DeepLX API (self-hosted Cloudflare Worker)
   try {
-    const resp = await fetch(DEEPLX_API, {
+    var resp = await fetchWithTimeout(DEEPLX_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1388,79 +1439,69 @@ async function translateText(text) {
         source_lang: 'EN',
         target_lang: 'ZH'
       })
-    });
-    const data = await resp.json();
+    }, 15000);
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status);
+    }
+    var data = await resp.json();
     if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-      const translation = data.data;
+      var translation = data.data;
       translationCache[cacheKey] = translation;
-      try { localStorage.setItem(lsKey, translation); } catch(e) {}
+      saveToLS(lsKey, translation);
       return translation;
     }
+    // DeepLX returned non-200 code in body
+    if (data && data.code && data.code !== 200) {
+      throw new Error('DeepLX ' + data.code);
+    }
   } catch(e) {
-    console.log('DeepLX API error:', e);
+    console.log('DeepLX API error:', e.message);
+    if (/429|502|503|504|403/.test(e.message)) {
+      return '翻译失败 (DeepLX: ' + e.message.replace('DeepLX ', '') + ')，正在尝试备用接口...';
+    }
   }
 
   // 2nd: MyMemory API
   try {
-    const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0, 500)) + '&langpair=en|zh-CN';
-    const resp = await fetch(url);
-    const data = await resp.json();
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0, 500)) + '&langpair=en|zh-CN';
+    var resp = await fetchWithTimeout(url, {}, 10000);
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status);
+    }
+    var data = await resp.json();
     if (data && data.responseData && data.responseData.translatedText) {
-      const translation = data.responseData.translatedText;
+      var translation = data.responseData.translatedText;
       if (isValidTranslation(translation)) {
         translationCache[cacheKey] = translation;
-        try { localStorage.setItem(lsKey, translation); } catch(e) {}
+        saveToLS(lsKey, translation);
         return translation;
       }
     }
-  } catch(e) {
-    console.log('MyMemory API error:', e);
-  }
-
-  // 3rd: Google Translate via CORS proxy
-  try {
-    const url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(
-      'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=' + encodeURIComponent(text.substring(0, 500))
-    );
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (data && data[0]) {
-      let translation = '';
-      data[0].forEach(seg => { if(seg[0]) translation += seg[0]; });
-      if (isValidTranslation(translation)) {
-        translationCache[cacheKey] = translation;
-        try { localStorage.setItem(lsKey, translation); } catch(e) {}
-        return translation;
-      }
+    // MyMemory rate limit
+    if (data && data.responseStatus && data.responseStatus >= 400) {
+      throw new Error('MyMemory ' + data.responseStatus);
     }
   } catch(e) {
-    console.log('Fallback translation error:', e);
+    console.log('MyMemory API error:', e.message);
+    if (/429|502|503|504|403/.test(e.message)) {
+      return '翻译失败 (MyMemory: ' + e.message.replace('MyMemory ', '') + ')，正在尝试备用接口...';
+    }
   }
 
-  // Return error message WITHOUT caching — so retry will hit APIs again
-  return '\u7FFB\u8BD1\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5';
+  return '翻译失败: 请检查网络连接';
 }
 
 async function translateWord(word) {
-  const lowerWord = word.toLowerCase();
+  var lowerWord = word.toLowerCase();
   if (wordCache[lowerWord]) return wordCache[lowerWord];
 
-  const lsKey = 'wd_' + lowerWord;
-  try {
-    const stored = localStorage.getItem(lsKey);
-    if (stored) {
-      if (isValidTranslation(stored)) {
-        wordCache[lowerWord] = stored;
-        return stored;
-      } else {
-        localStorage.removeItem(lsKey);
-      }
-    }
-  } catch(e) {}
+  var lsKey = 'wd_' + lowerWord;
+  var cached = lookupCache(wordCache, lowerWord, lsKey);
+  if (cached) return cached;
 
   // 1st: DeepLX API
   try {
-    const resp = await fetch(DEEPLX_API, {
+    var resp = await fetchWithTimeout(DEEPLX_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1468,35 +1509,54 @@ async function translateWord(word) {
         source_lang: 'EN',
         target_lang: 'ZH'
       })
-    });
-    const data = await resp.json();
+    }, 10000);
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status);
+    }
+    var data = await resp.json();
     if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-      const translation = data.data;
+      var translation = data.data;
       wordCache[lowerWord] = translation;
-      try { localStorage.setItem(lsKey, translation); } catch(e) {}
+      saveToLS(lsKey, translation);
       return translation;
     }
+    if (data && data.code && data.code !== 200) {
+      throw new Error('DeepLX ' + data.code);
+    }
   } catch(e) {
-    console.log('DeepLX word translation error:', e);
+    console.log('DeepLX word translation error:', e.message);
+    if (/429|502|503|504|403/.test(e.message)) {
+      return '无译文 (DeepLX: ' + e.message.replace('DeepLX ', '') + ')';
+    }
   }
 
   // 2nd: MyMemory for single word
   try {
-    const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=en|zh-CN';
-    const resp = await fetch(url);
-    const data = await resp.json();
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=en|zh-CN';
+    var resp = await fetchWithTimeout(url, {}, 8000);
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status);
+    }
+    var data = await resp.json();
     if (data && data.responseData && data.responseData.translatedText) {
-      const translation = data.responseData.translatedText;
+      var translation = data.responseData.translatedText;
       if (isValidTranslation(translation)) {
         wordCache[lowerWord] = translation;
-        try { localStorage.setItem(lsKey, translation); } catch(e) {}
+        saveToLS(lsKey, translation);
         return translation;
       }
     }
-  } catch(e) {}
+    if (data && data.responseStatus && data.responseStatus >= 400) {
+      throw new Error('MyMemory ' + data.responseStatus);
+    }
+  } catch(e) {
+    console.log('MyMemory word translation error:', e.message);
+    if (/429|502|503|504|403/.test(e.message)) {
+      return '无译文 (MyMemory: ' + e.message.replace('MyMemory ', '') + ')';
+    }
+  }
 
-  // Return error WITHOUT caching
-  return '\u65E0\u8BD1\u6587';
+  return '无译文';
 }
 
 // ============================================================
@@ -1515,16 +1575,20 @@ function toggleTranslation(btn) {
     card.classList.add('show-translation');
     btn.innerHTML = '<span>👁</span> 译';
 
-    // Fetch translation if not already loaded
-    if (!zhInner.dataset.loaded) {
+    // Fetch translation if not already loaded and not currently loading
+    if (!zhInner.dataset.loaded && !zhInner.dataset.loading) {
+      zhInner.dataset.loading = 'true';
       const sentEn = card.querySelector('.sentence-en');
       const fullText = sentEn.textContent.replace(/💬|译|👁|🔈/gu, '').trim();
       translateText(fullText).then(trans => {
         zhInner.innerHTML = '<span>' + escapeHtml(trans) + '</span>';
-        // Only mark as loaded if translation succeeded — allows retry on failure
+        zhInner.dataset.loading = '';
         if (isValidTranslation(trans)) {
           zhInner.dataset.loaded = 'true';
         }
+      }).catch(function() {
+        zhInner.innerHTML = '<span style="color:#c0392b">翻译出错</span>';
+        zhInner.dataset.loading = '';
       });
     }
   }
@@ -1532,21 +1596,60 @@ function toggleTranslation(btn) {
 
 function toggleAllTranslations(articleIndex, btn) {
   const section = document.querySelectorAll('.article-section')[articleIndex];
+  if (!section) return;
   const cards = section.querySelectorAll('.sentence-card');
-  const anyHidden = Array.from(cards).some(c => !c.classList.contains('show-translation'));
+  const anyHidden = Array.from(cards).some(function(c) { return !c.classList.contains('show-translation'); });
 
-  cards.forEach(card => {
-    const toggle = card.querySelector('.translate-toggle');
-    if (anyHidden && !card.classList.contains('show-translation')) {
-      toggleTranslation(toggle);
-    } else if (!anyHidden && card.classList.contains('show-translation')) {
-      toggleTranslation(toggle);
+  if (anyHidden) {
+    // Show all translations: expand UI first, then fetch translations sequentially
+    var cardsToFetch = [];
+    cards.forEach(function(card) {
+      if (!card.classList.contains('show-translation')) {
+        card.classList.add('show-translation');
+        var toggle = card.querySelector('.translate-toggle');
+        if (toggle) toggle.innerHTML = '<span>👁</span> 译';
+        var zhInner = card.querySelector('.sentence-zh-inner');
+        if (zhInner && !zhInner.dataset.loaded) {
+          var sentEn = card.querySelector('.sentence-en');
+          var fullText = sentEn.textContent.replace(/💬|译|👁|🔈/gu, '').trim();
+          cardsToFetch.push({ zhInner: zhInner, text: fullText });
+        }
+      }
+    });
+    btn.innerHTML = '<span>👁</span> Hide All Translations';
+
+    // Fetch translations sequentially with 300ms delay to avoid rate limiting
+    if (cardsToFetch.length > 0) {
+      (async function fetchSequentially() {
+        for (var i = 0; i < cardsToFetch.length; i++) {
+          var item = cardsToFetch[i];
+          try {
+            var trans = await translateText(item.text);
+            item.zhInner.innerHTML = '<span>' + escapeHtml(trans) + '</span>';
+            if (isValidTranslation(trans)) {
+              item.zhInner.dataset.loaded = 'true';
+            }
+          } catch(e) {
+            item.zhInner.innerHTML = '<span style="color:#c0392b">翻译出错</span>';
+          }
+          // Small delay between requests to avoid rate limiting
+          if (i < cardsToFetch.length - 1) {
+            await new Promise(function(r) { setTimeout(r, 300); });
+          }
+        }
+      })();
     }
-  });
-
-  btn.innerHTML = anyHidden
-    ? '<span>👁</span> Hide All Translations'
-    : '<span>💬</span> Show All Translations';
+  } else {
+    // Hide all translations
+    cards.forEach(function(card) {
+      if (card.classList.contains('show-translation')) {
+        card.classList.remove('show-translation');
+        var toggle = card.querySelector('.translate-toggle');
+        if (toggle) toggle.innerHTML = '<span>💬</span> 译';
+      }
+    });
+    btn.innerHTML = '<span>💬</span> Show All Translations';
+  }
 }
 
 // ============================================================
@@ -1557,6 +1660,7 @@ const tooltipWord = document.getElementById('tooltipWord');
 const tooltipTranslation = document.getElementById('tooltipTranslation');
 let hoverTimeout = null;
 let currentHoveredWord = null;
+let wordFetchTimeout = null;
 
 document.addEventListener('mouseover', (e) => {
   const wordEl = e.target.closest('.word');
@@ -1587,12 +1691,15 @@ document.addEventListener('mouseover', (e) => {
     tooltip.style.left = left + 'px';
   }, 0);
 
-  // Fetch translation
-  translateWord(word).then(trans => {
-    if (currentHoveredWord === word) {
-      tooltipTranslation.textContent = trans;
-    }
-  });
+  // Debounce fetch: wait 100ms before fetching to avoid rapid-fire requests
+  if (wordFetchTimeout) clearTimeout(wordFetchTimeout);
+  wordFetchTimeout = setTimeout(() => {
+    translateWord(word).then(trans => {
+      if (currentHoveredWord === word) {
+        tooltipTranslation.textContent = trans;
+      }
+    });
+  }, 100);
 });
 
 document.addEventListener('mouseout', (e) => {
@@ -1619,8 +1726,10 @@ const TTS_API_URL = 'https://tts.wangwangit.com/v1/audio/speech';
 let EDGE_TTS_VOICE = localStorage.getItem('ttsVoice') || 'en-US-JennyNeural';
 const EDGE_TTS_TIMEOUT = 15000;
 
-// Audio cache (in-memory, keyed by text+voice+rate)
+// Audio cache (in-memory, keyed by text+voice+rate, limited size)
+const TTS_CACHE_MAX = 50;
 const ttsAudioCache = new Map();
+const ttsCacheKeys = [];  // LRU tracking for eviction
 let edgeTTSAvailable = null; // null=unknown, true/false
 let currentAudioEl = null;
 
@@ -1630,7 +1739,10 @@ voiceSelect.value = EDGE_TTS_VOICE;
 voiceSelect.addEventListener('change', function() {
   EDGE_TTS_VOICE = this.value;
   localStorage.setItem('ttsVoice', EDGE_TTS_VOICE);
-  ttsAudioCache.clear(); // Clear cache when voice changes
+  // Revoke old Blob URLs before clearing cache
+  ttsAudioCache.forEach(function(url) { URL.revokeObjectURL(url); });
+  ttsAudioCache.clear();
+  ttsCacheKeys.length = 0;
 });
 
 async function edgeTTSSynthesize(text, opts) {
@@ -1639,15 +1751,15 @@ async function edgeTTSSynthesize(text, opts) {
   var rate = opts.rate || speechRate;
   var timeout = opts.timeout || EDGE_TTS_TIMEOUT;
 
-  // Cache key includes voice + rate for correct playback
   var cacheKey = voice + '|' + rate + '|' + text.trim().substring(0, 300);
-  if (ttsAudioCache.has(cacheKey)) return ttsAudioCache.get(cacheKey);
-
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function() { controller.abort(); }, timeout);
+  if (ttsAudioCache.has(cacheKey)) {
+    var idx = ttsCacheKeys.indexOf(cacheKey);
+    if (idx > -1) { ttsCacheKeys.splice(idx, 1); ttsCacheKeys.push(cacheKey); }
+    return ttsAudioCache.get(cacheKey);
+  }
 
   try {
-    var response = await fetch(TTS_API_URL, {
+    var response = await fetchWithTimeout(TTS_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1656,10 +1768,8 @@ async function edgeTTSSynthesize(text, opts) {
         speed: rate,
         pitch: '0',
         style: 'general'
-      }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+      })
+    }, timeout);
 
     if (!response.ok) {
       var errText = await response.text().catch(function() { return 'HTTP ' + response.status; });
@@ -1670,10 +1780,16 @@ async function edgeTTSSynthesize(text, opts) {
     if (blob.size === 0) throw new Error('TTS API returned empty audio');
 
     var url = URL.createObjectURL(blob);
+    if (ttsCacheKeys.length >= TTS_CACHE_MAX) {
+      var oldestKey = ttsCacheKeys.shift();
+      var oldUrl = ttsAudioCache.get(oldestKey);
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
+      ttsAudioCache.delete(oldestKey);
+    }
     ttsAudioCache.set(cacheKey, url);
+    ttsCacheKeys.push(cacheKey);
     return url;
   } catch(e) {
-    clearTimeout(timeoutId);
     throw e;
   }
 }
@@ -1686,29 +1802,24 @@ function setEngineStatus(engine, label) {
   lbl.textContent = label;
 }
 
-async function detectEdgeTTS() {
+async function detectEdgeTTS(updateBadge) {
   if (edgeTTSAvailable !== null) return edgeTTSAvailable;
-  if (!navigator.onLine) { edgeTTSAvailable = false; return false; }
-  // Quick test synthesis
-  try {
-    await edgeTTSSynthesize('Hello.', { timeout: 8000 });
-    edgeTTSAvailable = true;
-  } catch(e) {
+  if (!navigator.onLine) {
     edgeTTSAvailable = false;
+  } else {
+    try {
+      await edgeTTSSynthesize('Hello.', { timeout: 8000 });
+      edgeTTSAvailable = true;
+    } catch(e) {
+      edgeTTSAvailable = false;
+    }
   }
+  if (updateBadge) setEngineStatus(edgeTTSAvailable ? 'cloud' : 'system', edgeTTSAvailable ? 'Cloud TTS' : 'System TTS');
   return edgeTTSAvailable;
 }
 
-// Auto-detect on load
-(async function() {
-  setEngineStatus('connecting', 'Detecting...');
-  var available = await detectEdgeTTS();
-  if (available) {
-    setEngineStatus('cloud', 'Cloud TTS');
-  } else {
-    setEngineStatus('system', 'System TTS');
-  }
-})();
+// Lazy-detect on first use instead of preloading on load
+setEngineStatus('connecting', 'Click speaker to detect...');
 
 // ============================================================
 //  SYSTEM TTS (Fallback Engine)
@@ -1830,7 +1941,7 @@ function speakSentence(btn) {
     speakSentenceCloud(btn, card, fullText);
   } else if (edgeTTSAvailable === null) {
     btn.classList.add('loading');
-    detectEdgeTTS().then(function(available) {
+    detectEdgeTTS(true).then(function(available) {
       btn.classList.remove('loading');
       if (currentSpeakerBtn !== btn) return;
       if (available) {
@@ -1883,6 +1994,7 @@ async function speakSentenceCloud(btn, card, fullText) {
 function speakArticle(articleIndex, btn) {
   stopSpeech();
   var section = document.querySelectorAll('.article-section')[articleIndex];
+  if (!section) return;
   var cards = section.querySelectorAll('.sentence-card');
 
   currentArticleBtn = btn;
@@ -1920,7 +2032,7 @@ function speakArticle(articleIndex, btn) {
       readCardCloud(card, speaker, fullText, onDone);
     } else if (edgeTTSAvailable === null) {
       speaker.classList.add('loading');
-      detectEdgeTTS().then(function(available) {
+      detectEdgeTTS(true).then(function(available) {
         speaker.classList.remove('loading');
         if (available) {
           readCardCloud(card, speaker, fullText, onDone);
@@ -2030,12 +2142,19 @@ document.getElementById('stopAudio').addEventListener('click', stopSpeech);
 //  PROGRESS BAR
 // ============================================================
 function updateProgress() {
-  const scrollTop = window.scrollY;
-  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-  const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+  var scrollTop = window.scrollY;
+  var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  var progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
   document.getElementById('progressBar').style.width = progress + '%';
 }
-window.addEventListener('scroll', updateProgress);
+var progressRAF = null;
+window.addEventListener('scroll', function() {
+  if (progressRAF) return;
+  progressRAF = requestAnimationFrame(function() {
+    progressRAF = null;
+    updateProgress();
+  });
+}, { passive: true });
 
 // ============================================================
 //  IMPORT ARTICLE
@@ -2158,12 +2277,13 @@ function importArticle() {
     ARTICLES.push(article);
     saveCustomArticles();
 
-    // Re-render everything
-    renderTabs();
-    renderArticles();
-
-    // Switch to the new article
+    // Re-render tabs and lazy-render the new article
     const newIndex = ARTICLES.length - 1;
+    renderTabs();
+    mainContainer.innerHTML = '';
+    renderedArticles.clear();
+    currentArticle = newIndex;
+    renderSingleArticle(currentArticle);
     switchArticle(newIndex);
 
     // Reset modal
