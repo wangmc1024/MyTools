@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>下载中心 — MyTools</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#635bff',
+            primaryLight: '#7f74ff',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    :root, [data-theme="dark"] {
+      --bg: #0a0e1a; --bg-card: rgba(255,255,255,0.08);
+      --bg-card-hover: rgba(255,255,255,0.14);
+      --text: #e8eaf0; --text-muted: #9ca3af;
+      --border: rgba(255,255,255,0.1);
+    }
+    [data-theme="light"] {
+      --bg: #f0f2f8; --bg-card: rgba(0,0,0,0.04);
+      --bg-card-hover: rgba(0,0,0,0.08);
+      --text: #1a1a2e; --text-muted: #666;
+      --border: rgba(0,0,0,0.1);
+    }
+    body { background: var(--bg); color: var(--text); transition: background .3s, color .3s; }
+    .nav-glass {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(17,24,39,.72) !important;
+      border-bottom: 1px solid var(--border);
+    }
+    [data-theme="light"] .nav-glass { background: rgba(255,255,255,.72) !important; }
+  </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+
+<!-- ======== NAVBAR ======== -->
+<nav class="nav-glass">
+  <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
+    <a href="index.html" class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</a>
+    <div class="flex items-center gap-1">
+      <a href="index.html" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">返回首页</a>
+      <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
+        <span id="themeIcon">☽️</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ======== MAIN ======== -->
+<main class="mx-auto max-w-[1200px] px-6 pt-8 pb-12">
+  <header class="text-center mb-10">
+    <div class="text-5xl mb-3">📦</div>
+    <h1 class="text-4xl font-extrabold text-[var(--text)] mb-2">下载中心</h1>
+    <p class="text-[var(--text-muted)] text-base">获取浏览器脚本和其他工具资源</p>
+  </header>
+  <div id="downloadList" class="space-y-3 max-w-3xl mx-auto"></div>
+</main>
+
+<!-- ======== SCRIPTS ======== -->
+<script src="assets/js/tools.js"></script>
+<script src="assets/js/download.js"></script>
+<script>
+  // Initialize theme on load
+  (function () {
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.addEventListener('click', function () { window.toggleTheme(); });
+    // Render downloads immediately
+    window.renderDownloads();
+  })();
+</script>
+</body>
+</html>

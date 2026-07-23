@@ -32,7 +32,7 @@ function getTheme() {
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem('portal-theme', theme); } catch {}
-  const icon = document.getElementById('themeToggleIcon');
+  const icon = document.getElementById('themeIcon') || document.getElementById('themeToggleIcon');
   if (icon) icon.textContent = theme === 'dark' ? '☽️' : '☀️';
 }
 
@@ -91,4 +91,37 @@ function giteeToRawUrl(url) {
   raw = raw.replace('/-/blob/', '/-/raw/');
   raw = raw.replace('/blob/', '/raw/');
   return raw;
+}
+
+/* ---------- Download helper (fetch + Blob) ---------- */
+function handleDownload(url) {
+  if (!url) return;
+  const rawUrl = giteeToRawUrl(url);
+  if (!rawUrl) return;
+  const fileName = decodeURIComponent(rawUrl.split('/').pop() || 'download');
+  showToast('正在下载: ' + fileName, 'info');
+  fetch(rawUrl)
+    .then(res => res.blob())
+    .then(blob => {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    })
+    .catch(() => showToast('下载失败', 'error'));
+}
+
+window.esc = escapeHtml; // alias for compatibility with inline scripts
+window.showToast = showToast;
+window.handleDownload = handleDownload;
+window.toggleTheme = toggleTheme;
+window.getTheme = getTheme;
+window.setTheme = setTheme;
+
+// Auto-initialize theme when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() { setTheme(getTheme()); });
+} else {
+  setTheme(getTheme());
 }

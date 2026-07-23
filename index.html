@@ -177,7 +177,6 @@
     </a>
     <div class="flex items-center gap-1">
       <a href="#" id="navTools" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 active-tool">工具</a>
-      <a href="#" id="navDownload" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">下载</a>
       <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
         <span id="themeIcon">☽️</span>
       </button>
@@ -207,17 +206,6 @@
     </a>
   </section>
 
-  <!-- DOWNLOAD PANEL -->
-  <section id="panelDownload" class="hidden">
-    <header class="text-center mb-8">
-      <div class="text-5xl mb-3">📦</div>
-      <h1 class="text-4xl font-extrabold text-[var(--text)] mb-2">下载中心</h1>
-      <p class="text-[var(--text-muted)]">获取浏览器脚本和其他资源</p>
-    </header>
-    <!-- Download list rendered by external script -->
-    <div id="downloadList" class="space-y-3 max-w-3xl mx-auto"></div>
-  </section>
-
   <!-- TOOLS PANEL -->
   <section id="panelTools">
     <!-- Search + Categories -->
@@ -240,7 +228,6 @@
 
 <!-- ======== SCRIPTS (shared) ======== -->
 <script src="assets/js/tools.js"></script>
-<script src="assets/js/download.js"></script>
 
 <!-- ======== MAIN LOGIC ======== -->
 <script>
@@ -251,17 +238,8 @@
 (function () {
   'use strict';
 
-  /* ---- Panel switching ---- */
-  const panelTools = document.getElementById('panelTools');
-  const panelDownload = document.getElementById('panelDownload');
-  function showPanel(name) {
-    if (name === 'download') { panelTools.classList.add('hidden'); panelDownload.classList.remove('hidden'); window.renderDownloads(); }
-    else { panelTools.classList.remove('hidden'); panelDownload.classList.add('hidden'); }
-    document.getElementById('navTools').classList.toggle('active-tool', name !== 'download');
-    document.getElementById('navDownload').classList.toggle('active-tool', name === 'download');
-  }
-  document.getElementById('navTools').addEventListener('click', e => { e.preventDefault(); showPanel('tools'); });
-  document.getElementById('navDownload').addEventListener('click', e => { e.preventDefault(); showPanel('download'); });
+  /* ---- Theme toggle ---- */
+  document.getElementById('themeToggle').addEventListener('click', function () { window.toggleTheme(); });
 
   /* ================================================================
      TOOLS DATA
@@ -540,7 +518,6 @@
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (!panelTools.classList.contains('hidden')) {
         const wrap = document.getElementById('canvas-wrap');
         const w = wrap.clientWidth;
         const h = wrap.clientHeight;
@@ -553,8 +530,7 @@
             .alpha(0.15).restart();
           drawStars(w, h);
         }
-      }
-    }, 200);
+      }, 200);
   });
 
   /* ================================================================
