@@ -214,7 +214,7 @@
       <h1 class="text-4xl font-extrabold text-[var(--text)] mb-2">下载中心</h1>
       <p class="text-[var(--text-muted)]">获取浏览器脚本和其他资源</p>
     </header>
-    <!-- Download list rendered by JS -->
+    <!-- Download list rendered by external script -->
     <div id="downloadList" class="space-y-3 max-w-3xl mx-auto"></div>
   </section>
 
@@ -238,7 +238,11 @@
 <!-- ======== TOOLTIP ======== -->
 <div id="tooltip"></div>
 
-<!-- ======== SCRIPTS ======== -->
+<!-- ======== SCRIPTS (shared) ======== -->
+<script src="assets/js/tools.js"></script>
+<script src="assets/js/download.js"></script>
+
+<!-- ======== MAIN LOGIC ======== -->
 <script>
 /* ================================================================
    MyTools Portal — Single-file Dashboard
@@ -247,23 +251,11 @@
 (function () {
   'use strict';
 
-  /* ---- Theme ---- */
-  function getTheme() { try { return localStorage.getItem('portal-theme') || 'light'; } catch { return 'light'; } }
-  function setTheme(t) {
-    document.documentElement.setAttribute('data-theme', t);
-    try { localStorage.setItem('portal-theme', t); } catch {}
-    const icon = document.getElementById('themeIcon');
-    if (icon) icon.textContent = t === 'dark' ? '☽️' : '☀️';
-  }
-  function toggleTheme() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
-  window.toggleTheme = toggleTheme;
-  setTheme(getTheme());
-
-  /* ---- Panels ---- */
+  /* ---- Panel switching ---- */
   const panelTools = document.getElementById('panelTools');
   const panelDownload = document.getElementById('panelDownload');
   function showPanel(name) {
-    if (name === 'download') { panelTools.classList.add('hidden'); panelDownload.classList.remove('hidden'); }
+    if (name === 'download') { panelTools.classList.add('hidden'); panelDownload.classList.remove('hidden'); window.renderDownloads(); }
     else { panelTools.classList.remove('hidden'); panelDownload.classList.add('hidden'); }
     document.getElementById('navTools').classList.toggle('active-tool', name !== 'download');
     document.getElementById('navDownload').classList.toggle('active-tool', name === 'download');
@@ -271,62 +263,17 @@
   document.getElementById('navTools').addEventListener('click', e => { e.preventDefault(); showPanel('tools'); });
   document.getElementById('navDownload').addEventListener('click', e => { e.preventDefault(); showPanel('download'); });
 
-  /* ---- Gitee helpers ---- */
-  function giteeToRawUrl(url) {
-    if (!url) return url;
-    let r = url.replace(/\/browse(?:\/.*)?$/, '/raw/main');
-    r = r.replace('/-/blob/', '/-/raw/');
-    r = r.replace('/blob/', '/raw/');
-    return r;
-  }
-  function handleDownload(url) {
-    if (!url) return;
-    const rawUrl = giteeToRawUrl(url);
-    if (!rawUrl) return;
-    // Use fetch+Blob for reliable download of all file types
-    const fileName = rawUrl.split('/').pop() || 'download';
-    showToast('正在下载: ' + fileName, 'info');
-    fetch(rawUrl)
-      .then(res => res.blob())
-      .then(blob => {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl; a.download = fileName;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-      })
-      .catch(() => showToast('下载失败', 'error'));
-  }
-
-  /* ---- Toast ---- */
-  function showToast(msg, type = 'info') {
-    const el = document.createElement('div');
-    el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[10001] px-5 py-2.5 rounded-xl text-sm font-medium text-white shadow-lg transition-opacity duration-300`;
-    const colors = { info: '#635bff', success: '#10b981', error: '#ef4444' };
-    el.style.background = colors[type] || colors.info;
-    el.textContent = msg;
-    document.body.appendChild(el);
-    requestAnimationFrame(() => { el.style.opacity = '1'; });
-    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2800);
-  }
-  window.handleDownload = handleDownload;
-  window.showToast = showToast;
-
-  /* ---- Escape HTML ---- */
-  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
   /* ================================================================
-     TOOLS DATA (embedded — replace with fetch in production)
+     TOOLS DATA
      ================================================================ */
   const TOOLS_DATA = [
     { name: "Article Reader", icon: "📚", type: "Web Tool", category: "阅读", description: "英语文章阅读、翻译、TTS朗读工具。支持导入 Markdown 文章，逐句翻译，单词悬停释义，云端/系统双引擎朗读。", status: "online", url: "./article-reader/index.html", version: null, updatedAt: "2026-07-23" },
     { name: "English Learning Reader", icon: "📖", type: "Web Tool", category: "学习", description: "交互式英语学习阅读器，提供文章阅读与学习辅助功能。", status: "online", url: "./reader-concrete/index.html", version: null, updatedAt: "2026-07-23" },
-    { name: "DeepSeek 问答一键导出 MD", icon: "📝", type: "浏览器脚本", category: "效率工具", description: "Tampermonkey 用户脚本，一键导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/DeepSeek%E9%97%AE%E7%AD%94%E4%B8%80%E9%94%AE%E5%AF%BC%E5%87%BAmd.js", fileType: "Userscript", version: "v6.6", updatedAt: "2026-06-10" },
+    { name: "DeepSeek 问答一键导出 MD", icon: "📝", type: "浏览器脚本", category: "效率工具", description: "Tampermonkey 用户脚本，一���导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/DeepSeek%E9%97%AE%E7%AD%94%E4%B8%80%E9%94%AE%E5%AF%BC%E5%87%BAmd.js", fileType: "Userscript", version: "v6.6", updatedAt: "2026-06-10" },
     { name: "评教一键勾选", icon: "✅", type: "浏览器脚本", category: "效率工具", description: "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/%E8%AF%84%E6%95%99%E4%B8%80%E9%94%AE%E5%8B%BE%E9%80%89.js", fileType: "Userscript", version: "v6.0", updatedAt: "2026-06-10" }
   ];
 
   const CATEGORIES = ['全部', 'Web Tool', '浏览器脚本', '效率工具', '阅读', '学习'];
-  let toolsData = [];
   let filteredTools = [];
   let activeCategory = '全部';
   let searchQuery = '';
@@ -370,43 +317,18 @@
   }
 
   /* ================================================================
-     DOWNLOAD LIST RENDERING
-     ================================================================ */
-  function renderDownloads() {
-    const list = document.getElementById('downloadList');
-    const dl = TOOLS_DATA.filter(t => t.downloadUrl);
-    if (!dl.length) { list.innerHTML = '<div class="text-center text-[var(--text-muted)] py-16">暂无可用下载资源</div>'; return; }
-    list.innerHTML = dl.map(t => `
-      <div class="rounded-xl p-5 flex items-center gap-4 bg-[var(--bg-card)] border border-[var(--border)] transition hover:border-primary hover:bg-[var(--bg-card-hover)]" data-url="${esc(t.downloadUrl)}">
-        <span class="text-2xl w-11 h-11 flex items-center justify-center rounded-xl bg-primary/10 shrink-0">${esc(t.icon)}</span>
-        <div class="flex-1 min-w-0">
-          <div class="font-semibold text-sm text-[var(--text)] truncate">${esc(t.name)}</div>
-          <div class="text-xs text-[var(--text-muted)] mt-0.5">${t.version ? esc(t.version) + ' · ' : ''}${esc(t.fileType || '')}</div>
-          <div class="text-xs text-[var(--text-muted)] mt-0.5 truncate">${esc(t.description)}</div>
-        </div>
-        <button class="shrink-0 px-4 py-2 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primaryLight transition cursor-pointer dl-btn">下载安装</button>
-      </div>
-    `).join('');
-    // Wire download buttons (data-URL approach, XSS-safe)
-    list.querySelectorAll('.dl-btn').forEach(btn => {
-      const row = btn.closest('[data-url]');
-      if (row) btn.addEventListener('click', () => window.handleDownload(row.dataset.url));
-    });
-  }
-
-  /* ================================================================
      STAR CANVAS — D3 Force-Directed Node Flight
      ================================================================ */
   let simulation = null;
   let svg = null, gNode = null, gLink = null, gStars = null;
-  const NODE_R = 28; // collision radius
+  const NODE_R = 28;
   const ICON_SIZE = 22;
 
   function initCanvas() {
     const wrap = document.getElementById('canvas-wrap');
-    const w = wrap.clientWidth;
-    const h = wrap.clientHeight;
-    if (!w || !h) return;
+    let w = wrap.clientWidth;
+    let h = wrap.clientHeight;
+    if (!w || !h) { w = 800; h = 520; }
 
     svg = d3.select('#svg-canvas').attr('viewBox', `0 0 ${w} ${h}`);
     svg.selectAll('*').remove(); // clear everything
@@ -432,7 +354,7 @@
   function drawStars(w, h) {
     if (gStars) gStars.selectAll('*').remove();
     const isDark = getTheme() === 'dark';
-    const starCount = Math.floor((w * h) / 3500); // density based on area
+    const starCount = Math.floor((w * h) / 3500);
     for (let i = 0; i < starCount; i++) {
       const cx = Math.random() * w;
       const cy = Math.random() * h;
@@ -440,7 +362,6 @@
       const opacity = Math.random() * 0.4 + 0.15;
       gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
         .classed('star', true).attr('opacity', isDark ? opacity : opacity * 0.5);
-      // Twinkle animation via CSS
       const delay = (Math.random() * 5).toFixed(1);
       const dur = (2 + Math.random() * 3).toFixed(1);
       gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
@@ -455,8 +376,8 @@
 
     const nodes = filteredTools.map((t, i) => ({
       ...t,
-      x: w / 2 + (Math.random() - 0.5) * (w * 0.6),
-      y: h / 2 + (Math.random() - 0.5) * (h * 0.5),
+      x: w * 0.15 + Math.random() * w * 0.7,
+      y: h * 0.15 + Math.random() * h * 0.7,
       vx: 0, vy: 0,
       r: NODE_R,
     }));
@@ -501,8 +422,19 @@
       .attr('font-size', ICON_SIZE + 'px')
       .text(d => d.icon);
 
-    // Label below
-    nodeSel.append('text').attr('class', 'node-label').attr('dy', NODE_R + 16).attr('fill', labelColor).text(d => d.name);
+    // Label below with outline for visibility on any background
+    nodeSel.append('rect').attr('class', 'node-label-bg')
+      .attr('x', -60).attr('y', NODE_R + 2)
+      .attr('width', 120).attr('height', 18).attr('rx', 4)
+      .attr('fill', isDark ? 'rgba(10,14,26,0.75)' : 'rgba(240,242,248,0.85)');
+    nodeSel.append('text').attr('class', 'node-label')
+      .attr('dy', NODE_R + 14).attr('fill', labelColor)
+      .style('font-weight', '500')
+      .style('letter-spacing', '-0.01em')
+      .style('paint-order', 'stroke')
+      .style('stroke', isDark ? 'rgba(10,14,26,0.9)' : 'rgba(240,242,248,0.9)')
+      .style('stroke-width', '3px')
+      .text(d => d.name);
 
     // Online status dot
     nodeSel.filter(d => d.status === 'online')
@@ -513,10 +445,7 @@
     /* Interactions */
     const tooltip = document.getElementById('tooltip');
     nodeSel.on('mouseenter', function (event, d) {
-      // Pause simulation gently
       if (simulation) simulation.alpha(0.01);
-      // Show tooltip
-      // Get theme-aware colors for tooltip
       const isDark = getTheme() === 'dark';
       let descHtml = `<div class="font-semibold mb-1 text-sm" style="color:${isDark ? '#fff' : '#1a1a2e'}">${esc(d.name)}</div>`;
       if (d.version) descHtml += `<div class="text-xs" style="color:${isDark ? '#9ca3af' : '#888'}">${esc(d.version)} · ${esc(d.type)}</div>`;
@@ -528,7 +457,6 @@
       tooltip.innerHTML = descHtml;
       tooltip.classList.add('show');
       positionTooltip(event.clientX, event.clientY);
-      // Wire up buttons inside tooltip via data attributes (XSS-safe)
       tooltip.querySelectorAll('[data-dl]').forEach(btn => btn.addEventListener('click', () => { window.handleDownload(btn.dataset.dl); }));
       tooltip.querySelectorAll('[data-open]').forEach(btn => btn.addEventListener('click', () => { window.location.href = btn.dataset.open; }));
     })
@@ -537,37 +465,33 @@
     })
     .on('mouseleave', function () {
       tooltip.classList.remove('show');
-      // Resume simulation gently
       if (simulation) simulation.alpha(0.03);
     });
 
     /* Force configuration */
     simulation = d3.forceSimulation(nodes)
       .force('link', d3.forceLink(links).id(d => d.name).distance(140).strength(0.15))
-      .force('charge', d3.forceManyBody().strength(-350).distanceMax(300)) // strong mutual repulsion
-      .force('center', d3.forceCenter(w / 2, h / 2).strength(0.03)) // weak centering — keeps them floating freely
-      .force('collision', d3.forceCollide().radius(NODE_R + 4).strength(0.8)) // prevents overlap
-      .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0)) // gentle horizontal drift
-      .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0)) // gentle vertical drift
+      .force('charge', d3.forceManyBody().strength(-350).distanceMax(300))
+      .force('center', d3.forceCenter(w / 2, h / 2).strength(0.03))
+      .force('collision', d3.forceCollide().radius(NODE_R + 4).strength(0.8))
+      .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0))
+      .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0))
       .alphaDecay(0) // ⚠️ No decay → continuous motion
       .velocityDecay(0.4) // Medium-low damping for smooth floaty feel
-      .on('tick', tick); // single combined tick handler
+      .on('tick', tick);
 
     /* Combined tick: render positions + enforce hard boundary constraints */
     function tick() {
-      const padding = NODE_R + 8; // margin from edges
+      const padding = NODE_R + 8;
       nodes.forEach(n => {
         n.x = Math.max(padding, Math.min(w - padding, n.x));
         n.y = Math.max(padding, Math.min(h - padding, n.y));
-        // Reflect velocity when hitting edge for natural bounce
         if (n.x <= padding || n.x >= w - padding) n.vx *= -0.5;
         if (n.y <= padding || n.y >= h - padding) n.vy *= -0.5;
       });
-      // Update links
       linkSel
         .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-      // Update node positions
       nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
     }
   }
@@ -582,10 +506,10 @@
   }
   function dragEnd(event, d) {
     if (!event.active) simulation.alphaTarget(0);
-    d.fx = null; d.fy = null; // release → resume free-floating
+    d.fx = null; d.fy = null;
   }
 
-  /* ---- Position tooltip near cursor but keep in viewport ---- */
+  /* ---- Position tooltip ---- */
   function positionTooltip(cx, cy) {
     const tip = document.getElementById('tooltip');
     const tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -599,11 +523,13 @@
 
   /* ---- Rebuild canvas on filter change ---- */
   function rebuildCanvas() {
+    if (simulation) simulation.stop();
+    svg?.selectAll('*').remove();
+    svg = null;
     const wrap = document.getElementById('canvas-wrap');
     const w = wrap.clientWidth;
     const h = wrap.clientHeight;
     if (!w || !h) return;
-    svg?.selectAll('*').remove();
     initCanvas();
   }
 
@@ -615,7 +541,6 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       if (!panelTools.classList.contains('hidden')) {
-        // Recalculate node positions within new bounds
         const wrap = document.getElementById('canvas-wrap');
         const w = wrap.clientWidth;
         const h = wrap.clientHeight;
@@ -626,7 +551,6 @@
             .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0))
             .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0))
             .alpha(0.15).restart();
-          // Update star positions
           drawStars(w, h);
         }
       }
@@ -634,7 +558,7 @@
   });
 
   /* ================================================================
-     TWINKLE CSS ANIMATION (added dynamically)
+     TWINKLE CSS ANIMATION
      ================================================================ */
   const styleEl = document.createElement('style');
   styleEl.textContent = `@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.55}}`;
@@ -646,7 +570,6 @@
   filteredTools = [...TOOLS_DATA];
   renderCategories();
   applyFilters();
-  renderDownloads();
 })();
 </script>
 
