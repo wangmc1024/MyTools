@@ -51,9 +51,16 @@
       <span class="logo-icon">📦</span>
       <h1>下载中心</h1>
       <p>获取浏览器脚本和其他资源</p>
+      <div class="subtitle">基于 Gitee 仓库结构，浏览并下载任意文件</div>
     </header>
 
-    <div class="download-list" id="downloadList"></div>
+    <div class="download-tabs">
+      <button class="download-tab active" data-view="tree">目录浏览</button>
+      <button class="download-tab" data-view="list">工具列表</button>
+    </div>
+
+    <div id="downloadTreeView"></div>
+    <div id="downloadListView" style="display:none;"></div>
 
   </div>
 

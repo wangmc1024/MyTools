@@ -1,0 +1,138 @@
+[
+  {
+    "name": "article-reader",
+    "type": "dir",
+    "children": [
+      {
+        "name": "index.html",
+        "type": "file",
+        "size": "Web App"
+      }
+    ]
+  },
+  {
+    "name": "assets",
+    "type": "dir",
+    "children": [
+      {
+        "name": "css",
+        "type": "dir",
+        "children": [
+          {
+            "name": "style.css",
+            "type": "file",
+            "size": "Portal Styles"
+          }
+        ]
+      },
+      {
+        "name": "data",
+        "type": "dir",
+        "children": [
+          {
+            "name": "tools.json",
+            "type": "file",
+            "size": "Config"
+          }
+        ]
+      },
+      {
+        "name": "js",
+        "type": "dir",
+        "children": [
+          {
+            "name": "app.js",
+            "type": "file",
+            "size": "Dashboard Logic"
+          },
+          {
+            "name": "tools.js",
+            "type": "file",
+            "size": "Shared Utilities"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "mermaid",
+    "type": "dir",
+    "children": [
+      {
+        "name": "demo.txt",
+        "type": "file",
+        "size": "Reference"
+      }
+    ]
+  },
+  {
+    "name": "reader-concrete",
+    "type": "dir",
+    "children": [
+      {
+        "name": "index.html",
+        "type": "file",
+        "size": "Web App"
+      }
+    ]
+  },
+  {
+    "name": "tempermonkeyScript",
+    "type": "dir",
+    "children": [
+      {
+        "name": "DeepSeek问答一键导出md.js",
+        "type": "file",
+        "size": "Userscript v6.6"
+      },
+      {
+        "name": "评教一键勾选.js",
+        "type": "file",
+        "size": "Userscript v6.0"
+      }
+    ]
+  },
+  {
+    "name": ".claude",
+    "type": "dir",
+    "children": [
+      {
+        "name": "settings.local.json",
+        "type": "file",
+        "size": "Config"
+      }
+    ]
+  },
+  {
+    "name": ".github",
+    "type": "dir",
+    "children": [
+      {
+        "name": "workflows",
+        "type": "dir",
+        "children": [
+          {
+            "name": "sync-gitee.yml",
+            "type": "file",
+            "size": "CI"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "CLAUDE.md",
+    "type": "file",
+    "size": "Docs"
+  },
+  {
+    "name": "index.html",
+    "type": "file",
+    "size": "Portal"
+  },
+  {
+    "name": "PORTAL.md",
+    "type": "file",
+    "size": "Docs"
+  }
+]

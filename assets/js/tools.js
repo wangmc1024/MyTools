@@ -75,3 +75,20 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 300);
   }, 3000);
 }
+
+/* ---------- Gitee URL helpers ---------- */
+function buildGiteeRawUrl(relativePath) {
+  return `https://gitee.com/wangmc1024/MyTools/raw/main/${encodeURIComponent(relativePath)}`;
+}
+
+function buildGiteeBlobUrl(relativePath) {
+  return `https://gitee.com/wangmc1024/MyTools/blob/main/${encodeURIComponent(relativePath)}`;
+}
+
+function giteeToRawUrl(url) {
+  if (!url) return url;
+  let raw = url.replace(/\/browse(?:\/.*)?$/, '/raw/main');
+  raw = raw.replace('/-/blob/', '/-/raw/');
+  raw = raw.replace('/blob/', '/raw/');
+  return raw;
+}

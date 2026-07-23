@@ -20,6 +20,7 @@
   const navDownload = document.getElementById('navDownload');
   const panelTools = document.getElementById('panelTools');
   const panelDownload = document.getElementById('panelDownload');
+  let repoTreeData = null;
 
   function showPanel(name) {
     if (name === 'download') {
@@ -38,9 +39,28 @@
   navTools.addEventListener('click', (e) => { e.preventDefault(); showPanel('tools'); });
   navDownload.addEventListener('click', (e) => { e.preventDefault(); showPanel('download'); });
 
-  /* ---------- Render download list ---------- */
+  /* ---------- Download view tabs ---------- */
+  function initDownloadTabs() {
+    const container = document.querySelector('.download-tabs');
+    if (!container) return;
+
+    container.addEventListener('click', (e) => {
+      const tab = e.target.closest('.download-tab');
+      if (!tab) return;
+
+      container.querySelectorAll('.download-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      const view = tab.dataset.view;
+      document.getElementById('downloadTreeView').style.display = view === 'tree' ? 'block' : 'none';
+      document.getElementById('downloadListView').style.display = view === 'list' ? 'block' : 'none';
+    });
+  }
+
+  /* ---------- Render download list (legacy panel, used by "工具列表" tab) ---------- */
   function renderDownloads() {
-    const listEl = document.getElementById('downloadList');
+    const listEl = document.getElementById('downloadListView');
+    if (!listEl) return;
     const downloadables = toolsData.filter((t) => t.downloadUrl);
 
     if (downloadables.length === 0) {
@@ -48,7 +68,7 @@
       return;
     }
 
-    listEl.innerHTML = downloadables.map((tool) => `
+    listEl.innerHTML = `<div class="download-list">${downloadables.map((tool) => `
       <div class="download-item">
         <div class="download-item-icon">${escapeHtml(tool.icon)}</div>
         <div class="download-item-info">
@@ -62,7 +82,137 @@
         </div>
         <a href="${escapeHtml(tool.downloadUrl)}" class="btn btn-primary" target="_blank" rel="noopener">下载安装</a>
       </div>
-    `).join('');
+    `).join('')}</div>`;
+  }
+
+  /* ---------- Render directory tree (new download center) ---------- */
+  function getFileIcon(name) {
+    if (name.endsWith('.html')) return '🌐';
+    if (name.endsWith('.css')) return '🎨';
+    if (name.endsWith('.js')) return '📜';
+    if (name.endsWith('.json')) return '⚙️';
+    if (name.endsWith('.yml') || name.endsWith('.yaml')) return '🔧';
+    if (name.endsWith('.md')) return '📄';
+    if (name.endsWith('.txt')) return '📝';
+    return '📄';
+  }
+
+  function renderTree(nodes, container) {
+    nodes.forEach((node) => {
+      if (node.type === 'dir') {
+        const li = document.createElement('li');
+        li.className = 'dir-item';
+
+        const hasChildren = node.children && node.children.length > 0;
+
+        const arrow = document.createElement('span');
+        arrow.className = 'dir-arrow open';
+        arrow.textContent = '▶';
+
+        const link = document.createElement('a');
+        link.className = 'dir-link';
+        link.href = 'javascript:void(0)';
+
+        const icon = document.createElement('span');
+        icon.className = 'dir-icon';
+        icon.textContent = '📁';
+
+        const label = document.createElement('span');
+        label.className = 'filename';
+        label.textContent = node.name;
+
+        link.appendChild(arrow);
+        link.appendChild(icon);
+        link.appendChild(label);
+        li.appendChild(link);
+
+        if (hasChildren) {
+          const ul = document.createElement('ul');
+          ul.style.display = 'block'; // expanded by default
+          ul.id = 'tree-' + btoa(node.name).replace(/=/g, '');
+
+          renderTree(node.children, ul);
+          li.appendChild(ul);
+
+          // Toggle expand/collapse
+          link.addEventListener('click', () => {
+            const isOpen = ul.style.display === 'block';
+            ul.style.display = isOpen ? 'none' : 'block';
+            arrow.classList.toggle('open', !isOpen);
+          });
+        }
+
+        container.appendChild(li);
+      } else {
+        const li = document.createElement('li');
+        li.className = 'file-item';
+
+        const link = document.createElement('a');
+        link.className = 'file-link';
+        const path = node._path || node.name;
+        const rawUrl = buildGiteeRawUrl(path);
+        const blobUrl = buildGiteeBlobUrl(path);
+        link.href = blobUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+
+        const icon = document.createElement('span');
+        icon.className = 'file-icon';
+        icon.textContent = getFileIcon(node.name);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'filename';
+        nameSpan.textContent = node.name;
+
+        const size = document.createElement('span');
+        size.className = 'file-size';
+        size.textContent = node.size || '';
+
+        link.appendChild(icon);
+        link.appendChild(nameSpan);
+        link.appendChild(size);
+        li.appendChild(link);
+
+        // Click to download raw file
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.open(rawUrl, '_blank');
+        });
+
+        container.appendChild(li);
+      }
+    });
+  }
+
+  function renderDirectoryTree() {
+    const container = document.getElementById('downloadTreeView');
+    if (!container || !repoTreeData) return;
+
+    try {
+      // Clone to avoid mutating original data
+      const treeData = JSON.parse(JSON.stringify(repoTreeData));
+
+      // Attach relative paths for URL building
+      function attachPaths(nodes, prefix) {
+        nodes.forEach((n) => {
+          if (n.type === 'dir' && n.children) {
+            n.children.forEach((c) => {
+              c._path = prefix ? `${prefix}/${c.name}` : c.name;
+            });
+            attachPaths(n.children, prefix ? `${prefix}/${n.name}` : n.name);
+          }
+        });
+      }
+      attachPaths(treeData, '');
+
+      const rootUl = document.createElement('ul');
+      rootUl.className = 'directory-tree';
+      renderTree(treeData, rootUl);
+      container.appendChild(rootUl);
+    } catch (e) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>' +
+        escapeHtml(e.message) + '</p></div>';
+    }
   }
 
   /* ---------- Fetch + render ---------- */
@@ -78,8 +228,23 @@
       const grid = document.getElementById('toolsGrid');
       grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>' +
         escapeHtml(e.message) + '</p></div>';
-      document.getElementById('downloadList').innerHTML = grid.innerHTML;
+      const dlList = document.getElementById('downloadListView');
+      if (dlList) dlList.innerHTML = grid.innerHTML;
     }
+
+    // Load repo tree data
+    try {
+      const treeResp = await fetch('assets/data/repo-tree.json');
+      if (treeResp.ok) {
+        repoTreeData = await treeResp.json();
+        renderDirectoryTree();
+      }
+    } catch (e) {
+      console.warn('Failed to load repo tree:', e.message);
+    }
+
+    // Init download tabs
+    initDownloadTabs();
   }
 
   /* ---------- Category tabs ---------- */
