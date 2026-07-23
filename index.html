@@ -4,98 +4,663 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MyTools — AI Tools Center</title>
-  <link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#635bff',
+            primaryLight: '#7f74ff',
+          },
+          fontFamily: {
+            sans: ['Inter', 'Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'Helvetica Neue', 'Noto Sans SC', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <!-- D3.js v7 -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* ---- Theme variables for JS-accessible colors ---- */
+    :root, [data-theme="dark"] {
+      --bg: #0a0e1a;
+      --bg-card: rgba(255,255,255,0.08);
+      --bg-card-hover: rgba(255,255,255,0.14);
+      --text: #e8eaf0;
+      --text-muted: #9ca3af;
+      --border: rgba(255,255,255,0.1);
+      --glow: rgba(99,91,255,0.35);
+    }
+    [data-theme="light"] {
+      --bg: #f0f2f8;
+      --bg-card: rgba(0,0,0,0.04);
+      --bg-card-hover: rgba(0,0,0,0.08);
+      --text: #1a1a2e;
+      --text-muted: #666;
+      --border: rgba(0,0,0,0.1);
+      --glow: rgba(99,91,255,0.25);
+    }
 
-<!-- Navbar -->
-<nav class="navbar">
-  <div class="navbar-inner">
-    <a href="index.html" class="navbar-brand">MyTools</a>
-    <div class="navbar-links">
-      <a href="#" id="navTools" class="active">工具</a>
-      <a href="#" id="navDownload">下载</a>
-      <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
-        <span id="themeToggleIcon"></span>
+    body { background: var(--bg); color: var(--text); font-family: inherit; transition: background .3s, color .3s; }
+
+    /* ---- Navbar glassmorphism ---- */
+    .nav-glass {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(17,24,39,.72) !important;
+      border-bottom: 1px solid var(--border);
+    }
+    [data-theme="light"] .nav-glass {
+      background: rgba(255,255,255,.72) !important;
+    }
+
+    /* ---- Active nav link ---- */
+    .active-tool { color: #fff; background: rgba(99,91,255,.15); }
+    [data-theme="light"] .active-tool { color: #635bff; background: rgba(99,91,255,.1); }
+
+    /* ---- Search input ---- */
+    .search-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: #635bff;
+      box-shadow: 0 0 0 3px rgba(99,91,255,.2);
+    }
+
+    /* ---- Category tabs ---- */
+    .cat-tab {
+      background: var(--bg-card); border: 1px solid var(--border);
+      transition: all .25s; cursor: pointer; user-select: none;
+    }
+    .cat-tab:hover { background: var(--bg-card-hover); }
+    .cat-tab.active {
+      background: #635bff; color: #fff; border-color: #635bff;
+    }
+
+    /* ---- Blog card ---- */
+    .blog-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: all .3s;
+    }
+    .blog-card:hover {
+      border-color: #635bff; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,91,255,.18);
+    }
+
+    /* ---- Tooltip ---- */
+    #tooltip {
+      position: fixed; z-index: 9999; pointer-events: none;
+      background: rgba(17,24,39,.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px; padding: 14px 18px;
+      max-width: 280px; font-size: 13px; line-height: 1.6;
+      opacity: 0; transition: opacity .2s;
+      box-shadow: 0 12px 40px rgba(0,0,0,.4);
+    }
+    #tooltip.show { opacity: 1; }
+    [data-theme="light"] #tooltip {
+      background: rgba(255,255,255,.96);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 12px 40px rgba(0,0,0,.1);
+    }
+
+    /* ---- Canvas ---- */
+    #canvas-wrap {
+      width: 100%; height: 520px; border-radius: 16px; overflow: hidden;
+      background: linear-gradient(180deg, rgba(99,91,255,.06) 0%, transparent 60%);
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    #svg-canvas { display: block; width: 100%; height: 100%; }
+
+    /* ---- Stars (background) ---- */
+    .star { fill: #fff; opacity: .35; }
+
+    /* ---- Node groups ---- */
+    .node-group { cursor: grab; }
+    .node-group:active { cursor: grabbing; }
+    .node-circle {
+      fill: #635bff; stroke: rgba(255,255,255,.15); stroke-width: 1.5;
+      filter: drop-shadow(0 0 6px rgba(99,91,255,.45));
+      transition: filter .2s;
+    }
+    .node-group:hover .node-circle {
+      filter: drop-shadow(0 0 14px rgba(99,91,255,.7));
+    }
+    [data-theme="light"] .node-circle {
+      filter: drop-shadow(0 0 4px rgba(99,91,255,.3));
+    }
+    .node-group:hover .node-circle {
+      filter: drop-shadow(0 0 10px rgba(99,91,255,.55));
+    }
+    .node-icon { pointer-events: none; }
+    .node-label {
+      font-size: 11px; fill: var(--text); pointer-events: none; text-anchor: middle;
+      transition: fill .3s;
+    }
+    .status-dot { pointer-events: none; }
+
+    /* ---- Links ---- */
+    .link-line { stroke: rgba(99,91,255,.18); stroke-width: 1; }
+
+    /* ---- Fade-out transition ---- */
+    .fade-out { opacity: 0; }
+
+    /* ---- Scrollbar ---- */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+
+<!-- ======== NAVBAR ======== -->
+<nav class="nav-glass">
+  <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
+    <a href="index.html" class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">
+      MyTools
+    </a>
+    <div class="flex items-center gap-1">
+      <a href="#" id="navTools" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 active-tool">工具</a>
+      <a href="#" id="navDownload" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">下载</a>
+      <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
+        <span id="themeIcon">☽️</span>
       </button>
     </div>
   </div>
 </nav>
 
-<div class="page-wrapper">
+<!-- ======== MAIN ======== -->
+<main class="mx-auto max-w-[1200px] px-6 pt-8 pb-12">
 
-  <!-- ====== 工具面板 ====== -->
-  <div id="panelTools">
+  <!-- HERO -->
+  <header class="text-center mb-8">
+    <div class="text-5xl mb-3">🛠️</div>
+    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-[var(--text)] via-primary to-primaryLight bg-clip-text text-transparent mb-2">AI Tools Center</h1>
+    <p class="text-[var(--text-muted)] text-base">My Personal AI &amp; Software Collection</p>
+  </header>
 
-    <header class="dashboard-header">
-      <span class="logo-icon">🛠️</span>
-      <h1>AI Tools Center</h1>
-      <p>My Personal AI & Software Collection</p>
-    </header>
-
-    <!-- Quick links -->
-    <section class="quick-links">
-      <a href="https://wangmc1024.github.io" target="_blank" rel="noopener" class="blog-card">
-        <span class="blog-icon">📝</span>
-        <div class="blog-info">
-          <div class="blog-title">我的博客</div>
-          <div class="blog-desc">记录学习笔记与技术思考</div>
-        </div>
-        <span class="blog-arrow">→</span>
-      </a>
-    </section>
-
-    <!-- Section divider -->
-    <section class="tools-section">
-      <h2 class="section-title">
-        <span class="section-icon">💻</span>
-        Web 应用
-      </h2>
-      <div class="tools-grid app-grid" id="appGrid"></div>
-    </section>
-
-    <section class="tools-section">
-      <h2 class="section-title">
-        <span class="section-icon">🧩</span>
-        浏览器脚本 &amp; 效率工具
-      </h2>
-      <div class="search-container">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="searchInput" placeholder="搜索工具名称、描述...">
+  <!-- BLOG CARD -->
+  <section class="mb-10">
+    <a href="https://wangmc1024.github.io" target="_blank" rel="noopener" class="blog-card block max-w-xl mx-auto rounded-2xl p-5 flex items-center gap-5">
+      <span class="text-3xl shrink-0">📝</span>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-[var(--text)]">我的博客</div>
+        <div class="text-sm text-[var(--text-muted)] truncate">记录学习笔记与技术思考</div>
       </div>
-      <div class="category-tabs" id="categoryTabs"></div>
-      <div class="tools-grid" id="toolsGrid"></div>
-      <div id="scriptsEmptyState" class="empty-state" style="display:none;">
-        <div class="empty-state-icon">🔍</div>
-        <p>没有找到匹配的工具</p>
-      </div>
-    </section>
+      <span class="shrink-0 text-primaryLight text-lg">→</span>
+    </a>
+  </section>
 
-  </div>
-
-  <!-- ====== 下载面板 ====== -->
-  <div id="panelDownload" style="display:none;">
-
-    <header class="dashboard-header">
-      <span class="logo-icon">📦</span>
-      <h1>下载中心</h1>
-      <p>获取浏览器脚本和其他资源</p>
-      <div class="subtitle">基于 Gitee 仓库结构，浏览并下载任意文件</div>
+  <!-- DOWNLOAD PANEL -->
+  <section id="panelDownload" class="hidden">
+    <header class="text-center mb-8">
+      <div class="text-5xl mb-3">📦</div>
+      <h1 class="text-4xl font-extrabold text-[var(--text)] mb-2">下载中心</h1>
+      <p class="text-[var(--text-muted)]">获取浏览器脚本和其他资源</p>
     </header>
+    <!-- Download list rendered by JS -->
+    <div id="downloadList" class="space-y-3 max-w-3xl mx-auto"></div>
+  </section>
 
-    <div class="download-tabs">
-      <button class="download-tab active" data-view="tree">目录浏览</button>
-      <button class="download-tab" data-view="list">工具列表</button>
+  <!-- TOOLS PANEL -->
+  <section id="panelTools">
+    <!-- Search + Categories -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+      <div class="relative flex-1 max-w-md">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)] pointer-events-none">🔍</span>
+        <input id="searchInput" type="text" placeholder="搜索工具名称、描述..." class="search-box w-full pl-10 pr-4 py-2.5 rounded-xl text-sm">
+      </div>
+      <div id="categoryTabs" class="flex gap-2 flex-wrap"></div>
     </div>
 
-    <div id="downloadTreeView"></div>
-    <div id="downloadListView" style="display:none;"></div>
+    <!-- Star-canvas -->
+    <div id="canvas-wrap"><svg id="svg-canvas"></svg></div>
+  </section>
 
-  </div>
+</main>
 
-</div>
+<!-- ======== TOOLTIP ======== -->
+<div id="tooltip"></div>
 
-<script src="assets/js/tools.js"></script>
-<script src="assets/js/app.js"></script>
+<!-- ======== SCRIPTS ======== -->
+<script>
+/* ================================================================
+   MyTools Portal — Single-file Dashboard
+   Tailwind CSS v3 + D3.js v7 + Vanilla JS
+   ================================================================ */
+(function () {
+  'use strict';
+
+  /* ---- Theme ---- */
+  function getTheme() { try { return localStorage.getItem('portal-theme') || 'light'; } catch { return 'light'; } }
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('portal-theme', t); } catch {}
+    const icon = document.getElementById('themeIcon');
+    if (icon) icon.textContent = t === 'dark' ? '☽️' : '☀️';
+  }
+  function toggleTheme() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+  window.toggleTheme = toggleTheme;
+  setTheme(getTheme());
+
+  /* ---- Panels ---- */
+  const panelTools = document.getElementById('panelTools');
+  const panelDownload = document.getElementById('panelDownload');
+  function showPanel(name) {
+    if (name === 'download') { panelTools.classList.add('hidden'); panelDownload.classList.remove('hidden'); }
+    else { panelTools.classList.remove('hidden'); panelDownload.classList.add('hidden'); }
+    document.getElementById('navTools').classList.toggle('active-tool', name !== 'download');
+    document.getElementById('navDownload').classList.toggle('active-tool', name === 'download');
+  }
+  document.getElementById('navTools').addEventListener('click', e => { e.preventDefault(); showPanel('tools'); });
+  document.getElementById('navDownload').addEventListener('click', e => { e.preventDefault(); showPanel('download'); });
+
+  /* ---- Gitee helpers ---- */
+  function giteeToRawUrl(url) {
+    if (!url) return url;
+    let r = url.replace(/\/browse(?:\/.*)?$/, '/raw/main');
+    r = r.replace('/-/blob/', '/-/raw/');
+    r = r.replace('/blob/', '/raw/');
+    return r;
+  }
+  function handleDownload(url) {
+    if (!url) return;
+    const rawUrl = giteeToRawUrl(url);
+    if (!rawUrl) return;
+    // Use fetch+Blob for reliable download of all file types
+    const fileName = rawUrl.split('/').pop() || 'download';
+    showToast('正在下载: ' + fileName, 'info');
+    fetch(rawUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl; a.download = fileName;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      })
+      .catch(() => showToast('下载失败', 'error'));
+  }
+
+  /* ---- Toast ---- */
+  function showToast(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[10001] px-5 py-2.5 rounded-xl text-sm font-medium text-white shadow-lg transition-opacity duration-300`;
+    const colors = { info: '#635bff', success: '#10b981', error: '#ef4444' };
+    el.style.background = colors[type] || colors.info;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2800);
+  }
+  window.handleDownload = handleDownload;
+  window.showToast = showToast;
+
+  /* ---- Escape HTML ---- */
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  /* ================================================================
+     TOOLS DATA (embedded — replace with fetch in production)
+     ================================================================ */
+  const TOOLS_DATA = [
+    { name: "Article Reader", icon: "📚", type: "Web Tool", category: "阅读", description: "英语文章阅读、翻译、TTS朗读工具。支持导入 Markdown 文章，逐句翻译，单词悬停释义，云端/系统双引擎朗读。", status: "online", url: "./article-reader/index.html", version: null, updatedAt: "2026-07-23" },
+    { name: "English Learning Reader", icon: "📖", type: "Web Tool", category: "学习", description: "交互式英语学习阅读器，提供文章阅读与学习辅助功能。", status: "online", url: "./reader-concrete/index.html", version: null, updatedAt: "2026-07-23" },
+    { name: "DeepSeek 问答一键导出 MD", icon: "📝", type: "浏览器脚本", category: "效率工具", description: "Tampermonkey 用户脚本，一键导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/DeepSeek%E9%97%AE%E7%AD%94%E4%B8%80%E9%94%AE%E5%AF%BC%E5%87%BAmd.js", fileType: "Userscript", version: "v6.6", updatedAt: "2026-06-10" },
+    { name: "评教一键勾选", icon: "✅", type: "浏览器脚本", category: "效率工具", description: "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/%E8%AF%84%E6%95%99%E4%B8%80%E9%94%AE%E5%8B%BE%E9%80%89.js", fileType: "Userscript", version: "v6.0", updatedAt: "2026-06-10" }
+  ];
+
+  const CATEGORIES = ['全部', 'Web Tool', '浏览器脚本', '效率工具', '阅读', '学习'];
+  let toolsData = [];
+  let filteredTools = [];
+  let activeCategory = '全部';
+  let searchQuery = '';
+
+  /* ================================================================
+     CATEGORY TABS
+     ================================================================ */
+  function renderCategories() {
+    const container = document.getElementById('categoryTabs');
+    container.innerHTML = CATEGORIES.map(cat =>
+      `<span class="cat-tab ${cat === activeCategory ? 'active' : ''} px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap" data-cat="${esc(cat)}">${esc(cat)}</span>`
+    ).join('');
+    container.addEventListener('click', e => {
+      const tab = e.target.closest('.cat-tab');
+      if (!tab) return;
+      container.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeCategory = tab.dataset.cat;
+      applyFilters();
+    });
+  }
+
+  /* ================================================================
+     SEARCH
+     ================================================================ */
+  document.getElementById('searchInput').addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    applyFilters();
+  });
+
+  function applyFilters() {
+    filteredTools = TOOLS_DATA.filter(t => {
+      if (activeCategory !== '全部' && t.category !== activeCategory && t.type !== activeCategory) return false;
+      if (searchQuery) {
+        const h = `${t.name} ${t.description} ${t.type} ${t.category}`.toLowerCase();
+        if (!h.includes(searchQuery)) return false;
+      }
+      return true;
+    });
+    rebuildCanvas();
+  }
+
+  /* ================================================================
+     DOWNLOAD LIST RENDERING
+     ================================================================ */
+  function renderDownloads() {
+    const list = document.getElementById('downloadList');
+    const dl = TOOLS_DATA.filter(t => t.downloadUrl);
+    if (!dl.length) { list.innerHTML = '<div class="text-center text-[var(--text-muted)] py-16">暂无可用下载资源</div>'; return; }
+    list.innerHTML = dl.map(t => `
+      <div class="rounded-xl p-5 flex items-center gap-4 bg-[var(--bg-card)] border border-[var(--border)] transition hover:border-primary hover:bg-[var(--bg-card-hover)]" data-url="${esc(t.downloadUrl)}">
+        <span class="text-2xl w-11 h-11 flex items-center justify-center rounded-xl bg-primary/10 shrink-0">${esc(t.icon)}</span>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm text-[var(--text)] truncate">${esc(t.name)}</div>
+          <div class="text-xs text-[var(--text-muted)] mt-0.5">${t.version ? esc(t.version) + ' · ' : ''}${esc(t.fileType || '')}</div>
+          <div class="text-xs text-[var(--text-muted)] mt-0.5 truncate">${esc(t.description)}</div>
+        </div>
+        <button class="shrink-0 px-4 py-2 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primaryLight transition cursor-pointer dl-btn">下载安装</button>
+      </div>
+    `).join('');
+    // Wire download buttons (data-URL approach, XSS-safe)
+    list.querySelectorAll('.dl-btn').forEach(btn => {
+      const row = btn.closest('[data-url]');
+      if (row) btn.addEventListener('click', () => window.handleDownload(row.dataset.url));
+    });
+  }
+
+  /* ================================================================
+     STAR CANVAS — D3 Force-Directed Node Flight
+     ================================================================ */
+  let simulation = null;
+  let svg = null, gNode = null, gLink = null, gStars = null;
+  const NODE_R = 28; // collision radius
+  const ICON_SIZE = 22;
+
+  function initCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    if (!w || !h) return;
+
+    svg = d3.select('#svg-canvas').attr('viewBox', `0 0 ${w} ${h}`);
+    svg.selectAll('*').remove(); // clear everything
+
+    // Defs for gradients & filters
+    const defs = svg.append('defs');
+    const glowFilter = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+    glowFilter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
+    const merge = glowFilter.append('feMerge');
+    merge.append('feMergeNode').attr('in', 'blur');
+    merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    // Groups: stars → links → nodes (drawn last so on top)
+    gStars = svg.append('g').attr('class', 'stars-layer');
+    gLink = svg.append('g').attr('class', 'links-layer');
+    gNode = svg.append('g').attr('class', 'nodes-layer');
+
+    drawStars(w, h);
+    buildSimulation(w, h);
+  }
+
+  /* ---- Draw random background stars ---- */
+  function drawStars(w, h) {
+    if (gStars) gStars.selectAll('*').remove();
+    const isDark = getTheme() === 'dark';
+    const starCount = Math.floor((w * h) / 3500); // density based on area
+    for (let i = 0; i < starCount; i++) {
+      const cx = Math.random() * w;
+      const cy = Math.random() * h;
+      const r = Math.random() * 1.2 + 0.3;
+      const opacity = Math.random() * 0.4 + 0.15;
+      gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
+        .classed('star', true).attr('opacity', isDark ? opacity : opacity * 0.5);
+      // Twinkle animation via CSS
+      const delay = (Math.random() * 5).toFixed(1);
+      const dur = (2 + Math.random() * 3).toFixed(1);
+      gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
+        .classed('star', true).attr('opacity', isDark ? opacity * 0.6 : 0)
+        .style('animation', `twinkle ${dur}s ${delay}s ease-in-out infinite`);
+    }
+  }
+
+  /* ---- Build & run D3 force simulation ---- */
+  function buildSimulation(w, h) {
+    if (simulation) simulation.stop();
+
+    const nodes = filteredTools.map((t, i) => ({
+      ...t,
+      x: w / 2 + (Math.random() - 0.5) * (w * 0.6),
+      y: h / 2 + (Math.random() - 0.5) * (h * 0.5),
+      vx: 0, vy: 0,
+      r: NODE_R,
+    }));
+
+    // Links: connect nodes of same category
+    const links = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        if (nodes[i].category === nodes[j].category) {
+          links.push({ source: nodes[i], target: nodes[j] });
+        }
+      }
+    }
+
+    // Get theme-dependent colors
+    const isDark = getTheme() === 'dark';
+    const linkColor = isDark ? 'rgba(99,91,255,0.2)' : 'rgba(99,91,255,0.15)';
+    const nodeFill = '#635bff';
+    const labelColor = isDark ? '#e8eaf0' : '#1a1a2e';
+    const onlineColor = '#10b981';
+
+    /* Draw links */
+    const linkSel = gLink.selectAll('.link-line').data(links).join('line').attr('class', 'link-line').attr('stroke', linkColor);
+
+    /* Draw nodes */
+    const nodeSel = gNode.selectAll('.node-group').data(nodes, d => d.name).join('g')
+      .attr('class', 'node-group')
+      .call(d3.drag()
+        .on('start', dragStart)
+        .on('drag', dragging)
+        .on('end', dragEnd));
+
+    // Outer circle (glow ring)
+    nodeSel.append('circle').attr('r', NODE_R).attr('class', 'node-circle')
+      .attr('fill', nodeFill).attr('stroke-width', 1.5);
+
+    // Icon text
+    nodeSel.append('text')
+      .attr('class', 'node-icon')
+      .attr('dy', '0.35em')
+      .attr('text-anchor', 'middle')
+      .attr('font-size', ICON_SIZE + 'px')
+      .text(d => d.icon);
+
+    // Label below
+    nodeSel.append('text').attr('class', 'node-label').attr('dy', NODE_R + 16).attr('fill', labelColor).text(d => d.name);
+
+    // Online status dot
+    nodeSel.filter(d => d.status === 'online')
+      .append('circle').attr('class', 'status-dot')
+      .attr('cx', NODE_R * 0.7).attr('cy', -NODE_R * 0.7).attr('r', 4).attr('fill', onlineColor)
+      .attr('stroke', isDark ? '#0a0e1a' : '#f0f2f8').attr('stroke-width', 2);
+
+    /* Interactions */
+    const tooltip = document.getElementById('tooltip');
+    nodeSel.on('mouseenter', function (event, d) {
+      // Pause simulation gently
+      if (simulation) simulation.alpha(0.01);
+      // Show tooltip
+      // Get theme-aware colors for tooltip
+      const isDark = getTheme() === 'dark';
+      let descHtml = `<div class="font-semibold mb-1 text-sm" style="color:${isDark ? '#fff' : '#1a1a2e'}">${esc(d.name)}</div>`;
+      if (d.version) descHtml += `<div class="text-xs" style="color:${isDark ? '#9ca3af' : '#888'}">${esc(d.version)} · ${esc(d.type)}</div>`;
+      descHtml += `<div class="text-xs mt-1 leading-relaxed" style="color:${isDark ? '#d1d5db' : '#555'}">${esc(d.description)}</div>`;
+      descHtml += `<div class="mt-2 flex items-center gap-2"><span class="inline-block w-2 h-2 rounded-full ${d.status === 'online' ? 'bg-emerald-400' : 'bg-red-400'}"></span><span class="text-xs" style="color:${isDark ? '#9ca3af' : '#888'}">${d.status === 'online' ? 'Online' : 'Offline'}</span>`;
+      if (d.downloadUrl) descHtml += ` <button class="ml-auto px-2.5 py-1 bg-primary rounded-lg text-xs text-white hover:bg-primaryLight transition cursor-pointer" data-dl="${esc(d.downloadUrl)}">下载</button>`;
+      if (d.url) descHtml += ` <button class="px-2.5 py-1 border border-white/20 rounded-lg text-xs text-gray-300 hover:bg-white/10 transition cursor-pointer" data-open="${esc(d.url)}">打开</button>`;
+      descHtml += '</div>';
+      tooltip.innerHTML = descHtml;
+      tooltip.classList.add('show');
+      positionTooltip(event.clientX, event.clientY);
+      // Wire up buttons inside tooltip via data attributes (XSS-safe)
+      tooltip.querySelectorAll('[data-dl]').forEach(btn => btn.addEventListener('click', () => { window.handleDownload(btn.dataset.dl); }));
+      tooltip.querySelectorAll('[data-open]').forEach(btn => btn.addEventListener('click', () => { window.location.href = btn.dataset.open; }));
+    })
+    .on('mousemove', function (event) {
+      positionTooltip(event.clientX, event.clientY);
+    })
+    .on('mouseleave', function () {
+      tooltip.classList.remove('show');
+      // Resume simulation gently
+      if (simulation) simulation.alpha(0.03);
+    });
+
+    /* Force configuration */
+    simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.name).distance(140).strength(0.15))
+      .force('charge', d3.forceManyBody().strength(-350).distanceMax(300)) // strong mutual repulsion
+      .force('center', d3.forceCenter(w / 2, h / 2).strength(0.03)) // weak centering — keeps them floating freely
+      .force('collision', d3.forceCollide().radius(NODE_R + 4).strength(0.8)) // prevents overlap
+      .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0)) // gentle horizontal drift
+      .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0)) // gentle vertical drift
+      .alphaDecay(0) // ⚠️ No decay → continuous motion
+      .velocityDecay(0.4) // Medium-low damping for smooth floaty feel
+      .on('tick', tick); // single combined tick handler
+
+    /* Combined tick: render positions + enforce hard boundary constraints */
+    function tick() {
+      const padding = NODE_R + 8; // margin from edges
+      nodes.forEach(n => {
+        n.x = Math.max(padding, Math.min(w - padding, n.x));
+        n.y = Math.max(padding, Math.min(h - padding, n.y));
+        // Reflect velocity when hitting edge for natural bounce
+        if (n.x <= padding || n.x >= w - padding) n.vx *= -0.5;
+        if (n.y <= padding || n.y >= h - padding) n.vy *= -0.5;
+      });
+      // Update links
+      linkSel
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      // Update node positions
+      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+    }
+  }
+
+  /* ---- Drag handlers ---- */
+  function dragStart(event, d) {
+    if (!event.active) simulation.alphaTarget(0.15).restart();
+    d.fx = d.x; d.fy = d.y;
+  }
+  function dragging(event, d) {
+    d.fx = event.x; d.fy = event.y;
+  }
+  function dragEnd(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null; d.fy = null; // release → resume free-floating
+  }
+
+  /* ---- Position tooltip near cursor but keep in viewport ---- */
+  function positionTooltip(cx, cy) {
+    const tip = document.getElementById('tooltip');
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = cx + 16, top = cy - 10;
+    if (left + tw > window.innerWidth - 12) left = cx - tw - 16;
+    if (top + th > window.innerHeight - 12) top = window.innerHeight - th - 12;
+    if (top < 12) top = 12;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  /* ---- Rebuild canvas on filter change ---- */
+  function rebuildCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    if (!w || !h) return;
+    svg?.selectAll('*').remove();
+    initCanvas();
+  }
+
+  /* ================================================================
+     RESIZE HANDLING
+     ================================================================ */
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (!panelTools.classList.contains('hidden')) {
+        // Recalculate node positions within new bounds
+        const wrap = document.getElementById('canvas-wrap');
+        const w = wrap.clientWidth;
+        const h = wrap.clientHeight;
+        if (w && h && simulation && filteredTools.length) {
+          simulation
+            .width(w).height(h)
+            .force('center', d3.forceCenter(w / 2, h / 2).strength(0.03))
+            .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0))
+            .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0))
+            .alpha(0.15).restart();
+          // Update star positions
+          drawStars(w, h);
+        }
+      }
+    }, 200);
+  });
+
+  /* ================================================================
+     TWINKLE CSS ANIMATION (added dynamically)
+     ================================================================ */
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.55}}`;
+  document.head.appendChild(styleEl);
+
+  /* ================================================================
+     INIT
+     ================================================================ */
+  filteredTools = [...TOOLS_DATA];
+  renderCategories();
+  applyFilters();
+  renderDownloads();
+})();
+</script>
+
+<!-- Sync portal navbar theme with page theme -->
+<script>
+(function () {
+  var btn = document.getElementById('portalThemeToggle');
+  var icon = document.getElementById('portalThemeIcon');
+  if (icon) {
+    var t = document.documentElement.getAttribute('data-theme') || 'dark';
+    icon.textContent = t === 'dark' ? '🌙' : '☀️';
+  }
+})();
+</script>
+
 </body>
 </html>
