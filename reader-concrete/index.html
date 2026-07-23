@@ -2354,6 +2354,46 @@ updateProgress();
   }
 })();
 
+// ============================================================
+//  SCROLL-HIDE: portalNavbar + header disappear when scrolling down
+// ============================================================
+(function() {
+  var navbar = document.getElementById('portalNavbar');
+  var headerEl = document.querySelector('.header');
+  var THRESHOLD = 100;
+  var lastScrollY = 0;
+
+  function updateNavVisibility() {
+    var scrollY = window.scrollY;
+    if (scrollY > THRESHOLD) {
+      if (navbar) navbar.style.transform = 'translateY(-100%)';
+      if (headerEl) headerEl.style.transform = 'translateY(-100%)';
+    } else {
+      if (navbar) navbar.style.transform = '';
+      if (headerEl) headerEl.style.transform = '';
+    }
+    if (scrollY < lastScrollY && scrollY <= THRESHOLD) {
+      if (navbar) navbar.style.transform = '';
+      if (headerEl) headerEl.style.transform = '';
+    }
+    lastScrollY = scrollY;
+  }
+
+  window.addEventListener('scroll', function() {
+    requestAnimationFrame(updateNavVisibility);
+  }, { passive: true });
+
+  // Re-check after mutations that affect header visibility
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      if (m.attributeName === 'style' || m.attributeName === 'class') {
+        updateNavVisibility();
+      }
+    });
+  });
+  if (headerEl) observer.observe(headerEl, { attributes: true });
+})();
+
 </script>
 </body>
 </html>

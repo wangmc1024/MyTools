@@ -33,14 +33,43 @@
       <p>My Personal AI & Software Collection</p>
     </header>
 
-    <div class="search-container">
-      <span class="search-icon">🔍</span>
-      <input type="text" class="search-input" id="searchInput" placeholder="搜索工具名称、描述...">
-    </div>
+    <!-- Quick links -->
+    <section class="quick-links">
+      <a href="https://wangmc1024.github.io" target="_blank" rel="noopener" class="blog-card">
+        <span class="blog-icon">📝</span>
+        <div class="blog-info">
+          <div class="blog-title">我的博客</div>
+          <div class="blog-desc">记录学习笔记与技术思考</div>
+        </div>
+        <span class="blog-arrow">→</span>
+      </a>
+    </section>
 
-    <div class="category-tabs" id="categoryTabs"></div>
+    <!-- Section divider -->
+    <section class="tools-section">
+      <h2 class="section-title">
+        <span class="section-icon">💻</span>
+        Web 应用
+      </h2>
+      <div class="tools-grid app-grid" id="appGrid"></div>
+    </section>
 
-    <div class="tools-grid" id="toolsGrid"></div>
+    <section class="tools-section">
+      <h2 class="section-title">
+        <span class="section-icon">🧩</span>
+        浏览器脚本 &amp; 效率工具
+      </h2>
+      <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="搜索工具名称、描述...">
+      </div>
+      <div class="category-tabs" id="categoryTabs"></div>
+      <div class="tools-grid" id="toolsGrid"></div>
+      <div id="scriptsEmptyState" class="empty-state" style="display:none;">
+        <div class="empty-state-icon">🔍</div>
+        <p>没有找到匹配的工具</p>
+      </div>
+    </section>
 
   </div>
 

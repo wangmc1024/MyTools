@@ -1,6 +1,6 @@
 /**
  * MyTools Portal — Dashboard Logic
- * Fetches tools.json, renders cards, handles search/filter/theme/panels
+ * Fetches tools.json, renders cards by section, handles search/filter/theme/panels
  */
 
 (function () {
@@ -21,6 +21,7 @@
   const panelTools = document.getElementById('panelTools');
   const panelDownload = document.getElementById('panelDownload');
   let repoTreeData = null;
+  let treeCounter = 0;
 
   function showPanel(name) {
     if (name === 'download') {
@@ -57,7 +58,7 @@
     });
   }
 
-  /* ---------- Render download list (legacy panel, used by "工具列表" tab) ---------- */
+  /* ---------- Render download list (used by "工具列表" tab) ---------- */
   function renderDownloads() {
     const listEl = document.getElementById('downloadListView');
     if (!listEl) return;
@@ -85,7 +86,141 @@
     `).join('')}</div>`;
   }
 
-  /* ---------- Render directory tree (new download center) ---------- */
+  /* ---------- Render apps grid (Web应用 section) ---------- */
+  function renderApps() {
+    const grid = document.getElementById('appGrid');
+    if (!grid) return;
+
+    const apps = toolsData.filter((t) => t.url && !t.downloadUrl);
+
+    if (apps.length === 0) {
+      grid.innerHTML = '';
+      return;
+    }
+
+    grid.innerHTML = apps.map((app) => `
+      <a class="app-card" href="${escapeHtml(app.url)}">
+        <div class="app-card-icon">${escapeHtml(app.icon)}</div>
+        <div class="app-card-info">
+          <div class="app-card-name">${escapeHtml(app.name)}</div>
+          <div class="app-card-desc">${escapeHtml(app.description)}</div>
+        </div>
+        <span class="app-card-arrow">→</span>
+      </a>
+    `).join('');
+  }
+
+  /* ---------- Search (applies to scripts/tools section only) ---------- */
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      renderScripts();
+    });
+  }
+
+  /* ---------- Category tabs ---------- */
+  function renderCategories() {
+    const container = document.getElementById('categoryTabs');
+    if (!container) return;
+
+    container.innerHTML = CATEGORIES.map((cat) => {
+      const active = cat === '全部' ? '' : `data-category="${escapeHtml(cat)}"`;
+      return `<button class="category-tab${cat === '全部' ? ' active' : ''}" ${active}>${escapeHtml(cat)}</button>`;
+    }).join('');
+
+    container.addEventListener('click', (e) => {
+      const tab = e.target.closest('.category-tab');
+      if (!tab) return;
+
+      container.querySelectorAll('.category-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeCategory = tab.dataset.category || 'all';
+      renderScripts();
+    });
+  }
+
+  /* ---------- Render script/tool cards ---------- */
+  function renderScripts() {
+    const grid = document.getElementById('toolsGrid');
+    const emptyEl = document.getElementById('scriptsEmptyState');
+    if (!grid || !emptyEl) return;
+
+    const filtered = filterScripts();
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '';
+      emptyEl.style.display = 'block';
+    } else {
+      emptyEl.style.display = 'none';
+      grid.innerHTML = filtered.map((tool) => buildScriptCard(tool)).join('');
+
+      grid.querySelectorAll('.btn-open').forEach((btn) => {
+        btn.addEventListener('click', () => { window.location.href = btn.dataset.url; });
+      });
+      grid.querySelectorAll('.btn-download').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          handleDownload(btn.dataset.url);
+        });
+      });
+    }
+  }
+
+  function filterScripts() {
+    // Filter out Web Apps (those that only have url, no downloadUrl)
+    return toolsData.filter((tool) => tool.downloadUrl && tool.type);
+  }
+
+  function buildScriptCard(tool) {
+    const statusIcon = tool.status === 'online' ? '🟢' : '🔴';
+    const hasUrl = !!tool.url;
+    const hasDownload = !!tool.downloadUrl;
+
+    let actionsHtml = '';
+    if (hasUrl && hasDownload) {
+      actionsHtml = `
+        <a href="${escapeHtml(tool.url)}" class="btn btn-primary btn-open" data-url="${escapeHtml(tool.url)}">打开</a>
+        <a href="javascript:void(0)" class="btn btn-secondary btn-download" data-url="${escapeHtml(tool.downloadUrl)}">下载</a>
+      `;
+    } else if (hasDownload) {
+      actionsHtml = `
+        <a href="javascript:void(0)" class="btn btn-primary btn-download" data-url="${escapeHtml(tool.downloadUrl)}">下载安装</a>
+      `;
+    }
+
+    return `
+      <div class="tool-card">
+        <div class="tool-card-header">
+          <div class="tool-card-icon">${escapeHtml(tool.icon)}</div>
+          <div class="tool-card-info">
+            <div class="tool-card-name">${escapeHtml(tool.name)}</div>
+            <div class="tool-card-type">${escapeHtml(tool.type)}${tool.version ? ' · ' + escapeHtml(tool.version) : ''}</div>
+          </div>
+          <div class="tool-card-status">${statusIcon} ${escapeHtml(tool.status)}</div>
+        </div>
+        <div class="tool-card-desc">${escapeHtml(tool.description)}</div>
+        <div class="tool-card-actions">${actionsHtml}</div>
+      </div>
+    `;
+  }
+
+  /* ---------- Unified download handler ---------- */
+  function handleDownload(url) {
+    if (!url) return;
+    const rawUrl = giteeToRawUrl(url);
+    if (!rawUrl) return;
+
+    const fileName = rawUrl.split('/').pop() || 'download';
+    const a = document.createElement('a');
+    a.href = rawUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  /* ---------- Directory tree rendering ---------- */
   function getFileIcon(name) {
     if (name.endsWith('.html')) return '🌐';
     if (name.endsWith('.css')) return '🎨';
@@ -106,7 +241,7 @@
         const hasChildren = node.children && node.children.length > 0;
 
         const arrow = document.createElement('span');
-        arrow.className = 'dir-arrow open';
+        arrow.className = 'dir-arrow';
         arrow.textContent = '▶';
 
         const link = document.createElement('a');
@@ -128,8 +263,8 @@
 
         if (hasChildren) {
           const ul = document.createElement('ul');
-          ul.style.display = 'block'; // expanded by default
-          ul.id = 'tree-' + btoa(node.name).replace(/=/g, '');
+          ul.style.display = 'none'; // all directories collapsed by default
+          ul.id = 'tree-' + btoa(node.name + (++treeCounter)).replace(/[^a-zA-Z0-9]/g, '');
 
           renderTree(node.children, ul);
           li.appendChild(ul);
@@ -150,7 +285,6 @@
         const link = document.createElement('a');
         link.className = 'file-link';
         const path = node._path || node.name;
-        const rawUrl = buildGiteeRawUrl(path);
         const blobUrl = buildGiteeBlobUrl(path);
         link.href = blobUrl;
         link.target = '_blank';
@@ -173,10 +307,11 @@
         link.appendChild(size);
         li.appendChild(link);
 
-        // Click to download raw file
+        // Click to download via giteeToRawUrl
         link.addEventListener('click', (e) => {
           e.preventDefault();
-          window.open(rawUrl, '_blank');
+          const rawUrl = giteeToRawUrl(blobUrl);
+          handleDownload(rawUrl);
         });
 
         container.appendChild(li);
@@ -189,10 +324,8 @@
     if (!container || !repoTreeData) return;
 
     try {
-      // Clone to avoid mutating original data
       const treeData = JSON.parse(JSON.stringify(repoTreeData));
 
-      // Attach relative paths for URL building
       function attachPaths(nodes, prefix) {
         nodes.forEach((n) => {
           if (n.type === 'dir' && n.children) {
@@ -221,15 +354,23 @@
       const resp = await fetch('assets/data/tools.json');
       if (!resp.ok) throw new Error('Failed to load tools.json');
       toolsData = await resp.json();
+
+      // Render apps section
+      renderApps();
+
+      // Render scripts/tools section
       renderCategories();
-      renderTools();
+      renderScripts();
+
+      // Render downloads list (tab view)
       renderDownloads();
     } catch (e) {
-      const grid = document.getElementById('toolsGrid');
-      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>' +
+      const appGrid = document.getElementById('appGrid');
+      if (appGrid) appGrid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>' +
         escapeHtml(e.message) + '</p></div>';
       const dlList = document.getElementById('downloadListView');
-      if (dlList) dlList.innerHTML = grid.innerHTML;
+      if (dlList) dlList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>' +
+        escapeHtml(e.message) + '</p></div>';
     }
 
     // Load repo tree data
@@ -247,107 +388,10 @@
     initDownloadTabs();
   }
 
-  /* ---------- Category tabs ---------- */
-  function renderCategories() {
-    const container = document.getElementById('categoryTabs');
-    container.innerHTML = CATEGORIES.map((cat) => {
-      const active = cat === '全部' ? '' : `data-category="${escapeHtml(cat)}"`;
-      return `<button class="category-tab${cat === '全部' ? ' active' : ''}" ${active}>${escapeHtml(cat)}</button>`;
-    }).join('');
-
-    container.addEventListener('click', (e) => {
-      const tab = e.target.closest('.category-tab');
-      if (!tab) return;
-
-      container.querySelectorAll('.category-tab').forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-      activeCategory = tab.dataset.category || 'all';
-      renderTools();
-    });
-  }
-
-  /* ---------- Search ---------- */
-  const searchInput = document.getElementById('searchInput');
-  searchInput.addEventListener('input', (e) => {
-    searchQuery = e.target.value.toLowerCase().trim();
-    renderTools();
-  });
-
-  /* ---------- Render tool cards ---------- */
-  function renderTools() {
-    const grid = document.getElementById('toolsGrid');
-    const filtered = filterTools();
-
-    if (filtered.length === 0) {
-      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>没有找到匹配的工具</p></div>';
-      return;
-    }
-
-    grid.innerHTML = filtered.map((tool) => buildCard(tool)).join('');
-
-    grid.querySelectorAll('.btn-open').forEach((btn) => {
-      btn.addEventListener('click', () => { window.location.href = btn.dataset.url; });
-    });
-    grid.querySelectorAll('.btn-download').forEach((btn) => {
-      btn.addEventListener('click', (e) => { e.preventDefault(); window.open(btn.dataset.url, '_blank'); });
-    });
-  }
-
-  function filterTools() {
-    return toolsData.filter((tool) => {
-      if (activeCategory !== 'all') {
-        const matchesType = tool.type === activeCategory;
-        const matchesCat = tool.category === activeCategory;
-        if (!matchesType && !matchesCat) return false;
-      }
-      if (searchQuery) {
-        const haystack = `${tool.name} ${tool.description} ${tool.type} ${tool.category}`.toLowerCase();
-        return haystack.includes(searchQuery);
-      }
-      return true;
-    });
-  }
-
-  function buildCard(tool) {
-    const statusIcon = tool.status === 'online' ? '🟢' : '🔴';
-    const hasUrl = !!tool.url;
-    const hasDownload = !!tool.downloadUrl;
-
-    let actionsHtml = '';
-    if (hasUrl && hasDownload) {
-      actionsHtml = `
-        <a href="${escapeHtml(tool.url)}" class="btn btn-primary btn-open" data-url="${escapeHtml(tool.url)}">打开工具</a>
-        <a href="${escapeHtml(tool.downloadUrl)}" class="btn btn-secondary btn-download" data-url="${escapeHtml(tool.downloadUrl)}" target="_blank">下载</a>
-      `;
-    } else if (hasUrl) {
-      actionsHtml = `
-        <a href="${escapeHtml(tool.url)}" class="btn btn-primary btn-open" data-url="${escapeHtml(tool.url)}">打开工具</a>
-      `;
-    } else if (hasDownload) {
-      actionsHtml = `
-        <a href="${escapeHtml(tool.downloadUrl)}" class="btn btn-primary btn-download" data-url="${escapeHtml(tool.downloadUrl)}" target="_blank">下载安装</a>
-      `;
-    }
-
-    return `
-      <div class="tool-card">
-        <div class="tool-card-header">
-          <div class="tool-card-icon">${escapeHtml(tool.icon)}</div>
-          <div class="tool-card-info">
-            <div class="tool-card-name">${escapeHtml(tool.name)}</div>
-            <div class="tool-card-type">${escapeHtml(tool.type)}${tool.version ? ' · ' + escapeHtml(tool.version) : ''}</div>
-          </div>
-          <div class="tool-card-status">${statusIcon} ${escapeHtml(tool.status)}</div>
-        </div>
-        <div class="tool-card-desc">${escapeHtml(tool.description)}</div>
-        <div class="tool-card-actions">${actionsHtml}</div>
-      </div>
-    `;
-  }
-
   /* ---------- Expose to global ---------- */
   window.toggleTheme = toggleTheme;
   window.showToast = showToast;
+  window.handleDownload = handleDownload;
 
   /* ---------- Boot ---------- */
   init();
