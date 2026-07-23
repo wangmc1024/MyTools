@@ -34,6 +34,8 @@
       --text-muted: #9ca3af;
       --border: rgba(255,255,255,0.1);
       --glow: rgba(99,91,255,0.35);
+      --label-bg: rgba(10,14,26,0.75);
+      --label-stroke: rgba(10,14,26,0.9);
     }
     [data-theme="light"] {
       --bg: #f0f2f8;
@@ -43,6 +45,8 @@
       --text-muted: #666;
       --border: rgba(0,0,0,0.1);
       --glow: rgba(99,91,255,0.25);
+      --label-bg: rgba(240,242,248,0.85);
+      --label-stroke: rgba(240,242,248,0.9);
     }
 
     body { background: var(--bg); color: var(--text); font-family: inherit; transition: background .3s, color .3s; }
@@ -127,14 +131,11 @@
     }
     #svg-canvas { display: block; width: 100%; height: 100%; }
 
-    /* ---- Stars (background) ---- */
-    .star { fill: #fff; opacity: .35; }
-
-    /* ---- Node groups ---- */
-    .node-group { cursor: grab; }
+    /* ---- Nodes & Links ---- */
+    .node-group { cursor: pointer; }
     .node-group:active { cursor: grabbing; }
     .node-circle {
-      fill: #635bff; stroke: rgba(255,255,255,.15); stroke-width: 1.5;
+      fill: #635bff; stroke: rgba(255,255,255,.2); stroke-width: 1.5;
       filter: drop-shadow(0 0 6px rgba(99,91,255,.45));
       transition: filter .2s;
     }
@@ -144,18 +145,12 @@
     [data-theme="light"] .node-circle {
       filter: drop-shadow(0 0 4px rgba(99,91,255,.3));
     }
-    .node-group:hover .node-circle {
-      filter: drop-shadow(0 0 10px rgba(99,91,255,.55));
-    }
     .node-icon { pointer-events: none; }
     .node-label {
       font-size: 11px; fill: var(--text); pointer-events: none; text-anchor: middle;
-      transition: fill .3s;
+      transition: fill .3s, paint-order .3s, stroke .3s, stroke-width .3s;
     }
     .status-dot { pointer-events: none; }
-
-    /* ---- Links ---- */
-    .link-line { stroke: rgba(99,91,255,.18); stroke-width: 1; }
 
     /* ---- Fade-out transition ---- */
     .fade-out { opacity: 0; }
@@ -177,6 +172,7 @@
     </a>
     <div class="flex items-center gap-1">
       <a href="#" id="navTools" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 active-tool">工具</a>
+      <a href="downloads.html" id="navDownloads" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">下载</a>
       <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
         <span id="themeIcon">☽️</span>
       </button>
@@ -231,10 +227,6 @@
 
 <!-- ======== MAIN LOGIC ======== -->
 <script>
-/* ================================================================
-   MyTools Portal — Single-file Dashboard
-   Tailwind CSS v3 + D3.js v7 + Vanilla JS
-   ================================================================ */
 (function () {
   'use strict';
 
@@ -242,19 +234,22 @@
   document.getElementById('themeToggle').addEventListener('click', function () { window.toggleTheme(); });
 
   /* ================================================================
-     TOOLS DATA
+     TOOLS DATA — loaded from assets/data/tools.json at runtime
      ================================================================ */
-  const TOOLS_DATA = [
-    { name: "Article Reader", icon: "📚", type: "Web Tool", category: "阅读", description: "英语文章阅读、翻译、TTS朗读工具。支持导入 Markdown 文章，逐句翻译，单词悬停释义，云端/系统双引擎朗读。", status: "online", url: "./article-reader/index.html", version: null, updatedAt: "2026-07-23" },
-    { name: "English Learning Reader", icon: "📖", type: "Web Tool", category: "学习", description: "交互式英语学习阅读器，提供文章阅读与学习辅助功能。", status: "online", url: "./reader-concrete/index.html", version: null, updatedAt: "2026-07-23" },
-    { name: "DeepSeek 问答一键导出 MD", icon: "📝", type: "浏览器脚本", category: "效率工具", description: "Tampermonkey 用户脚本，一���导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/DeepSeek%E9%97%AE%E7%AD%94%E4%B8%80%E9%94%AE%E5%AF%BC%E5%87%BAmd.js", fileType: "Userscript", version: "v6.6", updatedAt: "2026-06-10" },
-    { name: "评教一键勾选", icon: "✅", type: "浏览器脚本", category: "效率工具", description: "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。", status: "online", downloadUrl: "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/%E8%AF%84%E6%95%99%E4%B8%80%E9%94%AE%E5%8B%BE%E9%80%89.js", fileType: "Userscript", version: "v6.0", updatedAt: "2026-06-10" }
-  ];
-
+  let TOOLS_DATA = [];
   const CATEGORIES = ['全部', 'Web Tool', '浏览器脚本', '效率工具', '阅读', '学习'];
   let filteredTools = [];
   let activeCategory = '全部';
   let searchQuery = '';
+
+  /* Fetch tools.json on init */
+  fetch('assets/data/tools.json')
+    .then(r => r.json())
+    .then(data => {
+      TOOLS_DATA = data;
+      applyFilters();
+    })
+    .catch(() => console.error('Failed to load tools.json'));
 
   /* ================================================================
      CATEGORY TABS
@@ -295,47 +290,67 @@
   }
 
   /* ================================================================
-     STAR CANVAS — D3 Force-Directed Node Flight
+     STAR CANVAS — Declarative Node Layout with Animation
      ================================================================ */
-  let simulation = null;
-  let svg = null, gNode = null, gLink = null, gStars = null;
+  let svgEl = null, gNode = null, gLink = null, gStars = null;
+  let nodePositions = null;
   const NODE_R = 28;
   const ICON_SIZE = 22;
+  let currentW = 0, currentH = 0;
+  let BOUNDARY = { minX: 35, maxX: 1115, minY: 35, maxY: 483 };
 
   function initCanvas() {
     const wrap = document.getElementById('canvas-wrap');
-    let w = wrap.clientWidth;
-    let h = wrap.clientHeight;
-    if (!w || !h) { w = 800; h = 520; }
+    currentW = wrap.clientWidth;
+    currentH = wrap.clientHeight;
+    if (!currentW || !currentH) { currentW = 683; currentH = 518; }
 
-    svg = d3.select('#svg-canvas').attr('viewBox', `0 0 ${w} ${h}`);
-    svg.selectAll('*').remove(); // clear everything
+    // Clamp boundary to actual viewBox dims (NODE_R padding from edges)
+    const PAD = NODE_R + 7;
+    BOUNDARY.minX = PAD; BOUNDARY.maxX = currentW - PAD;
+    BOUNDARY.minY = PAD; BOUNDARY.maxY = currentH - PAD;
 
-    // Defs for gradients & filters
-    const defs = svg.append('defs');
-    const glowFilter = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+    svgEl = d3.select('#svg-canvas')
+      .attr('viewBox', `0 0 ${currentW} ${currentH}`)
+      .attr('width', currentW).attr('height', currentH);
+    svgEl.selectAll('*').remove();
+
+    // Defs: glow filter + radial gradient for nodes
+    const defs = svgEl.append('defs');
+    const glowFilter = defs.append('filter').attr('id', 'glow')
+      .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
     glowFilter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
     const merge = glowFilter.append('feMerge');
     merge.append('feMergeNode').attr('in', 'blur');
     merge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-    // Groups: stars → links → nodes (drawn last so on top)
-    gStars = svg.append('g').attr('class', 'stars-layer');
-    gLink = svg.append('g').attr('class', 'links-layer');
-    gNode = svg.append('g').attr('class', 'nodes-layer');
+    const nodeGrad = defs.append('radialGradient').attr('id', 'node-grad');
+    nodeGrad.append('stop').attr('offset', '0%').attr('stop-color', '#8b83ff');
+    nodeGrad.append('stop').attr('offset', '70%').attr('stop-color', '#635bff');
+    nodeGrad.append('stop').attr('offset', '100%').attr('stop-color', '#4f46e5');
 
-    drawStars(w, h);
-    buildSimulation(w, h);
+    // Clip path (preserve id) — padded to prevent edge clipping during floating animation
+    svgEl.append('clipPath').attr('id', 'canvas-clip')
+      .append('rect').attr('x', -40).attr('y', -40)
+        .attr('width', currentW + 80).attr('height', currentH + 80);
+
+    // Groups inside clip (preserve class names)
+    const mainGroup = svgEl.append('g').attr('clip-path', 'url(#canvas-clip)');
+    gStars = mainGroup.append('g').attr('class', 'stars-layer');
+    gLink = mainGroup.append('g').attr('class', 'links-layer');
+    gNode = mainGroup.append('g').attr('class', 'nodes-layer');
+
+    drawStars(currentW, currentH);
+    buildLayout(currentW, currentH);
   }
 
-  /* ---- Draw random background stars ---- */
+  /* ---- Draw stars: fixed position, CSS twinkle only ---- */
   function drawStars(w, h) {
     if (gStars) gStars.selectAll('*').remove();
     const isDark = getTheme() === 'dark';
     const starCount = Math.floor((w * h) / 3500);
     for (let i = 0; i < starCount; i++) {
-      const cx = Math.random() * w;
-      const cy = Math.random() * h;
+      const cx = Math.random() * w, cy = Math.random() * h;
       const r = Math.random() * 1.2 + 0.3;
       const opacity = Math.random() * 0.4 + 0.15;
       gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
@@ -348,82 +363,106 @@
     }
   }
 
-  /* ---- Build & run D3 force simulation ---- */
-  function buildSimulation(w, h) {
-    if (simulation) simulation.stop();
+  /* ---- Compute balanced node positions ---- */
+  function computePositions(filtered, w, h) {
+    const count = filtered.length;
+    const bnd = BOUNDARY;
+    const ux = bnd.maxX - bnd.minX;
+    const uy = bnd.maxY - bnd.minY;
+    if (count <= 1) return [{ x: w / 2, y: h / 2 }];
+    if (count === 2) return [
+      { x: w * 0.33, y: h * 0.5 },
+      { x: w * 0.67, y: h * 0.5 },
+    ];
+    if (count === 3) {
+      const angles = [-Math.PI / 2, -Math.PI / 2 + (2 * Math.PI / 3), -Math.PI / 2 + (4 * Math.PI / 3)];
+      return angles.map(a => ({
+        x: w / 2 + Math.cos(a) * ux * 0.3,
+        y: h / 2 + Math.sin(a) * uy * 0.3,
+      }));
+    }
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 - Math.PI / 4;
+      result.push({
+        x: w / 2 + Math.cos(angle) * ux * 0.34,
+        y: h / 2 + Math.sin(angle) * uy * 0.32,
+      });
+    }
+    return result;
+  }
 
-    const nodes = filteredTools.map((t, i) => ({
+  /* ---- Build SVG layout ---- */
+  function buildLayout(w, h) {
+    if (!filteredTools || !filteredTools.length) return;
+
+    const positions = computePositions(filteredTools, w, h);
+    nodePositions = filteredTools.map((t, i) => ({
       ...t,
-      x: w * 0.15 + Math.random() * w * 0.7,
-      y: h * 0.15 + Math.random() * h * 0.7,
-      vx: 0, vy: 0,
-      r: NODE_R,
+      x: positions[i].x,
+      y: positions[i].y,
     }));
 
-    // Links: connect nodes of same category
+    /* Links: connect same-category nodes */
     const links = [];
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        if (nodes[i].category === nodes[j].category) {
-          links.push({ source: nodes[i], target: nodes[j] });
+    for (let i = 0; i < nodePositions.length; i++) {
+      for (let j = i + 1; j < nodePositions.length; j++) {
+        if (nodePositions[i].category === nodePositions[j].category) {
+          links.push({ source: nodePositions[i], target: nodePositions[j] });
         }
       }
     }
 
-    // Get theme-dependent colors
-    const isDark = getTheme() === 'dark';
-    const linkColor = isDark ? 'rgba(99,91,255,0.2)' : 'rgba(99,91,255,0.15)';
-    const nodeFill = '#635bff';
-    const labelColor = isDark ? '#e8eaf0' : '#1a1a2e';
-    const onlineColor = '#10b981';
+    /* --- Links: thin black solid --- */
+    const linkSel = gLink.selectAll('.link-line').data(links).join('line')
+      .attr('class', 'link-line')
+      .attr('stroke', '#555')
+      .attr('stroke-opacity', 0.4)
+      .attr('stroke-width', 0.8);
 
-    /* Draw links */
-    const linkSel = gLink.selectAll('.link-line').data(links).join('line').attr('class', 'link-line').attr('stroke', linkColor);
+    /* --- Particles along links --- */
+    const particleData = links.map((l, i) => ({ link: l, idx: i, t: Math.random() }));
+    const particleSel = gLink.selectAll('.link-particle').data(particleData).join('circle')
+      .attr('class', 'link-particle')
+      .attr('fill', '#635bff').attr('r', 2.5).attr('opacity', 0.7);
 
-    /* Draw nodes */
-    const nodeSel = gNode.selectAll('.node-group').data(nodes, d => d.name).join('g')
-      .attr('class', 'node-group')
-      .call(d3.drag()
-        .on('start', dragStart)
-        .on('drag', dragging)
-        .on('end', dragEnd));
+    /* --- Nodes --- */
+    const nodeSel = gNode.selectAll('.node-group').data(nodePositions, d => d.name).join('g')
+      .attr('class', 'node-group');
 
-    // Outer circle (glow ring)
+    nodeSel.append('circle').attr('r', NODE_R + 3).attr('fill', 'none')
+      .attr('stroke', '#635bff').attr('stroke-width', 3).attr('opacity', 0.15);
+
     nodeSel.append('circle').attr('r', NODE_R).attr('class', 'node-circle')
-      .attr('fill', nodeFill).attr('stroke-width', 1.5);
+      .attr('fill', 'url(#node-grad)').attr('stroke-width', 1.5);
 
-    // Icon text
     nodeSel.append('text')
       .attr('class', 'node-icon')
-      .attr('dy', '0.35em')
-      .attr('text-anchor', 'middle')
-      .attr('font-size', ICON_SIZE + 'px')
-      .text(d => d.icon);
+      .attr('dy', '0.35em').attr('text-anchor', 'middle')
+      .attr('font-size', ICON_SIZE + 'px').text(d => d.icon);
 
-    // Label below with outline for visibility on any background
     nodeSel.append('rect').attr('class', 'node-label-bg')
-      .attr('x', -60).attr('y', NODE_R + 2)
-      .attr('width', 120).attr('height', 18).attr('rx', 4)
-      .attr('fill', isDark ? 'rgba(10,14,26,0.75)' : 'rgba(240,242,248,0.85)');
+      .attr('x', -60).attr('y', NODE_R + 2).attr('width', 120).attr('height', 18).attr('rx', 4)
+      .attr('fill', 'var(--label-bg)');
     nodeSel.append('text').attr('class', 'node-label')
-      .attr('dy', NODE_R + 14).attr('fill', labelColor)
-      .style('font-weight', '500')
-      .style('letter-spacing', '-0.01em')
+      .attr('dy', NODE_R + 14)
+      .style('font-weight', '500').style('letter-spacing', '-0.01em')
       .style('paint-order', 'stroke')
-      .style('stroke', isDark ? 'rgba(10,14,26,0.9)' : 'rgba(240,242,248,0.9)')
-      .style('stroke-width', '3px')
+      .style('stroke', 'var(--label-stroke)').style('stroke-width', '3px')
       .text(d => d.name);
 
-    // Online status dot
     nodeSel.filter(d => d.status === 'online')
       .append('circle').attr('class', 'status-dot')
-      .attr('cx', NODE_R * 0.7).attr('cy', -NODE_R * 0.7).attr('r', 4).attr('fill', onlineColor)
-      .attr('stroke', isDark ? '#0a0e1a' : '#f0f2f8').attr('stroke-width', 2);
+      .attr('cx', NODE_R * 0.7).attr('cy', -NODE_R * 0.7).attr('r', 4).attr('fill', '#10b981')
+      .attr('stroke', 'var(--bg)').attr('stroke-width', 2);
 
-    /* Interactions */
+    /* ---- Interactions ---- */
     const tooltip = document.getElementById('tooltip');
-    nodeSel.on('mouseenter', function (event, d) {
-      if (simulation) simulation.alpha(0.01);
+    nodeSel.on('click', function (event, d) {
+      event.stopPropagation();
+      if (d.url) window.location.href = d.url;
+    })
+    .on('mouseenter', function (event, d) {
       const isDark = getTheme() === 'dark';
       let descHtml = `<div class="font-semibold mb-1 text-sm" style="color:${isDark ? '#fff' : '#1a1a2e'}">${esc(d.name)}</div>`;
       if (d.version) descHtml += `<div class="text-xs" style="color:${isDark ? '#9ca3af' : '#888'}">${esc(d.version)} · ${esc(d.type)}</div>`;
@@ -435,56 +474,63 @@
       tooltip.innerHTML = descHtml;
       tooltip.classList.add('show');
       positionTooltip(event.clientX, event.clientY);
-      tooltip.querySelectorAll('[data-dl]').forEach(btn => btn.addEventListener('click', () => { window.handleDownload(btn.dataset.dl); }));
+      tooltip.querySelectorAll('[data-dl]').forEach(btn => btn.addEventListener('click', () => window.handleDownload(btn.dataset.dl)));
       tooltip.querySelectorAll('[data-open]').forEach(btn => btn.addEventListener('click', () => { window.location.href = btn.dataset.open; }));
     })
-    .on('mousemove', function (event) {
-      positionTooltip(event.clientX, event.clientY);
-    })
-    .on('mouseleave', function () {
-      tooltip.classList.remove('show');
-      if (simulation) simulation.alpha(0.03);
-    });
+    .on('mousemove', function (event) { positionTooltip(event.clientX, event.clientY); })
+    .on('mouseleave', function () { tooltip.classList.remove('show'); });
 
-    /* Force configuration */
-    simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.name).distance(140).strength(0.15))
-      .force('charge', d3.forceManyBody().strength(-350).distanceMax(300))
-      .force('center', d3.forceCenter(w / 2, h / 2).strength(0.03))
-      .force('collision', d3.forceCollide().radius(NODE_R + 4).strength(0.8))
-      .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0))
-      .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0))
-      .alphaDecay(0) // ⚠️ No decay → continuous motion
-      .velocityDecay(0.4) // Medium-low damping for smooth floaty feel
-      .on('tick', tick);
+    let draggingNode = false;
+    nodeSel.call(d3.drag()
+      .on('start', function () { draggingNode = true; })
+      .on('drag', function (event) {
+        const data = d3.select(this).datum();
+        data.x = Math.max(BOUNDARY.minX, Math.min(BOUNDARY.maxX, event.x));
+        data.y = Math.max(BOUNDARY.minY, Math.min(BOUNDARY.maxY, event.y));
+        d3.select(this).attr('transform', `translate(${data.x},${data.y})`);
+      })
+      .on('end', function () {
+        draggingNode = false;
+        const data = d3.select(this).datum();
+        data.originX = data.x;  // snap origin to current position so drift resumes smoothly
+        data.originY = data.y;
+      }));
 
-    /* Combined tick: render positions + enforce hard boundary constraints */
-    function tick() {
-      const padding = NODE_R + 8;
-      nodes.forEach(n => {
-        n.x = Math.max(padding, Math.min(w - padding, n.x));
-        n.y = Math.max(padding, Math.min(h - padding, n.y));
-        if (n.x <= padding || n.x >= w - padding) n.vx *= -0.5;
-        if (n.y <= padding || n.y >= h - padding) n.vy *= -0.5;
-      });
+    /* ---- Unified rAF loop ---- */
+    const startTime = performance.now();
+    function tick(now) {
+      const t = now - startTime;
+
+      /* 1) Node sinusoidal drift (soft ±4~8px, each node has unique period/phase) */
+      if (!draggingNode) {
+        nodePositions.forEach(n => {
+          n.x = n.originX + Math.sin(t / n.periodX + n.phase) * n.ampX;
+          n.y = n.originY + Math.cos(t / n.periodY + n.phase) * n.ampY;
+        });
+      }
+
+      /* 2) Render transforms */
+      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+
+      /* 3) Update link endpoints to follow nodes */
       linkSel
         .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
-    }
-  }
 
-  /* ---- Drag handlers ---- */
-  function dragStart(event, d) {
-    if (!event.active) simulation.alphaTarget(0.15).restart();
-    d.fx = d.x; d.fy = d.y;
-  }
-  function dragging(event, d) {
-    d.fx = event.x; d.fy = event.y;
-  }
-  function dragEnd(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null; d.fy = null;
+      /* 4) Particle flow along links */
+      particleSel.each(function (d) {
+        d.t += 0.006;
+        if (d.t > 1) d.t -= 1;
+        const s = d.link.source, tx = d.link.target;
+        d3.select(this).attr('cx', s.x + (tx.x - s.x) * d.t)
+                       .attr('cy', s.y + (tx.y - s.y) * d.t);
+      });
+
+      requestAnimationFrame(tick);
+    }
+    // Store origin positions for floating offset
+    nodePositions.forEach(n => { n.originX = n.x; n.originY = n.y; });
+    tick(performance.now());
   }
 
   /* ---- Position tooltip ---- */
@@ -499,43 +545,35 @@
     tip.style.top = top + 'px';
   }
 
-  /* ---- Rebuild canvas on filter change ---- */
+  /* ---- Rebuild on filter change ---- */
   function rebuildCanvas() {
-    if (simulation) simulation.stop();
-    svg?.selectAll('*').remove();
-    svg = null;
+    svgEl?.selectAll('*').remove();
+    svgEl = null;
     const wrap = document.getElementById('canvas-wrap');
-    const w = wrap.clientWidth;
-    const h = wrap.clientHeight;
+    const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!w || !h) return;
     initCanvas();
   }
 
-  /* ================================================================
-     RESIZE HANDLING
-     ================================================================ */
+  /* ---- Resize handling ---- */
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         const wrap = document.getElementById('canvas-wrap');
-        const w = wrap.clientWidth;
-        const h = wrap.clientHeight;
-        if (w && h && simulation && filteredTools.length) {
-          simulation
-            .width(w).height(h)
-            .force('center', d3.forceCenter(w / 2, h / 2).strength(0.03))
-            .force('x', d3.forceX(w / 2).strength(0.015).alphaDecay(0))
-            .force('y', d3.forceY(h / 2).strength(0.015).alphaDecay(0))
-            .alpha(0.15).restart();
-          drawStars(w, h);
+        const w = wrap.clientWidth, h = wrap.clientHeight;
+        if (w && h && filteredTools.length) {
+          const pad = Math.max(35, NODE_R + 7);
+          BOUNDARY.minX = pad; BOUNDARY.maxX = w - pad;
+          BOUNDARY.minY = pad; BOUNDARY.maxY = h - pad;
+          svgEl?.selectAll('*').remove();
+          svgEl = null;
+          initCanvas();
         }
       }, 200);
   });
 
-  /* ================================================================
-     TWINKLE CSS ANIMATION
-     ================================================================ */
+  /* ---- Twinkle CSS ---- */
   const styleEl = document.createElement('style');
   styleEl.textContent = `@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.55}}`;
   document.head.appendChild(styleEl);
@@ -543,9 +581,8 @@
   /* ================================================================
      INIT
      ================================================================ */
-  filteredTools = [...TOOLS_DATA];
+  // Categories are rendered immediately; tool nodes appear after tools.json loads
   renderCategories();
-  applyFilters();
 })();
 </script>
 

@@ -8,6 +8,8 @@
     "status": "online",
     "url": "./article-reader/index.html",
     "version": null,
+    "downloadUrl": null,
+    "fileType": null,
     "updatedAt": "2026-07-23"
   },
   {
@@ -19,6 +21,8 @@
     "status": "online",
     "url": "./reader-concrete/index.html",
     "version": null,
+    "downloadUrl": null,
+    "fileType": null,
     "updatedAt": "2026-07-23"
   },
   {

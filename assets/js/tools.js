@@ -55,11 +55,11 @@ function showToast(message, type = 'info') {
   }
 
   const toast = document.createElement('div');
-  const colors = { info: 'var(--accent)', success: 'var(--success)', error: 'var(--danger)' };
   Object.assign(toast.style, {
     padding: '12px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: '500',
     color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', opacity: '0',
-    transform: 'translateY(20px)', transition: 'all 0.3s ease', background: colors[type] || colors.info
+    transform: 'translateY(20px)', transition: 'all 0.3s ease',
+    background: type === 'info' ? '#635bff' : type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#635bff'
   });
   toast.textContent = message;
 
