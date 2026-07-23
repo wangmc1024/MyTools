@@ -23,9 +23,9 @@ function formatDate(dateStr) {
 /* ---------- Theme ---------- */
 function getTheme() {
   try {
-    return localStorage.getItem('portal-theme') || 'dark';
+    return localStorage.getItem('portal-theme') || 'light';
   } catch {
-    return 'dark';
+    return 'light';
   }
 }
 
