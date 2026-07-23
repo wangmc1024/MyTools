@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1242,6 +1242,13 @@ body::after {
 </head>
 <body>
 
+<div id="portalNavbar" style="position:sticky;top:0;z-index:9999;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;height:40px;padding:0 16px;font-size:13px;color:var(--text-muted);gap:8px;">
+  <a href="../index.html" style="color:var(--accent-light);text-decoration:none;font-weight:700;display:flex;align-items:center;gap:4px;">← MyTools</a>
+  <span style="color:var(--border-hover);">|</span>
+  <span style="font-weight:500;color:var(--text-primary);">Article Reader</span>
+  <div style="flex:1;"></div>
+  <button id="portalThemeToggle" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="切换主题"><span id="portalThemeIcon"></span></button>
+</div>
 <div id="progressBar"></div>
 
 <!-- HEADER -->
@@ -1482,6 +1489,7 @@ const VOICES = {
 let allArticles = [];        // All articles from IndexedDB
 let ARTICLES = [];           // Only visible articles (subset of allArticles)
 let visibleArticleIds = new Set();  // IDs of articles shown as tabs
+let hasSavedVisibleArticleIds = false;
 let currentArticle = 0;
 let currentArticleLang = 'en';
 let theme = 'dark';
@@ -1494,8 +1502,14 @@ let lastUsedVoice = { en: 'en-US-JennyNeural', zh: 'zh-CN-XiaoxiaoNeural' };
 try { theme = localStorage.getItem('theme') || 'dark'; } catch(e) {}
 try { speechRate = parseFloat(localStorage.getItem('speechRate')) || 0.95; } catch(e) {}
 try {
-  var savedVisible = JSON.parse(localStorage.getItem('visibleArticleIds') || '[]');
-  if (Array.isArray(savedVisible)) visibleArticleIds = new Set(savedVisible);
+  var savedVisibleRaw = localStorage.getItem('visibleArticleIds');
+  if (savedVisibleRaw !== null) {
+    var savedVisible = JSON.parse(savedVisibleRaw);
+    if (Array.isArray(savedVisible)) {
+      visibleArticleIds = new Set(savedVisible);
+      hasSavedVisibleArticleIds = true;
+    }
+  }
 } catch(e) {}
 try {
   const saved = localStorage.getItem('lastUsedVoice');
@@ -2866,17 +2880,46 @@ function clearTTSCache() {
 function saveVisibleArticleIds() {
   try {
     localStorage.setItem('visibleArticleIds', JSON.stringify(Array.from(visibleArticleIds)));
+    hasSavedVisibleArticleIds = true;
   } catch(e) {}
 }
 
 function syncVisibleArticles() {
-  // If no visibility info, show all articles
-  if (visibleArticleIds.size === 0 && allArticles.length > 0) {
+  // An empty set is a valid state: the user may have hidden every tab.
+  if (!hasSavedVisibleArticleIds && allArticles.length > 0) {
     allArticles.forEach(function(a) { visibleArticleIds.add(a.id); });
     saveVisibleArticleIds();
   }
+  var articleIds = new Set(allArticles.map(function(article) { return article.id; }));
+  var removedStaleId = false;
+  visibleArticleIds.forEach(function(articleId) {
+    if (!articleIds.has(articleId)) {
+      visibleArticleIds.delete(articleId);
+      removedStaleId = true;
+    }
+  });
+  if (removedStaleId) saveVisibleArticleIds();
   // Filter to visible only
   ARTICLES = allArticles.filter(function(a) { return visibleArticleIds.has(a.id); });
+}
+
+function renderVisibleArticles(preferredArticleId) {
+  syncVisibleArticles();
+  var preferredIndex = preferredArticleId === undefined
+    ? -1
+    : ARTICLES.findIndex(function(article) { return article.id === preferredArticleId; });
+  currentArticle = preferredIndex >= 0
+    ? preferredIndex
+    : Math.min(currentArticle, Math.max(0, ARTICLES.length - 1));
+
+  renderTabs();
+  renderArticles();
+  if (ARTICLES.length > 0) {
+    switchArticle(currentArticle);
+  } else {
+    emptyState.style.display = 'block';
+    tabsBar.style.display = 'none';
+  }
 }
 
 function hideArticle(index) {
@@ -2884,24 +2927,13 @@ function hideArticle(index) {
   if (!article) return;
 
   stopSpeech();
+  var activeArticle = ARTICLES[currentArticle];
+  var preferredArticle = activeArticle && activeArticle.id !== article.id
+    ? activeArticle
+    : (ARTICLES[index + 1] || ARTICLES[index - 1]);
   visibleArticleIds.delete(article.id);
   saveVisibleArticleIds();
-  syncVisibleArticles();
-
-  // Adjust current article index
-  if (currentArticle >= ARTICLES.length) {
-    currentArticle = Math.max(0, ARTICLES.length - 1);
-  }
-
-  renderTabs();
-  renderArticles();
-
-  if (ARTICLES.length > 0) {
-    switchArticle(currentArticle);
-  } else {
-    emptyState.style.display = 'block';
-    tabsBar.style.display = 'none';
-  }
+  renderVisibleArticles(preferredArticle && preferredArticle.id);
 
   showToast('Article hidden from tabs', 'info');
 }
@@ -2909,9 +2941,7 @@ function hideArticle(index) {
 function showArticle(articleId) {
   visibleArticleIds.add(articleId);
   saveVisibleArticleIds();
-  syncVisibleArticles();
-  renderTabs();
-  renderArticles();
+  renderVisibleArticles(articleId);
 }
 
 // ============================================================
@@ -3005,24 +3035,14 @@ async function renderLibrary() {
 }
 
 function hideArticleById(articleId) {
+  var activeArticle = ARTICLES[currentArticle];
+  var articleIndex = ARTICLES.findIndex(function(article) { return article.id === articleId; });
+  var preferredArticle = activeArticle && activeArticle.id !== articleId
+    ? activeArticle
+    : (ARTICLES[articleIndex + 1] || ARTICLES[articleIndex - 1]);
   visibleArticleIds.delete(articleId);
   saveVisibleArticleIds();
-  syncVisibleArticles();
-
-  // Adjust current article if needed
-  if (currentArticle >= ARTICLES.length) {
-    currentArticle = Math.max(0, ARTICLES.length - 1);
-  }
-
-  renderTabs();
-  renderArticles();
-  if (ARTICLES.length > 0) {
-    switchArticle(currentArticle);
-  } else {
-    if (preloadObserver) { preloadObserver.disconnect(); preloadObserver = null; }
-    emptyState.style.display = 'block';
-    tabsBar.style.display = 'none';
-  }
+  renderVisibleArticles(preferredArticle && preferredArticle.id);
   renderLibrary();
 }
 
@@ -3035,33 +3055,26 @@ async function deleteArticleById(articleId) {
   if (!confirm('Permanently delete this article? This cannot be undone.')) return;
 
   stopSpeech();
+  var activeArticle = ARTICLES[currentArticle];
+  var articleIndex = ARTICLES.findIndex(function(article) { return article.id === articleId; });
+  var preferredArticle = activeArticle && activeArticle.id !== articleId
+    ? activeArticle
+    : (ARTICLES[articleIndex + 1] || ARTICLES[articleIndex - 1]);
 
   try {
     await dbDelete('articles', articleId);
-  } catch(e) { console.error('Delete error:', e); }
+  } catch(e) {
+    console.error('Delete error:', e);
+    showToast('Failed to delete article: ' + (e.message || 'Unknown error'), 'error');
+    return;
+  }
 
   // Remove from allArticles
   allArticles = allArticles.filter(function(a) { return a.id !== articleId; });
   // Remove from visible
   visibleArticleIds.delete(articleId);
   saveVisibleArticleIds();
-  syncVisibleArticles();
-
-  // Adjust current article index
-  if (currentArticle >= ARTICLES.length) {
-    currentArticle = Math.max(0, ARTICLES.length - 1);
-  }
-
-  renderTabs();
-  renderArticles();
-
-  if (ARTICLES.length > 0) {
-    switchArticle(currentArticle);
-  } else {
-    if (preloadObserver) { preloadObserver.disconnect(); preloadObserver = null; }
-    emptyState.style.display = 'block';
-    tabsBar.style.display = 'none';
-  }
+  renderVisibleArticles(preferredArticle && preferredArticle.id);
 
   renderLibrary();
   showToast('Article permanently deleted', 'info');
@@ -3102,6 +3115,21 @@ async function init() {
 }
 
 init();
+
+// Sync portal navbar theme toggle with page theme
+(function() {
+  var portalThemeBtn = document.getElementById('portalThemeToggle');
+  var portalThemeIcon = document.getElementById('portalThemeIcon');
+  if (portalThemeIcon) portalThemeIcon.textContent = theme === 'dark' ? '🌙' : '☀️';
+  if (portalThemeBtn) {
+    portalThemeBtn.addEventListener('click', function() {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('theme', theme); } catch(e) {}
+      applyTheme();
+      if (portalThemeIcon) portalThemeIcon.textContent = theme === 'dark' ? '🌙' : '☀️';
+    });
+  }
+})();
 
 </script>
 </body>

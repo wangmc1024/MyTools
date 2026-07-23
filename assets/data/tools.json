@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Article Reader",
+    "icon": "📚",
+    "type": "Web Tool",
+    "category": "阅读",
+    "description": "英语文章阅读、翻译、TTS朗读工具。支持导入 Markdown 文章，逐句翻译，单词悬停释义，云端/系统双引擎朗读。",
+    "status": "online",
+    "url": "./article-reader/index.html",
+    "version": null,
+    "updatedAt": "2026-07-23"
+  },
+  {
+    "name": "English Learning Reader",
+    "icon": "📖",
+    "type": "Web Tool",
+    "category": "学习",
+    "description": "交互式英语学习阅读器，提供文章阅读与学习辅助功能。",
+    "status": "online",
+    "url": "./reader-concrete/index.html",
+    "version": null,
+    "updatedAt": "2026-07-23"
+  },
+  {
+    "name": "DeepSeek 问答一键导出 MD",
+    "icon": "📝",
+    "type": "浏览器脚本",
+    "category": "效率工具",
+    "description": "Tampermonkey 用户脚本，一键导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。",
+    "status": "online",
+    "url": null,
+    "downloadUrl": "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/DeepSeek%E9%97%AE%E7%AD%94%E4%B8%80%E9%94%AE%E5%AF%BC%E5%87%BAmd.js",
+    "fileType": "Userscript",
+    "version": "v6.6",
+    "updatedAt": "2026-06-10"
+  },
+  {
+    "name": "评教一键勾选",
+    "icon": "✅",
+    "type": "浏览器脚本",
+    "category": "效率工具",
+    "description": "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。",
+    "status": "online",
+    "url": null,
+    "downloadUrl": "https://gitee.com/wangmc1024/MyTools/raw/main/tempermonkeyScript/%E8%AF%84%E6%95%99%E4%B8%80%E9%94%AE%E5%8B%BE%E9%80%89.js",
+    "fileType": "Userscript",
+    "version": "v6.0",
+    "updatedAt": "2026-06-10"
+  }
+]

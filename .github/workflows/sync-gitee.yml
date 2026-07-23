@@ -1,0 +1,21 @@
+name: Sync GitHub To Gitee
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror repo to Gitee
+        uses: Yikun/hub-mirror-action@master
+        with:
+          src: github/wangmc1024
+          dst: gitee/wangmc1024
+          static_list: "MyTools"
+          dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+          dst_token: ${{ secrets.GITEE_TOKEN }}
+          account_type: user
+          force_update: false
+          debug: false

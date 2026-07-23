@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyTools — AI Tools Center</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="index.html" class="navbar-brand">MyTools</a>
+    <div class="navbar-links">
+      <a href="#" id="navTools" class="active">工具</a>
+      <a href="#" id="navDownload">下载</a>
+      <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+        <span id="themeToggleIcon"></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+
+  <!-- ====== 工具面板 ====== -->
+  <div id="panelTools">
+
+    <header class="dashboard-header">
+      <span class="logo-icon">🛠️</span>
+      <h1>AI Tools Center</h1>
+      <p>My Personal AI & Software Collection</p>
+    </header>
+
+    <div class="search-container">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="搜索工具名称、描述...">
+    </div>
+
+    <div class="category-tabs" id="categoryTabs"></div>
+
+    <div class="tools-grid" id="toolsGrid"></div>
+
+  </div>
+
+  <!-- ====== 下载面板 ====== -->
+  <div id="panelDownload" style="display:none;">
+
+    <header class="dashboard-header">
+      <span class="logo-icon">📦</span>
+      <h1>下载中心</h1>
+      <p>获取浏览器脚本和其他资源</p>
+    </header>
+
+    <div class="download-list" id="downloadList"></div>
+
+  </div>
+
+</div>
+
+<script src="assets/js/tools.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

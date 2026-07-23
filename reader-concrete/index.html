@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1003,6 +1003,14 @@ body::after {
 </style>
 </head>
 <body>
+<!-- MyTools Portal Nav -->
+<div id="portalNavbar" style="position:sticky;top:0;z-index:9999;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;height:40px;padding:0 16px;font-size:13px;color:var(--text-muted);gap:8px;">
+  <a href="../index.html" style="color:var(--accent-light);text-decoration:none;font-weight:700;display:flex;align-items:center;gap:4px;">← MyTools</a>
+  <span style="color:var(--border-hover);">|</span>
+  <span style="font-weight:500;color:var(--text-primary);">English Learning Reader</span>
+  <div style="flex:1;"></div>
+  <button id="portalThemeToggle" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="切换主题"><span id="portalThemeIcon"></span></button>
+</div>
 
 <div id="progressBar"></div>
 
@@ -2329,6 +2337,22 @@ function deleteArticle(index) {
 renderTabs();
 renderArticles();
 updateProgress();
+
+// Sync portal navbar theme toggle with page theme
+(function() {
+  var portalThemeBtn = document.getElementById('portalThemeToggle');
+  var portalThemeIcon = document.getElementById('portalThemeIcon');
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  if (portalThemeIcon) portalThemeIcon.textContent = current === 'dark' ? '🌙' : '☀';
+  if (portalThemeBtn) {
+    portalThemeBtn.addEventListener('click', function() {
+      current = current === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('theme', current); } catch(e) {}
+      applyTheme();
+      if (portalThemeIcon) portalThemeIcon.textContent = current === 'dark' ? '🌙' : '☀';
+    });
+  }
+})();
 
 </script>
 </body>
