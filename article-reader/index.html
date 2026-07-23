@@ -3132,11 +3132,10 @@ init();
 })();
 
 // ============================================================
-//  SCROLL-HIDE: portalNavbar + header disappear when scrolling down
+//  SCROLL-HIDE: only portalNavbar hides on scroll, header stays visible
 // ============================================================
 (function() {
   var navbar = document.getElementById('portalNavbar');
-  var headerEl = document.querySelector('.header');
   var THRESHOLD = 100; // px scrolled before hiding
   var lastScrollY = 0;
   var ticking = false;
@@ -3145,15 +3144,8 @@ init();
     var scrollY = window.scrollY;
     if (scrollY > THRESHOLD) {
       if (navbar) navbar.style.transform = 'translateY(-100%)';
-      if (headerEl) headerEl.style.transform = 'translateY(-100%)';
     } else {
       if (navbar) navbar.style.transform = '';
-      if (headerEl) headerEl.style.transform = '';
-    }
-    // Also handle scroll-up restore (optional: show while scrolling up)
-    if (scrollY < lastScrollY && scrollY <= THRESHOLD) {
-      if (navbar) navbar.style.transform = '';
-      if (headerEl) headerEl.style.transform = '';
     }
     lastScrollY = scrollY;
   }
@@ -3164,16 +3156,6 @@ init();
       ticking = true;
     }
   }, { passive: true });
-
-  // Re-apply after other scripts change header visibility (e.g. tabs bar)
-  var observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) {
-      if (m.attributeName === 'style' || m.attributeName === 'class') {
-        updateNavVisibility();
-      }
-    });
-  });
-  if (headerEl) observer.observe(headerEl, { attributes: true });
 })();
 
 </script>

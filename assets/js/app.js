@@ -205,19 +205,50 @@
     `;
   }
 
-  /* ---------- Unified download handler ---------- */
+  /* ---------- Unified download handler (text→simple, binary→fetch+Blob) ---------- */
   function handleDownload(url) {
     if (!url) return;
     const rawUrl = giteeToRawUrl(url);
     if (!rawUrl) return;
 
     const fileName = rawUrl.split('/').pop() || 'download';
-    const a = document.createElement('a');
-    a.href = rawUrl;
+    const ext = fileName.split('.').pop().toLowerCase();
+    // Text files: direct <a download> is fine
+    const textExts = ['js', 'html', 'css', 'json', 'md', 'txt', 'yml', 'yaml', 'xml', 'svg', 'png', 'jpg', 'jpeg', 'gif', 'ico', 'pdf'];
+    if (textExts.includes(ext)) {
+      _downloadSimple(rawUrl, fileName);
+      return;
+    }
+    // Binary / unknown type: fetch + Blob
+    _downloadFetch(rawUrl, fileName);
+  }
+
+  function _downloadSimple(url, fileName) {
+    var a = document.createElement('a');
+    a.href = url;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  function _downloadFetch(url, fileName) {
+    showToast('正在下载: ' + fileName, 'info');
+    fetch(url)
+      .then(function(res) { return res.blob(); })
+      .then(function(blob) {
+        var blobUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+      })
+      .catch(function() {
+        showToast('下载失败', 'error');
+      });
   }
 
   /* ---------- Directory tree rendering ---------- */
@@ -307,11 +338,10 @@
         link.appendChild(size);
         li.appendChild(link);
 
-        // Click to download via giteeToRawUrl
+        // Click to download via enhanced handler
         link.addEventListener('click', (e) => {
           e.preventDefault();
-          const rawUrl = giteeToRawUrl(blobUrl);
-          handleDownload(rawUrl);
+          handleDownload(blobUrl);
         });
 
         container.appendChild(li);
