@@ -10,10 +10,7 @@
       darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            primary: '#635bff',
-            primaryLight: '#7f74ff',
-          },
+          colors: { primary: '#635bff', primaryLight: '#7f74ff' },
         },
       },
     }
@@ -43,12 +40,9 @@
     }
     [data-theme="light"] .nav-glass { background: rgba(255,255,255,.72) !important; }
 
-    /* ---- Download cards ---- */
     .dl-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 24px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 24px;
       display: flex; align-items: center; gap: 18px;
       transition: all .3s ease;
     }
@@ -61,91 +55,65 @@
     .dl-icon {
       width: 52px; height: 52px;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 14px;
-      background: var(--accent);
-      font-size: 26px;
-      flex-shrink: 0;
+      border-radius: 14px; background: var(--accent);
+      font-size: 26px; flex-shrink: 0;
     }
     .dl-info { flex: 1; min-width: 0; }
     .dl-info h3 { font-size: 15px; font-weight: 600; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dl-info p { font-size: 12px; color: var(--text-muted); margin: 0; }
     .dl-btn {
-      padding: 10px 22px;
-      border-radius: 12px;
+      padding: 10px 22px; border-radius: 12px;
       background: linear-gradient(135deg, #635bff, #7f74ff);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: all .2s;
-      flex-shrink: 0;
+      color: #fff; font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer;
+      transition: all .2s; flex-shrink: 0;
       box-shadow: 0 2px 8px rgba(99,91,255,.3);
     }
     .dl-btn:hover { box-shadow: 0 4px 16px rgba(99,91,255,.45); transform: scale(1.03); }
 
-    /* ---- Section headings ---- */
     .section-title {
       font-size: 16px; font-weight: 700; letter-spacing: .02em;
-      color: var(--text);
-      margin-bottom: 14px;
+      color: var(--text); margin-bottom: 14px;
       display: flex; align-items: center; gap: 8px;
     }
     .section-title::before {
       content: ''; display: block;
-      width: 4px; height: 16px;
-      border-radius: 2px;
+      width: 4px; height: 16px; border-radius: 2px;
       background: linear-gradient(180deg, #635bff, #7f74ff);
     }
 
-    /* ---- Content switcher ---- */
     .switch-bar {
-      display: inline-flex;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 4px;
-      gap: 2px;
-      margin-bottom: 24px;
+      display: inline-flex; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 14px;
+      padding: 4px; gap: 2px; margin-bottom: 24px;
     }
     .switch-btn {
-      padding: 9px 28px;
-      border-radius: 11px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-muted);
-      background: transparent;
-      border: none;
-      cursor: pointer;
+      padding: 9px 28px; border-radius: 11px;
+      font-size: 14px; font-weight: 500;
+      color: var(--text-muted); background: transparent;
+      border: none; cursor: pointer;
       transition: all .25s ease;
     }
     .switch-btn:hover { color: var(--text); background: var(--bg-card-hover); }
     .switch-btn.active {
-      background: #635bff;
-      color: #fff;
+      background: #635bff; color: #fff;
       box-shadow: 0 2px 12px rgba(99,91,255,.35);
     }
     .switch-panel { display: none; }
     .switch-panel.active { display: block; animation: fadeSlideIn .3s ease; }
     @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ---- Repo tree (file explorer style) ---- */
     .repo-container {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; background: var(--bg-card);
       font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
       font-size: 13px;
     }
     .repo-row {
       display: flex; align-items: center; gap: 8px;
-      padding: 7px 16px;
-      border-bottom: 1px solid var(--border);
-      transition: background .15s;
-      cursor: default;
-      user-select: none;
-      line-height: 1.5;
+      padding: 7px 16px; border-bottom: 1px solid var(--border);
+      transition: background .15s; cursor: default;
+      user-select: none; line-height: 1.5;
     }
     .repo-row:last-child { border-bottom: none; }
     .repo-row.file { cursor: pointer; }
@@ -153,18 +121,13 @@
     .repo-row.folder { cursor: pointer; }
     .repo-row.folder:hover { color: #635bff; }
     .repo-row .count {
-      font-size: 11px;
-      color: var(--text-muted);
-      opacity: .6;
-      margin-left: auto;
+      font-size: 11px; color: var(--text-muted);
+      opacity: .6; margin-left: auto;
     }
     .tree-arrow {
-      display: inline-block;
-      font-size: 11px;
-      width: 14px;
-      text-align: center;
-      flex-shrink: 0;
-      opacity: .5;
+      display: inline-block; font-size: 11px;
+      width: 14px; text-align: center;
+      flex-shrink: 0; opacity: .5;
       transition: transform .2s ease;
     }
     .tree-arrow.open { transform: rotate(90deg); }
@@ -175,7 +138,6 @@
 </head>
 <body class="min-h-screen font-sans antialiased">
 
-<!-- ======== NAVBAR ======== -->
 <nav class="nav-glass">
   <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
     <a href="index.html" class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</a>
@@ -188,7 +150,6 @@
   </div>
 </nav>
 
-<!-- ======== MAIN ======== -->
 <main class="mx-auto pt-10 pb-16">
   <header class="text-center mb-12">
     <div class="text-5xl mb-4">📦</div>
@@ -197,19 +158,16 @@
   </header>
 
   <div style="max-width:42rem;margin:0 auto;padding:0 1.5rem;">
-    <!-- Switcher -->
     <div class="switch-bar">
       <button class="switch-btn active" data-view="downloads">下载列表</button>
       <button class="switch-btn" data-view="repository">仓库目录</button>
     </div>
 
-    <!-- Downloads panel -->
     <div id="panel-downloads" class="switch-panel active">
       <div class="section-title">可用下载</div>
       <div id="downloadList" class="space-y-3"></div>
     </div>
 
-    <!-- Repository directory panel -->
     <div id="panel-repository" class="switch-panel">
       <div class="section-title">仓库文件结构</div>
       <div id="repoTree" class="repo-container"></div>
@@ -217,21 +175,18 @@
   </div>
 </main>
 
-<!-- ======== SCRIPTS ======== -->
 <script src="assets/js/tools.js"></script>
 <script src="assets/js/download.js"></script>
 <script>
   (function () {
     const btn = document.getElementById('themeToggle');
-    if (btn) btn.addEventListener('click', function () { window.toggleTheme(); });
+    if (btn) btn.addEventListener('click', window.toggleTheme);
 
-    // View switcher
-    var viewBtns = document.querySelectorAll('.switch-btn');
-    viewBtns.forEach(function (b) {
+    document.querySelectorAll('.switch-btn').forEach(function (b) {
       b.addEventListener('click', function () {
-        viewBtns.forEach(function (t) { t.classList.remove('active'); });
+        document.querySelectorAll('.switch-btn').forEach(t => t.classList.remove('active'));
         b.classList.add('active');
-        document.querySelectorAll('.switch-panel').forEach(function (p) { p.classList.remove('active'); });
+        document.querySelectorAll('.switch-panel').forEach(p => p.classList.remove('active'));
         document.getElementById('panel-' + b.dataset.view).classList.add('active');
       });
     });

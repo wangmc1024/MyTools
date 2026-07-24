@@ -85,36 +85,162 @@ function buildGiteeBlobUrl(relativePath) {
   return `https://gitee.com/wangmc1024/MyTools/blob/main/${encodeURIComponent(relativePath)}`;
 }
 
-function giteeToRawUrl(url) {
-  if (!url) return url;
-  let raw = url.replace(/\/browse(?:\/.*)?$/, '/raw/main');
-  raw = raw.replace('/-/blob/', '/-/raw/');
-  raw = raw.replace('/blob/', '/raw/');
-  return raw;
+/**
+ * Convert a Gitee blob/browse URL to a raw URL.
+ * Replaces only the FIRST /blob/ → /raw/ (not global).
+ * Also handles enterprise *.gitee.com and existing raw URLs.
+ * Strips anchors, preserves query parameters.
+ * Returns null for non-Gitee or invalid URLs.
+ */
+function giteeToRaw(url) {
+  if (!url || typeof url !== 'string') return null;
+  var u = url.trim();
+
+  // Must be a gitee URL (strip anchor/query before checking)
+  var bareUrl = u.split('#')[0].split('?')[0];
+  if (!/\/\/.*gitee\.com\//.test(bareUrl)) return null;
+
+  // Strip anchor and query
+  u = u.split('#')[0].split('?')[0];
+
+  // Replace only first /blob/ → /raw/ (handles browse paths and explicit blob paths)
+  var idx = u.indexOf('/blob/');
+  if (idx !== -1) {
+    u = u.substring(0, idx) + '/raw/' + u.substring(idx + 6);
+  }
+  // Also handle enterprise /-/blob/ → /-/raw/
+  idx = u.indexOf('/-/blob/');
+  if (idx !== -1) {
+    u = u.substring(0, idx) + '/-/raw/' + u.substring(idx + 8);
+  }
+  // Handle /browse/ → /raw/.../main (for repo root browse links)
+  idx = u.indexOf('/browse');
+  if (idx !== -1) {
+    var after = u.substring(idx + 7); // skip /browse
+    // Insert /raw/main after the path segment before /browse
+    u = u.substring(0, idx) + '/raw/main' + after;
+  }
+
+  return u || null;
 }
 
-/* ---------- Download helper (fetch + Blob) ---------- */
+/* ---------- Download helpers ---------- */
+
+/** Proxy base URL — handles Gitee downloads */
+var PROXY_BASE = 'https://download.wangmc1024.workers.dev/?target=';
+
+/**
+ * Lightweight HEAD probe to check if the proxy is alive.
+ * Returns Promise<boolean>. ~zero bandwidth (~few hundred bytes).
+ */
+function probeProxy(rawUrl) {
+  var proxyUrl = PROXY_BASE + encodeURIComponent(rawUrl);
+  return fetch(proxyUrl, { method: 'HEAD', mode: 'cors', cache: 'no-cache' })
+    .then(function(r) { return r.ok && r.status >= 200 && r.status < 400; })
+    .catch(function() { return false; });
+}
+
+/**
+ * Legacy download wrapper: direct fetch→blob fallback to open-in-tab.
+ * Supports both Gitee URLs and local relative paths.
+ */
 function handleDownload(url) {
   if (!url) return;
-  const rawUrl = giteeToRawUrl(url);
-  if (!rawUrl) return;
-  const fileName = decodeURIComponent(rawUrl.split('/').pop() || 'download');
-  showToast('正在下载: ' + fileName, 'info');
-  fetch(rawUrl)
-    .then(res => res.blob())
-    .then(blob => {
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl; a.download = fileName;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    })
-    .catch(() => showToast('下载失败', 'error'));
+
+  var rawUrl = giteeToRaw(url);
+  if (rawUrl && rawUrl.indexOf('http') === 0) {
+    // It's an external Gitee URL
+    showToast('正在下载...', 'info');
+    fetch(rawUrl)
+      .then(function(res) { return res.blob(); })
+      .then(function(blob) {
+        var blobUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = decodeURIComponent(rawUrl.split('/').pop() || 'download');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+      })
+      .catch(function() {
+        showToast('下载失败，已为您打开源文件，请右键页面选择「另存为」保存', 'info');
+        window.open(rawUrl, '_blank');
+      });
+  } else if (url) {
+    // Relative/local path — fetch directly
+    showToast('正在下载...', 'info');
+    fetch(url)
+      .then(function(res) { return res.blob(); })
+      .then(function(blob) {
+        var blobUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = decodeURIComponent(url.split('/').pop() || 'download');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+      })
+      .catch(function() {
+        showToast('下载失败，请手动获取该文件', 'info');
+      });
+  }
+}
+
+/**
+ * Proxy-aware download with HEAD probe + graceful degradation.
+ * Intended for cases where proxy bandwidth conservation matters.
+ * If Cloudflare worker proxy is alive, downloads through it.
+ * If proxy fails, opens raw URL directly (zero CF traffic).
+ *
+ * @param {string} originUrl - The original Gitee URL (blob/browse/raw)
+ */
+function downloadByGiteeProxy(originUrl) {
+  if (!originUrl) {
+    showToast('无效的文件链接', 'error');
+    return;
+  }
+
+  // Convert to raw URL
+  var rawUrl = giteeToRaw(originUrl);
+  if (!rawUrl) {
+    showToast('无法解析文件链接，请检查原始地址', 'error');
+    return;
+  }
+
+  var proxyUrl = PROXY_BASE + encodeURIComponent(rawUrl);
+
+  // Probe proxy availability via lightweight HEAD request
+  probeProxy(rawUrl).then(function(proxied) {
+    if (proxied) {
+      // Proxy is alive — download through it
+      showToast('正在通过代理下载...', 'info');
+      var a = document.createElement('a');
+      a.href = proxyUrl;
+      a.download = '';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // Proxy failed — degrade gracefully
+      showToast('下载代理暂不可用，已为您打开源文件，请右键页面选择「另存为」保存', 'info');
+      // Open raw URL in new tab so user can Save As
+      window.open(rawUrl, '_blank');
+    }
+  }).catch(function() {
+    // Unexpected error — degrade gracefully
+    showToast('下载代理暂不可用，已为您打开源文件，请右键页面选择「另存为」保存', 'info');
+    window.open(rawUrl, '_blank');
+  });
 }
 
 window.esc = escapeHtml; // alias for compatibility with inline scripts
 window.showToast = showToast;
 window.handleDownload = handleDownload;
+window.downloadByGiteeProxy = downloadByGiteeProxy;
+window.giteeToRaw = giteeToRaw;
 window.toggleTheme = toggleTheme;
 window.getTheme = getTheme;
 window.setTheme = setTheme;

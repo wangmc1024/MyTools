@@ -22,8 +22,6 @@
       },
     }
   </script>
-  <!-- D3.js v7 -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     /* ---- Theme variables for JS-accessible colors ---- */
     :root, [data-theme="dark"] {
@@ -33,7 +31,6 @@
       --text: #e8eaf0;
       --text-muted: #9ca3af;
       --border: rgba(255,255,255,0.1);
-      --glow: rgba(99,91,255,0.35);
       --label-bg: rgba(10,14,26,0.75);
       --label-stroke: rgba(10,14,26,0.9);
     }
@@ -44,7 +41,6 @@
       --text: #1a1a2e;
       --text-muted: #666;
       --border: rgba(0,0,0,0.1);
-      --glow: rgba(99,91,255,0.25);
       --label-bg: rgba(240,242,248,0.85);
       --label-stroke: rgba(240,242,248,0.9);
     }
@@ -131,29 +127,34 @@
     }
     #svg-canvas { display: block; width: 100%; height: 100%; }
 
-    /* ---- Nodes & Links ---- */
+    /* ---- Nodes & Links (native mode) ---- */
     .node-group { cursor: pointer; }
-    .node-group:active { cursor: grabbing; }
     .node-circle {
-      fill: #635bff; stroke: rgba(255,255,255,.2); stroke-width: 1.5;
+      stroke: rgba(255,255,255,.2); stroke-width: 1.5;
       filter: drop-shadow(0 0 6px rgba(99,91,255,.45));
       transition: filter .2s;
+    }
+    [data-theme="light"] .node-circle {
+      stroke: rgba(0,0,0,.15);
+      filter: drop-shadow(0 0 4px rgba(99,91,255,.3));
     }
     .node-group:hover .node-circle {
       filter: drop-shadow(0 0 14px rgba(99,91,255,.7));
     }
-    [data-theme="light"] .node-circle {
-      filter: drop-shadow(0 0 4px rgba(99,91,255,.3));
-    }
     .node-icon { pointer-events: none; }
     .node-label {
-      font-size: 11px; fill: var(--text); pointer-events: none; text-anchor: middle;
-      transition: fill .3s, paint-order .3s, stroke .3s, stroke-width .3s;
+      font-size: 11px; fill: #fff; pointer-events: none;
+      paint-order: stroke; stroke: var(--label-stroke, rgba(10,14,26,.85)); stroke-width: 3px;
+      transition: fill .3s, stroke .3s, stroke-width .3s;
+    }
+    [data-theme="light"] .node-label {
+      fill: var(--text, #1a1a2e);
     }
     .status-dot { pointer-events: none; }
 
-    /* ---- Fade-out transition ---- */
-    .fade-out { opacity: 0; }
+    /* ---- Star twinkle (single circle, keyframe-driven) ---- */
+    @keyframes twinkle { 0%,100%{opacity:.15} 50%{opacity:.7} }
+    .star { animation: twinkle 3s ease-in-out infinite; }
 
     /* ---- Scrollbar ---- */
     ::-webkit-scrollbar { width: 6px; }
@@ -231,38 +232,45 @@
   'use strict';
 
   /* ---- Theme toggle ---- */
+  var origToggleTheme = window.toggleTheme;
+  window.toggleTheme = function() {
+    origToggleTheme();
+    if (gStars && currentW && currentH) drawStars(currentW, currentH);
+  };
   document.getElementById('themeToggle').addEventListener('click', function () { window.toggleTheme(); });
 
   /* ================================================================
      TOOLS DATA — loaded from assets/data/tools.json at runtime
      ================================================================ */
-  let TOOLS_DATA = [];
-  const CATEGORIES = ['全部', 'Web Tool', '浏览器脚本', '效率工具', '阅读', '学习'];
-  let filteredTools = [];
-  let activeCategory = '全部';
-  let searchQuery = '';
+  var TOOLS_DATA = [];
+  var CATEGORIES = ['全部', 'Web Tool', '浏览器脚本', '效率工具', '阅读', '学习'];
+  var filteredTools = [];
+  var activeCategory = '全部';
+  var searchQuery = '';
 
   /* Fetch tools.json on init */
   fetch('assets/data/tools.json')
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
       TOOLS_DATA = data;
       applyFilters();
     })
-    .catch(() => console.error('Failed to load tools.json'));
+    .catch(function(err) { 
+      console.error('Failed to load tools.json:', err); 
+    });
 
   /* ================================================================
      CATEGORY TABS
      ================================================================ */
   function renderCategories() {
-    const container = document.getElementById('categoryTabs');
-    container.innerHTML = CATEGORIES.map(cat =>
-      `<span class="cat-tab ${cat === activeCategory ? 'active' : ''} px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap" data-cat="${esc(cat)}">${esc(cat)}</span>`
-    ).join('');
-    container.addEventListener('click', e => {
-      const tab = e.target.closest('.cat-tab');
+    var container = document.getElementById('categoryTabs');
+    container.innerHTML = CATEGORIES.map(function(cat) {
+      return '<span class="cat-tab ' + (cat === activeCategory ? 'active' : '') + ' px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap" data-cat="' + esc(cat) + '">' + esc(cat) + '</span>';
+    }).join('');
+    container.addEventListener('click', function(e) {
+      var tab = e.target.closest('.cat-tab');
       if (!tab) return;
-      container.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+      container.querySelectorAll('.cat-tab').forEach(function(t) { t.classList.remove('active'); });
       tab.classList.add('active');
       activeCategory = tab.dataset.cat;
       applyFilters();
@@ -272,17 +280,18 @@
   /* ================================================================
      SEARCH
      ================================================================ */
-  document.getElementById('searchInput').addEventListener('input', e => {
+  document.getElementById('searchInput').addEventListener('input', function(e) {
     searchQuery = e.target.value.toLowerCase().trim();
     applyFilters();
   });
 
   function applyFilters() {
-    filteredTools = TOOLS_DATA.filter(t => {
+    filteredTools = TOOLS_DATA.filter(function(t) {
+      if (!t) return false;
       if (activeCategory !== '全部' && t.category !== activeCategory && t.type !== activeCategory) return false;
       if (searchQuery) {
-        const h = `${t.name} ${t.description} ${t.type} ${t.category}`.toLowerCase();
-        if (!h.includes(searchQuery)) return false;
+        var h = ((t.name || '') + ' ' + (t.description || '') + ' ' + (t.type || '') + ' ' + (t.category || '')).toLowerCase();
+        if (h.indexOf(searchQuery) === -1) return false;
       }
       return true;
     });
@@ -290,310 +299,464 @@
   }
 
   /* ================================================================
-     STAR CANVAS — Declarative Node Layout with Animation
+     STAR CANVAS — Native SVG + JS floating animation
      ================================================================ */
-  let svgEl = null, gNode = null, gLink = null, gStars = null;
-  let nodePositions = null;
-  const NODE_R = 28;
-  const ICON_SIZE = 22;
-  let currentW = 0, currentH = 0;
-  let BOUNDARY = { minX: 35, maxX: 1115, minY: 35, maxY: 483 };
+  var svgEl, gNode, gLink, gStars;
+  var nodeData = [];
+  var currentW = 0, currentH = 0;
+  var NODE_R = 28;
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var PAD = NODE_R + 12;
+  var dragNode = null;
+  var dragOffset = { x: 0, y: 0 };
+
+  function safe(v, fallback) {
+    var n = parseFloat(v);
+    return isNaN(n) ? (fallback !== undefined ? fallback : 0) : n;
+  }
 
   function initCanvas() {
-    const wrap = document.getElementById('canvas-wrap');
-    currentW = wrap.clientWidth;
-    currentH = wrap.clientHeight;
-    if (!currentW || !currentH) { currentW = 683; currentH = 518; }
+    if (svgEl) return;
+    var wrap = document.getElementById('canvas-wrap');
+    if (!wrap) return;
+    void wrap.offsetHeight;
 
-    // Clamp boundary to actual viewBox dims (NODE_R padding from edges)
-    const PAD = NODE_R + 7;
-    BOUNDARY.minX = PAD; BOUNDARY.maxX = currentW - PAD;
-    BOUNDARY.minY = PAD; BOUNDARY.maxY = currentH - PAD;
+    currentW = safe(wrap.clientWidth, 683);
+    currentH = safe(wrap.clientHeight, 518);
+    if (!currentW || !currentH) return;
 
-    svgEl = d3.select('#svg-canvas')
-      .attr('viewBox', `0 0 ${currentW} ${currentH}`)
-      .attr('width', currentW).attr('height', currentH);
-    svgEl.selectAll('*').remove();
+    svgEl = document.getElementById('svg-canvas');
+    svgEl.setAttribute('viewBox', '0 0 ' + currentW + ' ' + currentH);
+    while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
 
-    // Defs: glow filter + radial gradient for nodes
-    const defs = svgEl.append('defs');
-    const glowFilter = defs.append('filter').attr('id', 'glow')
-      .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-    glowFilter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
-    const merge = glowFilter.append('feMerge');
-    merge.append('feMergeNode').attr('in', 'blur');
-    merge.append('feMergeNode').attr('in', 'SourceGraphic');
+    var defs = document.createElementNS(SVG_NS, 'defs');
+    var nodeGrad = createSVG('radialGradient', { id: 'node-grad' });
+    addStop(nodeGrad, '0%', '#8b83ff');
+    addStop(nodeGrad, '70%', '#635bff');
+    addStop(nodeGrad, '100%', '#4f46e5');
+    defs.appendChild(nodeGrad);
+    svgEl.appendChild(defs);
 
-    const nodeGrad = defs.append('radialGradient').attr('id', 'node-grad');
-    nodeGrad.append('stop').attr('offset', '0%').attr('stop-color', '#8b83ff');
-    nodeGrad.append('stop').attr('offset', '70%').attr('stop-color', '#635bff');
-    nodeGrad.append('stop').attr('offset', '100%').attr('stop-color', '#4f46e5');
-
-    // Clip path (preserve id) — padded to prevent edge clipping during floating animation
-    svgEl.append('clipPath').attr('id', 'canvas-clip')
-      .append('rect').attr('x', -40).attr('y', -40)
-        .attr('width', currentW + 80).attr('height', currentH + 80);
-
-    // Groups inside clip (preserve class names)
-    const mainGroup = svgEl.append('g').attr('clip-path', 'url(#canvas-clip)');
-    gStars = mainGroup.append('g').attr('class', 'stars-layer');
-    gLink = mainGroup.append('g').attr('class', 'links-layer');
-    gNode = mainGroup.append('g').attr('class', 'nodes-layer');
+    var mainGroup = createSVG('g');
+    gStars = createSVG('g');
+    gLink = createSVG('g');
+    gNode = createSVG('g');
+    mainGroup.appendChild(gStars);
+    mainGroup.appendChild(gLink);
+    mainGroup.appendChild(gNode);
+    svgEl.appendChild(mainGroup);
 
     drawStars(currentW, currentH);
-    buildLayout(currentW, currentH);
+    buildLayout();
+
+    // Global drag handlers
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }
 
-  /* ---- Draw stars: fixed position, CSS twinkle only ---- */
+  function handleMouseMove(ev) {
+    if (!dragNode) return;
+    var svgRect = svgEl.getBoundingClientRect();
+    var mx = ev.clientX - svgRect.left;
+    var my = ev.clientY - svgRect.top;
+
+    // Track that drag movement occurred
+    var dx = mx - dragNode.lastDragX;
+    var dy = my - dragNode.lastDragY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+      dragNode._hasMoved = true;
+    }
+
+    // Calculate velocity from drag movement
+    var now = performance.now();
+    var dt = now - dragNode.lastDragTime;
+    if (dt > 0) {
+      dragNode.vx = dx / dt * 16;
+      dragNode.vy = dy / dt * 16;
+    }
+    dragNode.lastDragX = mx;
+    dragNode.lastDragY = my;
+    dragNode.lastDragTime = now;
+
+    // Update position
+    dragNode.x = Math.max(PAD, Math.min(currentW - PAD, mx - dragOffset.x));
+    dragNode.y = Math.max(PAD, Math.min(currentH - PAD, my - dragOffset.y));
+  }
+
+  function handleMouseUp() {
+    if (dragNode) {
+      dragNode.dragging = false;
+      // Only mark as dragged if there was actual movement
+      if (dragNode._hasMoved) {
+        dragNode._wasDragged = true;
+        dragNode._hasMoved = false;
+      }
+      // Limit velocity after release
+      var speed = Math.sqrt(dragNode.vx * dragNode.vx + dragNode.vy * dragNode.vy);
+      var maxDragSpeed = 4;
+      if (speed > maxDragSpeed) {
+        dragNode.vx *= maxDragSpeed / speed;
+        dragNode.vy *= maxDragSpeed / speed;
+      }
+      dragNode = null;
+    }
+  }
+
   function drawStars(w, h) {
-    if (gStars) gStars.selectAll('*').remove();
-    const isDark = getTheme() === 'dark';
-    const starCount = Math.floor((w * h) / 3500);
-    for (let i = 0; i < starCount; i++) {
-      const cx = Math.random() * w, cy = Math.random() * h;
-      const r = Math.random() * 1.2 + 0.3;
-      const opacity = Math.random() * 0.4 + 0.15;
-      gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
-        .classed('star', true).attr('opacity', isDark ? opacity : opacity * 0.5);
-      const delay = (Math.random() * 5).toFixed(1);
-      const dur = (2 + Math.random() * 3).toFixed(1);
-      gStars.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
-        .classed('star', true).attr('opacity', isDark ? opacity * 0.6 : 0)
-        .style('animation', `twinkle ${dur}s ${delay}s ease-in-out infinite`);
-    }
-  }
-
-  /* ---- Compute balanced node positions ---- */
-  function computePositions(filtered, w, h) {
-    const count = filtered.length;
-    const bnd = BOUNDARY;
-    const ux = bnd.maxX - bnd.minX;
-    const uy = bnd.maxY - bnd.minY;
-    if (count <= 1) return [{ x: w / 2, y: h / 2 }];
-    if (count === 2) return [
-      { x: w * 0.33, y: h * 0.5 },
-      { x: w * 0.67, y: h * 0.5 },
-    ];
-    if (count === 3) {
-      const angles = [-Math.PI / 2, -Math.PI / 2 + (2 * Math.PI / 3), -Math.PI / 2 + (4 * Math.PI / 3)];
-      return angles.map(a => ({
-        x: w / 2 + Math.cos(a) * ux * 0.3,
-        y: h / 2 + Math.sin(a) * uy * 0.3,
-      }));
-    }
-    const result = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 - Math.PI / 4;
-      result.push({
-        x: w / 2 + Math.cos(angle) * ux * 0.34,
-        y: h / 2 + Math.sin(angle) * uy * 0.32,
+    if (!gStars || !w || !h) return;
+    while (gStars.firstChild) gStars.removeChild(gStars.firstChild);
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var starCount = isDark ? Math.floor((w * h) / 800) : Math.floor((w * h) / 2000);
+    for (var i = 0; i < starCount; i++) {
+      var r = isDark ? (Math.random() * 0.8 + 0.2) : (Math.random() * 1.2 + 0.4);
+      var opacity = isDark ? (Math.random() * 0.5 + 0.15) : (Math.random() * 0.4 + 0.25);
+      var c = createSVG('circle', {
+        cx: Math.random() * w, cy: Math.random() * h,
+        r: r, class: 'star',
+        opacity: opacity,
+        fill: isDark ? undefined : (Math.random() > 0.5 ? '#635bff' : '#888')
       });
+      c.style.animationDuration = (1.5 + Math.random() * 4).toFixed(1) + 's';
+      c.style.animationDelay = (Math.random() * 6).toFixed(1) + 's';
+      gStars.appendChild(c);
     }
-    return result;
+    // Add a few larger "bright" stars for dark mode
+    if (isDark) {
+      var brightCount = Math.floor((w * h) / 12000);
+      for (var i = 0; i < brightCount; i++) {
+        var c = createSVG('circle', {
+          cx: Math.random() * w, cy: Math.random() * h,
+          r: Math.random() * 1.2 + 0.6, class: 'star',
+          opacity: Math.random() * 0.4 + 0.3,
+          fill: Math.random() > 0.7 ? '#c4b5fd' : '#fff'
+        });
+        c.style.animationDuration = (2 + Math.random() * 3).toFixed(1) + 's';
+        c.style.animationDelay = (Math.random() * 4).toFixed(1) + 's';
+        gStars.appendChild(c);
+      }
+    }
   }
 
-  /* ---- Build SVG layout ---- */
-  function buildLayout(w, h) {
-    if (!filteredTools || !filteredTools.length) return;
+  function buildLayout() {
+    if (!filteredTools || !filteredTools.length) {
+      while (gNode && gNode.firstChild) gNode.removeChild(gNode.firstChild);
+      while (gLink && gLink.firstChild) gLink.removeChild(gLink.firstChild);
+      nodeData = [];
+      return;
+    }
 
-    const positions = computePositions(filteredTools, w, h);
-    nodePositions = filteredTools.map((t, i) => ({
-      ...t,
-      x: positions[i].x,
-      y: positions[i].y,
-    }));
+    var w = currentW, h = currentH;
+    var count = filteredTools.length;
+    nodeData = filteredTools.map(function(t, i) {
+      var seed = i * 137.508;
+      var speed = 0.3 + Math.random() * 0.5;
+      var angle = Math.random() * Math.PI * 2;
+      return {
+        tool: t,
+        x: PAD + Math.random() * (w - PAD * 2),
+        y: PAD + Math.random() * (h - PAD * 2),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: NODE_R,
+        phase: (seed * 0.618) % (Math.PI * 2),
+        pulseSpeed: 2 + Math.random() * 3,
+        dragging: false,
+        hovered: false
+      };
+    });
 
-    /* Links: connect same-category nodes */
-    const links = [];
-    for (let i = 0; i < nodePositions.length; i++) {
-      for (let j = i + 1; j < nodePositions.length; j++) {
-        if (nodePositions[i].category === nodePositions[j].category) {
-          links.push({ source: nodePositions[i], target: nodePositions[j] });
+    while (gLink.firstChild) gLink.removeChild(gLink.firstChild);
+
+    while (gNode.firstChild) gNode.removeChild(gNode.firstChild);
+    nodeData.forEach(function(nd) {
+      var g = createSVG('g', { class: 'node-group' });
+
+      // Outer glow ring (animated in tick)
+      g.appendChild(createSVG('circle', {
+        class: 'glow-ring',
+        r: NODE_R + 6, fill: 'none', stroke: '#635bff', 'stroke-width': 2, opacity: 0.15
+      }));
+      // Static outer ring
+      g.appendChild(createSVG('circle', {
+        r: NODE_R + 3, fill: 'none', stroke: '#635bff', 'stroke-width': 3, opacity: 0.15
+      }));
+      g.appendChild(createSVG('circle', { r: NODE_R, class: 'node-circle', fill: 'url(#node-grad)' }));
+
+      var iconText = createSVG('text', {
+        class: 'node-icon', dy: '0.35em', 'text-anchor': 'middle', 'font-size': '22px'
+      });
+      iconText.textContent = (nd.tool && nd.tool.icon) || '?';
+      g.appendChild(iconText);
+
+      g.appendChild(createSVG('rect', {
+        x: -60, y: NODE_R + 2, width: 120, height: 18, rx: 4,
+        fill: 'var(--label-bg)'
+      }));
+
+      var label = createSVG('text', {
+        class: 'node-label', dy: NODE_R + 14, 'text-anchor': 'middle'
+      });
+      label.textContent = (nd.tool && nd.tool.name) || 'Unknown';
+      g.appendChild(label);
+
+      if (nd.tool && nd.tool.status === 'online') {
+        g.appendChild(createSVG('circle', {
+          class: 'status-dot',
+          cx: NODE_R * 0.7, cy: -NODE_R * 0.7, r: 4,
+          fill: '#10b981', stroke: 'var(--bg)', 'stroke-width': 2
+        }));
+      }
+
+      g.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        if (nd._wasDragged) { nd._wasDragged = false; return; }
+        if (!dragNode && nd.tool && nd.tool.url) window.location.href = nd.tool.url;
+      });
+      g.addEventListener('mouseenter', function(ev) {
+        nd.hovered = true;
+        if (nd.tool) showTooltip(ev, nd.tool);
+      });
+      g.addEventListener('mousemove', function(ev) { moveTooltip(ev.clientX, ev.clientY); });
+      g.addEventListener('mouseleave', function() {
+        nd.hovered = false;
+        hideTooltip();
+      });
+
+      // Drag support
+      g.addEventListener('mousedown', function(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        dragNode = nd;
+        nd._wasDragged = false;
+        var svgRect = svgEl.getBoundingClientRect();
+        var mx = ev.clientX - svgRect.left;
+        var my = ev.clientY - svgRect.top;
+        dragOffset.x = mx - nd.x;
+        dragOffset.y = my - nd.y;
+        nd.dragging = true;
+        nd.lastDragX = mx;
+        nd.lastDragY = my;
+        nd.lastDragTime = performance.now();
+      });
+
+      gNode.appendChild(g);
+    });
+
+    // Set initial positions immediately
+    var groups = gNode.querySelectorAll('.node-group');
+    for (var i = 0; i < nodeData.length && i < groups.length; i++) {
+      var nd = nodeData[i];
+      if (nd) {
+        groups[i].setAttribute('transform', 'translate(' + nd.x.toFixed(2) + ',' + nd.y.toFixed(2) + ')');
+      }
+    }
+
+    startAnimationLoop();
+  }
+
+  var animRunning = false;
+  var animFrameId = null;
+
+  function startAnimationLoop() {
+    if (animRunning) return;
+    if (!gNode || !gNode.querySelector('.node-group')) {
+      requestAnimationFrame(startAnimationLoop);
+      return;
+    }
+    animRunning = true;
+    animFrameId = requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    var w = currentW, h = currentH;
+    var damp = 0.999;
+    var maxSpeed = 2.2;
+    var minSpeed = 0.3;
+    var now = performance.now();
+
+    for (var i = 0; i < nodeData.length; i++) {
+      var nd = nodeData[i];
+      if (!nd) continue;
+
+      // Skip physics update while dragging or hovered
+      if (!nd.dragging && !nd.hovered) {
+        nd.x += nd.vx;
+        nd.y += nd.vy;
+
+        if (nd.x < PAD) { nd.x = PAD; nd.vx = Math.abs(nd.vx); }
+        if (nd.x > w - PAD) { nd.x = w - PAD; nd.vx = -Math.abs(nd.vx); }
+        if (nd.y < PAD) { nd.y = PAD; nd.vy = Math.abs(nd.vy); }
+        if (nd.y > h - PAD) { nd.y = h - PAD; nd.vy = -Math.abs(nd.vy); }
+
+        var speed = Math.sqrt(nd.vx * nd.vx + nd.vy * nd.vy);
+        if (speed > maxSpeed) { nd.vx *= maxSpeed / speed; nd.vy *= maxSpeed / speed; }
+        if (speed < minSpeed) { nd.vx *= 1.02; nd.vy *= 1.02; }
+
+        nd.vx *= damp;
+        nd.vy *= damp;
+      }
+    }
+
+    // Update node positions with breathing pulse + glow ring
+    var nodeGroups = gNode.querySelectorAll('.node-group');
+    for (var i = 0; i < nodeGroups.length && i < nodeData.length; i++) {
+      var nd = nodeData[i];
+      if (!nd) continue;
+      var pulse = 1 + Math.sin(now / 1000 * nd.pulseSpeed + nd.phase) * 0.06;
+      nodeGroups[i].setAttribute('transform', 'translate(' + nd.x.toFixed(2) + ',' + nd.y.toFixed(2) + ') scale(' + pulse.toFixed(3) + ')');
+
+      // Glow ring animation
+      var glowRing = nodeGroups[i].querySelector('.glow-ring');
+      if (glowRing) {
+        var glowOpacity = 0.15 + Math.sin(now / 800 * nd.pulseSpeed + nd.phase) * 0.08;
+        var glowR = NODE_R + 6 + Math.sin(now / 600 * nd.pulseSpeed + nd.phase) * 3;
+        glowRing.setAttribute('r', glowR.toFixed(1));
+        glowRing.setAttribute('opacity', glowOpacity.toFixed(2));
+      }
+    }
+
+    // Compute dynamic links
+    var links = [];
+    for (var i = 0; i < nodeData.length; i++) {
+      for (var j = i + 1; j < nodeData.length; j++) {
+        var dx = nodeData[i].x - nodeData[j].x;
+        var dy = nodeData[i].y - nodeData[j].y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 220) {
+          links.push({
+            x1: nodeData[i].x, y1: nodeData[i].y,
+            x2: nodeData[j].x, y2: nodeData[j].y,
+            dist: dist
+          });
         }
       }
     }
 
-    /* --- Links: thin black solid --- */
-    const linkSel = gLink.selectAll('.link-line').data(links).join('line')
-      .attr('class', 'link-line')
-      .attr('stroke', '#555')
-      .attr('stroke-opacity', 0.4)
-      .attr('stroke-width', 0.8);
-
-    /* --- Particles along links --- */
-    const particleData = links.map((l, i) => ({ link: l, idx: i, t: Math.random() }));
-    const particleSel = gLink.selectAll('.link-particle').data(particleData).join('circle')
-      .attr('class', 'link-particle')
-      .attr('fill', '#635bff').attr('r', 2.5).attr('opacity', 0.7);
-
-    /* --- Nodes --- */
-    const nodeSel = gNode.selectAll('.node-group').data(nodePositions, d => d.name).join('g')
-      .attr('class', 'node-group');
-
-    nodeSel.append('circle').attr('r', NODE_R + 3).attr('fill', 'none')
-      .attr('stroke', '#635bff').attr('stroke-width', 3).attr('opacity', 0.15);
-
-    nodeSel.append('circle').attr('r', NODE_R).attr('class', 'node-circle')
-      .attr('fill', 'url(#node-grad)').attr('stroke-width', 1.5);
-
-    nodeSel.append('text')
-      .attr('class', 'node-icon')
-      .attr('dy', '0.35em').attr('text-anchor', 'middle')
-      .attr('font-size', ICON_SIZE + 'px').text(d => d.icon);
-
-    nodeSel.append('rect').attr('class', 'node-label-bg')
-      .attr('x', -60).attr('y', NODE_R + 2).attr('width', 120).attr('height', 18).attr('rx', 4)
-      .attr('fill', 'var(--label-bg)');
-    nodeSel.append('text').attr('class', 'node-label')
-      .attr('dy', NODE_R + 14)
-      .style('font-weight', '500').style('letter-spacing', '-0.01em')
-      .style('paint-order', 'stroke')
-      .style('stroke', 'var(--label-stroke)').style('stroke-width', '3px')
-      .text(d => d.name);
-
-    nodeSel.filter(d => d.status === 'online')
-      .append('circle').attr('class', 'status-dot')
-      .attr('cx', NODE_R * 0.7).attr('cy', -NODE_R * 0.7).attr('r', 4).attr('fill', '#10b981')
-      .attr('stroke', 'var(--bg)').attr('stroke-width', 2);
-
-    /* ---- Interactions ---- */
-    const tooltip = document.getElementById('tooltip');
-    nodeSel.on('click', function (event, d) {
-      event.stopPropagation();
-      if (d.url) window.location.href = d.url;
-    })
-    .on('mouseenter', function (event, d) {
-      const isDark = getTheme() === 'dark';
-      let descHtml = `<div class="font-semibold mb-1 text-sm" style="color:${isDark ? '#fff' : '#1a1a2e'}">${esc(d.name)}</div>`;
-      if (d.version) descHtml += `<div class="text-xs" style="color:${isDark ? '#9ca3af' : '#888'}">${esc(d.version)} · ${esc(d.type)}</div>`;
-      descHtml += `<div class="text-xs mt-1 leading-relaxed" style="color:${isDark ? '#d1d5db' : '#555'}">${esc(d.description)}</div>`;
-      descHtml += `<div class="mt-2 flex items-center gap-2"><span class="inline-block w-2 h-2 rounded-full ${d.status === 'online' ? 'bg-emerald-400' : 'bg-red-400'}"></span><span class="text-xs" style="color:${isDark ? '#9ca3af' : '#888'}">${d.status === 'online' ? 'Online' : 'Offline'}</span>`;
-      if (d.downloadUrl) descHtml += ` <button class="ml-auto px-2.5 py-1 bg-primary rounded-lg text-xs text-white hover:bg-primaryLight transition cursor-pointer" data-dl="${esc(d.downloadUrl)}">下载</button>`;
-      if (d.url) descHtml += ` <button class="px-2.5 py-1 border border-white/20 rounded-lg text-xs text-gray-300 hover:bg-white/10 transition cursor-pointer" data-open="${esc(d.url)}">打开</button>`;
-      descHtml += '</div>';
-      tooltip.innerHTML = descHtml;
-      tooltip.classList.add('show');
-      positionTooltip(event.clientX, event.clientY);
-      tooltip.querySelectorAll('[data-dl]').forEach(btn => btn.addEventListener('click', () => window.handleDownload(btn.dataset.dl)));
-      tooltip.querySelectorAll('[data-open]').forEach(btn => btn.addEventListener('click', () => { window.location.href = btn.dataset.open; }));
-    })
-    .on('mousemove', function (event) { positionTooltip(event.clientX, event.clientY); })
-    .on('mouseleave', function () { tooltip.classList.remove('show'); });
-
-    let draggingNode = false;
-    nodeSel.call(d3.drag()
-      .on('start', function () { draggingNode = true; })
-      .on('drag', function (event) {
-        const data = d3.select(this).datum();
-        data.x = Math.max(BOUNDARY.minX, Math.min(BOUNDARY.maxX, event.x));
-        data.y = Math.max(BOUNDARY.minY, Math.min(BOUNDARY.maxY, event.y));
-        d3.select(this).attr('transform', `translate(${data.x},${data.y})`);
-      })
-      .on('end', function () {
-        draggingNode = false;
-        const data = d3.select(this).datum();
-        data.originX = data.x;  // snap origin to current position so drift resumes smoothly
-        data.originY = data.y;
-      }));
-
-    /* ---- Unified rAF loop ---- */
-    const startTime = performance.now();
-    function tick(now) {
-      const t = now - startTime;
-
-      /* 1) Node sinusoidal drift (soft ±4~8px, each node has unique period/phase) */
-      if (!draggingNode) {
-        nodePositions.forEach(n => {
-          n.x = n.originX + Math.sin(t / n.periodX + n.phase) * n.ampX;
-          n.y = n.originY + Math.cos(t / n.periodY + n.phase) * n.ampY;
-        });
-      }
-
-      /* 2) Render transforms */
-      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
-
-      /* 3) Update link endpoints to follow nodes */
-      linkSel
-        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-
-      /* 4) Particle flow along links */
-      particleSel.each(function (d) {
-        d.t += 0.006;
-        if (d.t > 1) d.t -= 1;
-        const s = d.link.source, tx = d.link.target;
-        d3.select(this).attr('cx', s.x + (tx.x - s.x) * d.t)
-                       .attr('cy', s.y + (tx.y - s.y) * d.t);
+    // Redraw links with shimmer effect
+    while (gLink.firstChild) gLink.removeChild(gLink.firstChild);
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      var baseOpacity = Math.max(0, 1 - l.dist / 220) * 0.35;
+      var shimmer = Math.sin(now / 500 + l.dist * 0.05) * 0.12;
+      var opacity = Math.max(0, Math.min(0.5, baseOpacity + shimmer));
+      var line = createSVG('line', {
+        x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2,
+        stroke: '#000', 'stroke-width': 0.6, opacity: opacity
       });
-
-      requestAnimationFrame(tick);
+      gLink.appendChild(line);
     }
-    // Store origin positions for floating offset
-    nodePositions.forEach(n => { n.originX = n.x; n.originY = n.y; });
-    tick(performance.now());
+
+    animFrameId = requestAnimationFrame(tick);
   }
 
-  /* ---- Position tooltip ---- */
-  function positionTooltip(cx, cy) {
-    const tip = document.getElementById('tooltip');
-    const tw = tip.offsetWidth, th = tip.offsetHeight;
-    let left = cx + 16, top = cy - 10;
+  /* ---- SVG element factory ---- */
+  function createSVG(tag, attrs) {
+    var el = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function(k) { el.setAttribute(k, attrs[k]); });
+    }
+    return el;
+  }
+  function addStop(parent, offset, color) {
+    parent.appendChild(createSVG('stop', { offset: offset, 'stop-color': color }));
+  }
+
+  /* ---- Tooltip ---- */
+  function showTooltip(event, d) {
+    var tooltip = document.getElementById('tooltip');
+    if (!tooltip || !d) return;
+    var isDark = getTheme() === 'dark';
+    var descHtml = '<div class="font-semibold mb-1 text-sm" style="color:' + (isDark ? '#fff' : '#1a1a2e') + '">' + esc(d.name || '') + '</div>';
+    if (d.version) descHtml += '<div class="text-xs" style="color:' + (isDark ? '#9ca3af' : '#888') + '">' + esc(d.version) + ' · ' + esc(d.type || '') + '</div>';
+    descHtml += '<div class="text-xs mt-1 leading-relaxed" style="color:' + (isDark ? '#d1d5db' : '#555') + '">' + esc(d.description || '') + '</div>';
+    descHtml += '<div class="mt-2 flex items-center gap-2"><span class="inline-block w-2 h-2 rounded-full ' + (d.status === 'online' ? 'bg-emerald-400' : 'bg-red-400') + '"></span><span class="text-xs" style="color:' + (isDark ? '#9ca3af' : '#888') + '">' + (d.status === 'online' ? 'Online' : 'Offline') + '</span>';
+    if (d.downloadUrl) descHtml += ' <button class="ml-auto px-2.5 py-1 bg-primary rounded-lg text-xs text-white hover:bg-primaryLight transition cursor-pointer" data-dl="' + esc(d.downloadUrl) + '">下载</button>';
+    if (d.url) descHtml += ' <button class="px-2.5 py-1 border border-white/20 rounded-lg text-xs text-gray-300 hover:bg-white/10 transition cursor-pointer" data-open="' + esc(d.url) + '">打开</button>';
+    descHtml += '</div>';
+    tooltip.innerHTML = descHtml;
+    tooltip.classList.add('show');
+    moveTooltip(event.clientX, event.clientY);
+    tooltip.querySelectorAll('[data-dl]').forEach(function(btn) {
+      btn.addEventListener('click', function() { window.handleDownload(btn.dataset.dl); });
+    });
+    tooltip.querySelectorAll('[data-open]').forEach(function(btn) {
+      btn.addEventListener('click', function() { window.location.href = btn.dataset.open; });
+    });
+  }
+  function moveTooltip(cx, cy) {
+    var tip = document.getElementById('tooltip');
+    if (!tip) return;
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var left = cx + 16, top = cy - 10;
     if (left + tw > window.innerWidth - 12) left = cx - tw - 16;
     if (top + th > window.innerHeight - 12) top = window.innerHeight - th - 12;
     if (top < 12) top = 12;
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
   }
+  function hideTooltip() {
+    var tip = document.getElementById('tooltip');
+    if (tip) tip.classList.remove('show');
+  }
 
-  /* ---- Rebuild on filter change ---- */
+  var initPending = false; // Guard against double scheduling of initCanvas
+
+  /* ---- Rebuild canvas ---- */
   function rebuildCanvas() {
-    svgEl?.selectAll('*').remove();
-    svgEl = null;
-    const wrap = document.getElementById('canvas-wrap');
-    const w = wrap.clientWidth, h = wrap.clientHeight;
-    if (!w || !h) return;
-    initCanvas();
+    // Stop old loop
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+    animRunning = false;
+
+    if (!svgEl) {
+      // Prevent scheduling multiple initCanvas calls
+      if (initPending) return;
+      initPending = true;
+
+      // Fully destroyed — re-init from DOM
+      var wrap = document.getElementById('canvas-wrap');
+      if (!wrap) { initPending = false; return; }
+      var w = safe(wrap.clientWidth, 683);
+      var h = safe(wrap.clientHeight, 518);
+      if (!w || !h) { initPending = false; return; }
+
+      requestAnimationFrame(function() {
+        initCanvas();
+        initPending = false;
+      });
+    } else {
+      // Partial rebuild — clear groups only
+      while (gNode && gNode.firstChild) gNode.removeChild(gNode.firstChild);
+      while (gLink && gLink.firstChild) gLink.removeChild(gLink.firstChild);
+      nodeData = [];
+      requestAnimationFrame(function() {
+        buildLayout();
+      });
+    }
   }
 
   /* ---- Resize handling ---- */
-  let resizeTimer;
-  window.addEventListener('resize', () => {
+  var resizeTimer;
+  window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        const wrap = document.getElementById('canvas-wrap');
-        const w = wrap.clientWidth, h = wrap.clientHeight;
-        if (w && h && filteredTools.length) {
-          const pad = Math.max(35, NODE_R + 7);
-          BOUNDARY.minX = pad; BOUNDARY.maxX = w - pad;
-          BOUNDARY.minY = pad; BOUNDARY.maxY = h - pad;
-          svgEl?.selectAll('*').remove();
-          svgEl = null;
-          initCanvas();
-        }
-      }, 200);
+    resizeTimer = setTimeout(function() {
+      var wrap = document.getElementById('canvas-wrap');
+      if (!wrap) return;
+      var w = safe(wrap.clientWidth, 683);
+      var h = safe(wrap.clientHeight, 518);
+      if (w && h && filteredTools.length) {
+        currentW = w; currentH = h;
+        rebuildCanvas();
+      }
+    }, 200);
   });
 
-  /* ---- Twinkle CSS ---- */
-  const styleEl = document.createElement('style');
-  styleEl.textContent = `@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.55}}`;
-  document.head.appendChild(styleEl);
-
   /* ================================================================
-     INIT
+     INIT — wait for DOM then start
      ================================================================ */
-  // Categories are rendered immediately; tool nodes appear after tools.json loads
-  renderCategories();
-})();
-</script>
-
-<!-- Sync portal navbar theme with page theme -->
-<script>
-(function () {
-  var btn = document.getElementById('portalThemeToggle');
-  var icon = document.getElementById('portalThemeIcon');
-  if (icon) {
-    var t = document.documentElement.getAttribute('data-theme') || 'dark';
-    icon.textContent = t === 'dark' ? '🌙' : '☀️';
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { renderCategories(); });
+  } else {
+    renderCategories();
   }
 })();
 </script>

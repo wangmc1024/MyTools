@@ -208,7 +208,7 @@
   /* ---------- Unified download handler (text→simple, binary→fetch+Blob) ---------- */
   function handleDownload(url) {
     if (!url) return;
-    const rawUrl = giteeToRawUrl(url);
+    const rawUrl = giteeToRaw(url);
     if (!rawUrl) return;
 
     const fileName = rawUrl.split('/').pop() || 'download';

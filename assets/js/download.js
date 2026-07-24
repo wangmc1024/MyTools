@@ -26,6 +26,7 @@
   /* ================================================================
      Render download list — filtered from tools.json
      Only items with a downloadUrl are shown as downloadable.
+     Uses the same download flow as repo tree via handleDownload.
      ================================================================ */
   window.renderDownloads = function () {
     var list = document.getElementById('downloadList');
@@ -39,7 +40,7 @@
       var meta = [];
       if (t.version) meta.push(t.version);
       if (t.fileType) meta.push(t.fileType);
-      return '<div class="dl-card" data-url="' + esc(t.downloadUrl) + '">' +
+      return '<div class="dl-card" data-path="' + esc(t.downloadUrl) + '">' +
         '<div class="dl-icon">' + esc(t.icon) + '</div>' +
         '<div class="dl-info">' +
           '<h3>' + esc(t.name) + '</h3>' +
@@ -50,7 +51,9 @@
     }).join('');
     list.querySelectorAll('.dl-btn').forEach(function (btn) {
       var card = btn.closest('.dl-card');
-      if (card) btn.addEventListener('click', function () { window.handleDownload(card.dataset.url); });
+      if (card) btn.addEventListener('click', function () {
+        window.handleDownload(card.dataset.path);
+      });
     });
   };
 
