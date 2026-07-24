@@ -16,7 +16,7 @@ MyTools/
 ├── apps/                   # Web 应用文件夹 (各含 index.html)
 ├── tempermonkeyScript/     # Tampermonkey 浏览器脚本 (.js)
 └── assets/
-    ├── js/tools.js         # 共享��具（主题、下载、Toast）
+    ├── js/tools.js         # 共享工具（主题、下载、Toast）
     ├── js/download.js      # downloads.html 逻辑
     ├── data/tools.json     # 【核心】工具注册表（单一事实源）
     └── data/repo-tree.json # 下载中心目录树
@@ -49,6 +49,14 @@ MyTools/
 - 子目录为空时移除整层节点
 - 使用 `sync-toolkit` skill 可自动完成同步与清理
 - 预提交 hook (`.git-hooks/pre-commit.sh` → `.git/hooks/pre-commit`) 会在每次 commit 前自动检测并清理 stale 条目，无需手动干预
+
+## downloads.html 仓库目录交互规则
+
+- 点击文件行（非"下载"按钮） → 弹出预览面板，以浅色背景展示文件源码（`white-space: pre-wrap` 自动换行）
+- 预览面板工具栏显示文件路径 + "复制"按钮（支持 clipboard API + `execCommand` fallback），复制成功后按钮闪烁绿色反馈（1.5s 后恢复）
+- 点击右侧"下载"按钮 → 直接触发 `handleDownload()` 下载流程
+- 关闭预览：点击 ✕ / 遮罩层 / 按 Esc
+- 文件内容加载优先级：本地 fetch → Gitee raw URL → Cloudflare worker 代理
 
 ## Skills
 
