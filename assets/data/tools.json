@@ -3,7 +3,7 @@
     "name": "Article Reader",
     "icon": "📚",
     "type": "Web Tool",
-    "category": "阅读",
+    "category": "学习",
     "description": "英语文章阅读、翻译、TTS朗读工具。支持导入 Markdown 文章，逐句翻译，单词悬停释义，云端/系统双引擎朗读。",
     "status": "online",
     "url": "./apps/article-reader/index.html",
@@ -50,5 +50,18 @@
     "fileType": "Userscript",
     "version": "v6.0",
     "updatedAt": "2026-06-10"
+  },
+  {
+    "name": "VoiceCraft",
+    "icon": "🎙️",
+    "type": "Web Tool",
+    "category": "效率工具",
+    "description": "AI驱动的语音处理平台，支持文字转语音和语音转文字，拥有20+种语音选项，闪电般的处理速度，完全免费使用。",
+    "status": "online",
+    "url": "./apps/voice-craft/index.html",
+    "version": null,
+    "downloadUrl": null,
+    "fileType": null,
+    "updatedAt": "2026-07-24"
   }
 ]

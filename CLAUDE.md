@@ -13,10 +13,10 @@
 MyTools/
 ├── index.html              # 门户 - Canvas 星图 + 标签筛选
 ├── downloads.html          # 下载中心
-├── apps/                   # Web 应用文件夹
-├── tempermonkeyScript/     # 浏览器脚本
+├── apps/                   # Web 应用文件夹 (各含 index.html)
+├── tempermonkeyScript/     # Tampermonkey 浏览器脚本 (.js)
 └── assets/
-    ├── js/tools.js         # 共享工具（主题、下载、Toast）
+    ├── js/tools.js         # 共享��具（主题、下载、Toast）
     ├── js/download.js      # downloads.html 逻辑
     ├── data/tools.json     # 【核心】工具注册表（单一事实源）
     └── data/repo-tree.json # 下载中心目录树
@@ -26,18 +26,34 @@ MyTools/
 
 ### Web 应用
 1. 在 `apps/` 创建文件夹 `mytool/index.html`
-2. 引入主题同步（路径调整为 `../../assets/js/tools.js`）
-3. 在 `assets/data/tools.json` 注册（设置 `url: "./apps/mytool/index.html"`，`downloadUrl: null`）
-4. 在 `assets/data/repo-tree.json` 镜像路径
-5. 测试: `python3 -m http.server 8080`
+2. 导航栏返回首页链接用 `../../index.html`（两层穿透：app → apps → root）
+3. 导航栏需补充共享 CSS 变量：`--bg-secondary`、`--accent-light`、`--border-hover`、`--bg-card`
+4. 引入主题同步代码（参考现有应用的 inline 方案）
+5. 在 `assets/data/tools.json` 注册（设置 `url: "./apps/mytool/index.html"`，`downloadUrl: null`）
+6. 在 `assets/data/repo-tree.json` 中 `apps` 目录下追加目录节点
 
 ### Tampermonkey 脚本
 1. 放入 `tempermonkeyScript/`
 2. 在 `assets/data/tools.json` 注册（设置 `downloadUrl`，`url: null`）
-3. 更新 `repo-tree.json`
+3. 在 `repo-tree.json` 的 `tempermonkeyScript` 节点下追加文件
 
 ### JSON 字段
 - **必填**: `name`, `icon` (emoji), `type`, `category`, `description`, `status` ("online"), `updatedAt` ("YYYY-MM-DD")
 - **可选**: `version`, `fileType`
 
 **注意**: `type`/`category` 自动生成分页标签 — 无需手动改 HTML！
+
+### repo-tree.json 维护规则
+- **新增**文件时追加对应节点（含 `path` 字段）
+- **删除**文件后必须同步清理失效条目
+- 子目录为空时移除整层节点
+- 使用 `sync-toolkit` skill 可自动完成同步与清理
+- 预提交 hook (`.git-hooks/pre-commit.sh` → `.git/hooks/pre-commit`) 会在每次 commit 前自动检测并清理 stale 条目，无需手动干预
+
+## Skills
+
+### `/sync-toolkit`
+扫描未注册的工具文件 → 自动更新 `tools.json`、`repo-tree.json`，注入门户导航栏并清理 stale 条目。
+
+### `/git-sync`
+自动执行 `git add/commit/push` 流程，含提交信息自动生成。
