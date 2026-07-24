@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2028%2028%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22g%22%20x1=%225%22%20y1=%222%22%20x2=%2223%22%20y2=%2224%22%20gradientUnits=%22userSpaceOnUse%22%3E%3Cstop%20stop-color=%22#a99fff%22/%3E%3Cstop%20offset=%22.5%22%20stop-color=%22#8b83ff%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22#635bff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle%20cx=%2214%22%20cy=%2214%22%20r=%2213%22%20fill=%22url(#g)%22%20opacity=%22.1%22/%3E%3Cpath%20d=%22M14%203l2.2%205.7L22%209.8l-4.6%203.4L18.3%2019%2014%2016.6%209.7%2019l.9-5.8L6%209.8l5.8-1.1L14%203z%22%20fill=%22url(#g)%22/%3E%3Cpath%20d=%22M14%205.2l1.7%204.3%204.7.7-3.6%202.9%201.1%204.5L14%2015.3l-3.9%202.3%201.1-4.5-3.6-2.9%204.7-.7L14%205.2z%22%20fill=%22#fff%22%20opacity=%22.18%22/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
   <title>下载中心 — MyTools</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -39,7 +43,6 @@
       border-bottom: 1px solid var(--border);
     }
     [data-theme="light"] .nav-glass { background: rgba(255,255,255,.72) !important; }
-
     .dl-card {
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 16px; padding: 20px 24px;
@@ -70,7 +73,6 @@
       box-shadow: 0 2px 8px rgba(99,91,255,.3);
     }
     .dl-btn:hover { box-shadow: 0 4px 16px rgba(99,91,255,.45); transform: scale(1.03); }
-
     .section-title {
       font-size: 16px; font-weight: 700; letter-spacing: .02em;
       color: var(--text); margin-bottom: 14px;
@@ -81,7 +83,6 @@
       width: 4px; height: 16px; border-radius: 2px;
       background: linear-gradient(180deg, #635bff, #7f74ff);
     }
-
     .switch-bar {
       display: inline-flex; background: var(--bg-card);
       border: 1px solid var(--border); border-radius: 14px;
@@ -102,18 +103,16 @@
     .switch-panel { display: none; }
     .switch-panel.active { display: block; animation: fadeSlideIn .3s ease; }
     @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
     .repo-container {
       border: 1px solid var(--border); border-radius: 16px;
       overflow: hidden; background: var(--bg-card);
-      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
       font-size: 13px;
     }
     .repo-row {
       display: flex; align-items: center; gap: 8px;
       padding: 7px 16px; border-bottom: 1px solid var(--border);
-      transition: background .15s; cursor: default;
-      user-select: none; line-height: 1.5;
+      transition: background .15s; line-height: 1.5;
     }
     .repo-row:last-child { border-bottom: none; }
     .repo-row.file { cursor: pointer; }
@@ -133,16 +132,126 @@
     .tree-arrow.open { transform: rotate(90deg); }
     .tree-body { display: none; }
     .tree-body.open { display: flex; flex-direction: column; }
-    .empty-label { font-style: italic; opacity: .4; font-size: 12px; }
+    /* repo download button */
+    .repo-dl-btn {
+      padding: 3px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
+      background: linear-gradient(135deg, #635bff, #7f74ff); color: #fff;
+      border: none; cursor: pointer; flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(99,91,255,.25); transition: all .15s;
+    }
+    .repo-dl-btn:hover { box-shadow: 0 4px 12px rgba(99,91,255,.4); transform: scale(1.04); }
+    /* preview overlay */
+    .preview-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center;
+    }
+    .preview-overlay.open { display: flex; }
+    .preview-panel {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 18px; width: 92vw; max-width: 780px;
+      max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 24px 64px rgba(0,0,0,.35);
+      animation: slideUp .25s ease; overflow: hidden;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    .preview-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 22px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .preview-header h3 {
+      flex: 1; font-size: 14px; font-weight: 600; margin: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .preview-close {
+      width: 32px; height: 32px; border-radius: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s; flex-shrink: 0;
+    }
+    .preview-close:hover { background: var(--bg-card-hover); }
+    .preview-toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg-card-hover); flex-shrink: 0;
+    }
+    .preview-toolbar .file-name {
+      flex: 1; font-size: 12px; color: var(--text-muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+    .preview-copy-btn {
+      padding: 4px 14px; border-radius: 8px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .preview-copy-btn:hover {
+      border-color: #635bff; color: #635bff;
+      background: rgba(99,91,255,.06);
+    }
+    .preview-copy-btn.copied {
+      border-color: #10b981 !important; color: #10b981 !important;
+    }
+    .preview-body {
+      flex: 1; overflow-y: auto; background: var(--bg-card);
+    }
+    .preview-body pre {
+      margin: 0; padding: 20px; font-size: 13px; line-height: 1.6;
+      color: var(--text); white-space: pre-wrap; word-wrap: break-word;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+    .preview-body code {
+      font-family: inherit; font-size: inherit; color: inherit;
+    }
+    .preview-footer {
+      padding: 12px 22px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+    }
+    .preview-footer .dl-btn { font-size: 12px; padding: 7px 16px; }
+    .preview-loading, .preview-empty {
+      padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px;
+    }
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased">
 
 <nav class="nav-glass">
   <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
-    <a href="index.html" class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</a>
+    <a href="index.html" class="flex items-center gap-2 shrink-0 group">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="group-hover:scale-110 transition-transform duration-300">
+        <!-- Outer glow ring -->
+        <circle cx="14" cy="14" r="13" fill="url(#lg)" opacity=".1"/>
+        <circle cx="14" cy="14" r="11" stroke="url(#lg)" stroke-width=".5" opacity=".25"/>
+        <!-- Main star (gradient) -->
+        <path d="M14 3l2.2 5.7L22 9.8l-4.6 3.4L18.3 19 14 16.6 9.7 19l.9-5.8L6 9.8l5.8-1.1L14 3z" fill="url(#lg)"/>
+        <!-- Inner highlight -->
+        <path d="M14 5.2l1.7 4.3 4.7.7-3.6 2.9 1.1 4.5L14 15.3l-3.9 2.3 1.1-4.5-3.6-2.9 4.7-.7L14 5.2z" fill="#fff" opacity=".18"/>
+        <!-- Tiny sparkle stars -->
+        <path d="M20 6l.4 1 .9.1-.8.6.2.9-.8-.5-.8.5.2-.9-.8-.6.9-.1z" fill="#fff" opacity=".5"/>
+        <path d="M7.5 18l.3.7.8.1-.6.4.2.7-.6-.4-.6.4.2-.7-.6-.4.8-.1z" fill="#fff" opacity=".35"/>
+        <!-- Wrench icon at center -->
+        <g transform="translate(14,14) rotate(-25)">
+          <rect x="-1.2" y="-6" width="2.4" height="5" rx="1" fill="#fff" opacity=".9"/>
+          <circle cx="0" cy="-6.5" r="2.2" stroke="#fff" stroke-width="1.6" fill="none" opacity=".9"/>
+          <rect x="-2.5" y="-0.5" width="5" height="1.6" rx=".6" fill="#fff" opacity=".9"/>
+        </g>
+        <defs>
+          <linearGradient id="lg" x1="5" y1="2" x2="23" y2="24" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#a99fff"/>
+            <stop offset=".5" stop-color="#8b83ff"/>
+            <stop offset="1" stop-color="#635bff"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</span>
+    </a>
     <div class="flex items-center gap-1">
-      <a href="index.html" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">返回首页</a>
+      <a href="index.html" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">返回首页</a>
       <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
         <span id="themeIcon">☽️</span>
       </button>
@@ -175,18 +284,37 @@
   </div>
 </main>
 
-<script src="assets/js/tools.js"></script>
-<script src="assets/js/download.js"></script>
+<!-- Preview Overlay -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-panel">
+    <div class="preview-header">
+      <span>📄</span>
+      <h3 id="pvTitle"></h3>
+      <button class="preview-close" id="pvClose">✕</button>
+    </div>
+    <div class="preview-toolbar" id="pvToolbar" style="display:none">
+      <span class="file-name" id="pvPath"></span>
+      <button class="preview-copy-btn" id="pvCopyBtn">复制</button>
+    </div>
+    <div class="preview-body" id="pvBody">
+      <div class="preview-loading">正在加载文件内容…</div>
+    </div>
+    <div class="preview-footer">
+      <button class="dl-btn" id="pvDownloadBtn">下载</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/tools.js?v=2"></script>
+<script src="assets/js/download.js?v=3"></script>
 <script>
   (function () {
-    const btn = document.getElementById('themeToggle');
-    if (btn) btn.addEventListener('click', window.toggleTheme);
-
+    document.getElementById('themeToggle').addEventListener('click', window.toggleTheme);
     document.querySelectorAll('.switch-btn').forEach(function (b) {
       b.addEventListener('click', function () {
-        document.querySelectorAll('.switch-btn').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.switch-btn').forEach(function (t) { t.classList.remove('active'); });
         b.classList.add('active');
-        document.querySelectorAll('.switch-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.switch-panel').forEach(function (p) { p.classList.remove('active'); });
         document.getElementById('panel-' + b.dataset.view).classList.add('active');
       });
     });

@@ -1,0 +1,16 @@
+# Worktrees
+.claude/worktrees/
+
+# VS Code (workspace-specific settings)
+.vscode/settings.json
+
+# Node.js
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS files
+Thumbs.db
+desktop.ini
