@@ -52,6 +52,19 @@
     "updatedAt": "2026-06-10"
   },
   {
+    "name": "PyIDE",
+    "icon": "🐍",
+    "type": "Web Tool",
+    "category": "开发工具",
+    "description": "基于 Pyodide 的浏览器内 Python 集成开发环境，无需服务器即可运行 Python 代码，支持多文件标签页、语法高亮、交互式控制台。",
+    "status": "online",
+    "url": "./apps/py-ide/index.html",
+    "version": null,
+    "downloadUrl": null,
+    "fileType": null,
+    "updatedAt": "2026-07-25"
+  },
+  {
     "name": "VoiceCraft",
     "icon": "🎙️",
     "type": "Web Tool",

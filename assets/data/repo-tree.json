@@ -43,6 +43,17 @@
         ]
       },
       {
+        "name": "py-ide",
+        "type": "dir",
+        "children": [
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/py-ide/index.html"
+          }
+        ]
+      },
+      {
         "name": "reader-concrete",
         "type": "dir",
         "children": [

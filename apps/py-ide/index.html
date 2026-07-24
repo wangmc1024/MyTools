@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyIDE - 浏览器内 Python 集成开发环境</title>
+    <meta name="description" content="基于 Pyodide 的浏览器内 Python 集成开发环境，无需服务器即可运行 Python 代码">
+    <!-- CodeMirror 5 from cdnjs via zstatic (domestic China mirror) -->
+    <link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+    <style>
+        :root {
+            /* Portal navbar variables */
+            --bg-secondary: #111827;
+            --accent-light: #818cf8;
+            --border-hover: rgba(255,255,255,0.28);
+            --bg-card: rgba(255,255,255,0.14);
+
+            /* App-specific (dark) */
+            --bg-primary: #0f172a;
+            --bg-secondary-app: #1e293b;
+            --bg-editor: #0d1117;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #818cf8;
+            --accent-hover: #6366f1;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border-color: #334155;
+            --line-number-bg: #0d1117;
+            --line-number-fg: #475569;
+            --output-bg: #0d1117;
+            --tab-active-bg: #1e293b;
+            --tab-inactive-bg: transparent;
+            --console-input-bg: #1e293b;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+            --radius: 6px;
+            --radius-lg: 8px;
+        }
+
+        [data-theme="light"] {
+            --bg-secondary: #f8fafc;
+            --accent-light: #2563eb;
+            --border-hover: rgba(0,0,0,0.12);
+            --bg-card: #ffffff;
+
+            --bg-primary: #ffffff;
+            --bg-secondary-app: #f1f5f9;
+            --bg-editor: #fafafa;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success: #16a34a;
+            --error: #dc2626;
+            --warning: #d97706;
+            --border-color: #e2e8f0;
+            --line-number-bg: #f8fafc;
+            --line-number-fg: #cbd5e1;
+            --output-bg: #f8fafc;
+            --tab-active-bg: #ffffff;
+            --tab-inactive-bg: transparent;
+            --console-input-bg: #f8fafc;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== Navbar ========== */
+        #portalNavbar {
+            position: sticky; top: 0; z-index: 9999;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center;
+            height: 40px; padding: 0 16px;
+            font-size: 13px; color: var(--text-muted); gap: 8px;
+        }
+        #portalNavbar a {
+            color: var(--accent-light); text-decoration: none;
+            font-weight: 700; display: flex; align-items: center; gap: 4px;
+        }
+        #portalNavbar span:nth-of-type(2) { color: var(--border-hover); }
+        #portalThemeToggle {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 6px; padding: 3px 8px; cursor: pointer;
+            font-size: 13px; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 4px;
+            transition: all 0.2s;
+        }
+
+        /* ========== Toolbar ========== */
+        .toolbar {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 12px; background: var(--bg-secondary-app);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0; flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 6px 14px; border: 1px solid var(--border-color);
+            border-radius: var(--radius); background: var(--bg-primary);
+            color: var(--text-primary); font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+        }
+        .btn:hover { border-color: var(--accent); background: var(--bg-secondary-app); }
+        .btn-run {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+            font-weight: 600; padding: 6px 18px;
+        }
+        .btn-run:hover { background: var(--accent-hover); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-run.running { animation: btn-pulse 0.8s ease-in-out infinite alternate; }
+
+        @keyframes btn-pulse {
+            from { box-shadow: 0 0 0 0 rgba(129,140,248,0.4); }
+            to   { box-shadow: 0 0 0 8px rgba(129,140,248,0); }
+        }
+
+        .toolbar-separator {
+            width: 1px; height: 24px; background: var(--border-color); margin: 0 4px;
+        }
+        .toolbar-spacer { flex: 1; }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 12px; font-weight: 500;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .status-badge.ready { color: var(--success); border-color: var(--success); }
+        .status-badge.loading { color: var(--warning); border-color: var(--warning); }
+        .status-badge.error   { color: var(--error); border-color: var(--error); }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: currentColor; flex-shrink: 0;
+        }
+        .status-badge.loading .status-dot { animation: pulse-dot 1s ease-in-out infinite; }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        /* ========== Examples dropdown ========== */
+        .examples-dropdown { position: relative; }
+        .examples-menu {
+            position: absolute; top: calc(100% + 4px); left: 0;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+            min-width: 240px; z-index: 100; display: none; overflow: hidden;
+        }
+        .examples-menu.show { display: block; }
+        .examples-menu-header {
+            padding: 8px 12px; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); background: var(--bg-secondary-app);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .example-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; font-size: 13px; color: var(--text-primary);
+            cursor: pointer; transition: background 0.1s;
+        }
+        .example-item:hover { background: var(--bg-secondary-app); }
+        .example-icon { font-size: 16px; width: 22px; text-align: center; }
+
+        /* ========== Tab bar ========== */
+        .tab-bar {
+            display: flex; align-items: center;
+            background: var(--bg-secondary-app);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto; flex-shrink: 0;
+        }
+        .tab-bar::-webkit-scrollbar { height: 0; }
+        .tab {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 12px; font-size: 12px; font-weight: 500;
+            color: var(--text-muted); background: var(--tab-inactive-bg);
+            border-right: 1px solid var(--border-color);
+            cursor: pointer; white-space: nowrap; transition: all 0.15s;
+            position: relative; user-select: none;
+        }
+        .tab:hover { color: var(--text-primary); background: rgba(129,140,248,0.08); }
+        .tab.active { color: var(--text-primary); background: var(--bg-primary); }
+        .tab.active::after {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+            height: 2px; background: var(--accent);
+        }
+        .tab-close {
+            width: 16px; height: 16px; display: flex; align-items: center;
+            justify-content: center; border-radius: 3px; font-size: 14px;
+            line-height: 1; opacity: 0; transition: all 0.1s; color: var(--text-muted);
+        }
+        .tab:hover .tab-close, .tab.active .tab-close { opacity: 0.7; }
+        .tab-close:hover { opacity: 1 !important; background: var(--error); color: #fff; }
+        .tab-add {
+            display: flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; font-size: 18px;
+            color: var(--text-muted); cursor: pointer;
+            transition: color 0.15s; flex-shrink: 0;
+            background: transparent; border: none; font-weight: 300;
+        }
+        .tab-add:hover { color: var(--accent); }
+
+        /* ========== Main layout ========== */
+        .main-layout {
+            display: flex; flex: 1; overflow: hidden;
+        }
+        .editor-pane {
+            flex: 1; display: flex; flex-direction: column; min-width: 0;
+        }
+        .split-view .output-pane {
+            border-left: 1px solid var(--border-color);
+        }
+
+        /* ========== CodeMirror overrides ========== */
+        .cm-s-pyide .CodeMirror {
+            height: auto; flex: 1;
+            background: var(--bg-editor);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 14px; line-height: 1.6;
+        }
+        .cm-s-pyide .CodeMirror-gutters {
+            background: var(--line-number-bg);
+            border-right: 1px solid var(--border-color);
+        }
+        .cm-s-pyide .CodeMirror-linenumber {
+            color: var(--line-number-fg); font-size: 12px; padding-right: 8px;
+        }
+        .cm-s-pyide .CodeMirror-cursor { border-left: 2px solid var(--accent); }
+        .cm-s-pyide .CodeMirror-selected { background: rgba(129,140,248,0.15); }
+        .cm-s-pyide .CodeMirror-activeline-background { background: rgba(129,140,248,0.06); }
+        .cm-s-pyide .CodeMirror-matchingbracket {
+            color: var(--accent) !important; font-weight: bold;
+        }
+        /* Syntax colors dark */
+        .cm-s-pyide .cm-keyword      { color: #c084fc; }
+        .cm-s-pyide .cm-def          { color: #60a5fa; }
+        .cm-s-pyide .cm-variable     { color: #e2e8f0; }
+        .cm-s-pyide .cm-string       { color: #34d399; }
+        .cm-s-pyide .cm-comment      { color: #64748b; font-style: italic; }
+        .cm-s-pyide .cm-number       { color: #f59e0b; }
+        .cm-s-pyide .cm-operator     { color: #c084fc; }
+        .cm-s-pyide .cm-builtin      { color: #60a5fa; }
+        .cm-s-pyide .cm-property     { color: #fbbf24; }
+        /* Syntax colors light */
+        [data-theme="light"] .cm-s-pyide .cm-keyword      { color: #7c3aed; }
+        [data-theme="light"] .cm-s-pyide .cm-def          { color: #2563eb; }
+        [data-theme="light"] .cm-s-pyide .cm-string       { color: #059669; }
+        [data-theme="light"] .cm-s-pyide .cm-comment      { color: #9ca3af; }
+        [data-theme="light"] .cm-s-pyide .cm-number       { color: #d97706; }
+        [data-theme="light"] .cm-s-pyide .cm-operator     { color: #7c3aed; }
+        [data-theme="light"] .cm-s-pyide .cm-builtin      { color: #2563eb; }
+        [data-theme="light"] .cm-s-pyide .cm-property     { color: #b45309; }
+        [data-theme="light"] .cm-s-pyide .CodeMirror-linenumber { color: #cbd5e1; }
+        .cm-s-pyide div.CodeMirror-errorpointer {
+            border-bottom: 2px wavy var(--error) !important;
+        }
+
+        /* ========== Output panel ========== */
+        .output-pane {
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .bottom-split .output-pane {
+            border-left: none; border-top: 1px solid var(--border-color);
+            height: 45%; max-height: 60%; min-height: 100px;
+        }
+        .output-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 12px; background: var(--bg-secondary-app);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px; font-weight: 600;
+            color: var(--text-secondary); text-transform: uppercase;
+            letter-spacing: 0.04em; flex-shrink: 0;
+        }
+        .output-actions { display: flex; gap: 4px; }
+        .output-btn {
+            padding: 3px 8px; font-size: 11px;
+            border: 1px solid var(--border-color); border-radius: 4px;
+            background: var(--bg-primary); color: var(--text-muted);
+            cursor: pointer; transition: all 0.15s;
+        }
+        .output-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+        .output-content {
+            flex: 1; overflow-y: auto;
+            background: var(--output-bg);
+            padding: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px; line-height: 1.6;
+        }
+        .output-line {
+            white-space: pre-wrap; word-break: break-all; padding: 1px 0;
+        }
+        .output-line.stdout { color: var(--text-primary); }
+        .output-line.stderr {
+            color: var(--error); background: rgba(239,68,68,0.08);
+            padding: 2px 6px; border-radius: 3px; margin: 2px -6px;
+        }
+        .output-line.info { color: var(--text-muted); font-style: italic; }
+        .output-line.success { color: var(--success); }
+        .output-placeholder {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            height: 100%; color: var(--text-muted); text-align: center; gap: 8px;
+        }
+        .output-placeholder-icon { font-size: 32px; opacity: 0.5; }
+        .output-placeholder-text { font-size: 13px; }
+
+        /* ========== Console input ========== */
+        .console-input-area {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; background: var(--console-input-bg);
+            border-top: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .console-prompt {
+            color: var(--success);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 14px; font-weight: bold; user-select: none;
+        }
+        .console-input {
+            flex: 1; background: var(--bg-primary);
+            border: 1px solid var(--border-color); border-radius: var(--radius);
+            padding: 5px 10px;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 13px; color: var(--text-primary);
+            outline: none; transition: border-color 0.15s;
+        }
+        .console-input:focus { border-color: var(--accent); }
+
+        /* ========== Loading overlay ========== */
+        .loading-overlay {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: var(--bg-primary);
+            z-index: 1000; transition: opacity 0.4s ease;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; }
+        .loading-detail { font-size: 12px; color: var(--text-muted); }
+
+        /* ========== Toast within app ========== */
+        .app-toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 10000;
+            padding: 10px 20px; border-radius: var(--radius-lg);
+            font-size: 13px; font-weight: 500; color: #fff;
+            background: var(--accent); box-shadow: var(--shadow-md);
+            transform: translateY(20px); opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .app-toast.show { transform: translateY(0); opacity: 1; }
+        .app-toast.error { background: var(--error); }
+        .app-toast.success { background: var(--success); }
+
+        /* ========== Responsive ========== */
+        @media (max-width: 768px) {
+            .toolbar { padding: 6px 8px; gap: 4px; }
+            .btn { padding: 5px 10px; font-size: 12px; }
+            .btn-run { padding: 5px 14px; }
+            .status-badge { font-size: 11px; padding: 3px 8px; }
+            .toolbar-separator { display: none; }
+            .welcome-tips { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .btn span.btn-label { display: none; }
+            .btn { padding: 6px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Portal navbar -->
+<div id="portalNavbar">
+  <a href="../../index.html">&#x2190; MyTools</a>
+  <span>|</span>
+  <span style="font-weight:500;color:var(--text-primary);" id="toolTitle">PyIDE</span>
+  <div style="flex:1;"></div>
+  <button id="portalThemeToggle" title="切换主题"><span id="portalThemeIcon"></span></button>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">正在构建编辑器界面...</div>
+    <div class="loading-detail" id="loadingDetail">加载 CodeMirror 和 Pyodide，请稍候</div>
+</div>
+
+<!-- Main app (hidden until Pyodide loads) -->
+<div id="appContainer" style="display:none;">
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <button class="btn btn-run" id="runBtn" title="Ctrl+Enter 运行代码">
+            <span>&#x25B6;</span><span class="btn-label">&#x8FD0;&#x884C;</span>
+        </button>
+        <button class="btn" id="clearOutputBtn" title="清空输出">
+            <span>&#x21BB;</span><span class="btn-label">&#x6E05;&#x7A7A;</span>
+        </button>
+        <button class="btn" id="copyOutputBtn" title="复制输出内容">
+            <span>&#x2398;</span><span class="btn-label">&#x590D;&#x5236;</span>
+        </button>
+        <div class="toolbar-separator"></div>
+        <div class="examples-dropdown">
+            <button class="btn" id="examplesBtn" title="加载示例程序">
+                <span>&#x1F4DA;</span><span class="btn-label">&#x793A;&#x4F8B;</span>
+            </button>
+            <div class="examples-menu" id="examplesMenu">
+                <div class="examples-menu-header">&#x793A;&#x4F8B;&#x7A0B;&#x5E8F;</div>
+            </div>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="status-badge loading" id="statusBadge">
+            <span class="status-dot"></span>
+            <span id="statusText">&#x52A0;&#x8F7D;&#x4E2D;...</span>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <button class="btn" id="layoutBtn" title="切换面板布局">
+            <span id="layoutIcon">&#x2B05;</span><span class="btn-label" id="layoutLabel">&#x53F3;&#x4FA7;&#x8F93;&#x51FA;</span>
+        </button>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar" id="tabBar">
+        <button class="tab-add" id="addTabBtn" title="新建文件 (Ctrl+T)">+</button>
+    </div>
+
+    <!-- Editor + Output area -->
+    <div class="main-layout split-view" id="mainSplit">
+        <div class="editor-pane" id="editorPane">
+            <div id="editor" class="cm-s-pyide"></div>
+        </div>
+        <div class="output-pane" id="outputPane">
+            <div class="output-header">
+                <span>&#x1F4A1; &#x8F93;&#x51FA;&#x63A7;&#x5236;&#x53F0;</span>
+                <div class="output-actions">
+                    <button class="output-btn" id="copyOutputSmallBtn" title="复制">&#x590D;&#x5236;</button>
+                    <button class="output-btn" id="clearOutputSmallBtn" title="清空">&#x6E05;&#x7A7A;</button>
+                </div>
+            </div>
+            <div class="output-content" id="outputContent">
+                <div class="output-placeholder" id="outputPlaceholder">
+                    <div class="output-placeholder-icon">&#x25B6;&#xFE0F;</div>
+                    <div class="output-placeholder-text">&#x70B9;&#x51FB;&#x300C;&#x8FD0;&#x884C;&#x300D;&#x6216;&#x6309; Ctrl+Enter &#x6267;&#x884C;&#x4EE3;&#x7801;</div>
+                </div>
+            </div>
+            <div class="console-input-area">
+                <span class="console-prompt">&gt;&gt;&gt;</span>
+                <input type="text" class="console-input" id="consoleInput" placeholder="在此输入 Python 表达式并回车..." autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CodeMirror 5 from CDN -->
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/mode/mysql/mysql.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/hint/python-hint.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
+
+<!-- Pyodide v0.27.1 from domestic CDN mirror chain (non-blocking) -->
+<script id="pyodide-main">
+    // Mirror chain: primary → backup → fallback (order matches CDN policy)
+    var PYODIDE_BASE = 'https://cdn.jsdmirror.com/pyodide/v0.27.1/full/';
+    var _PYO_CHAIN = [
+        'https://cdn.jsdmirror.com/pyodide/v0.27.1/full/pyodide.js',
+        'https://cdn.jsdmirror.cn/pyodide/v0.27.1/full/pyodide.js',
+        'https://jsdelivr.aby.pub/pyodide/v0.27.1/full/pyodide.js',
+        'https://jsd.cdn.zzko.cn/pyodide/v0.27.1/full/pyodide.js',
+        'https://jsd.onmicrosoft.cn/pyodide/v0.27.1/full/pyodide.js',
+        'https://gcore.jsdelivr.net/pyodide/v0.27.1/full/pyodide.js',
+    ];
+    (function loadPyodideFallback() {
+        var idx = 0;
+        function tryNext() {
+            if (idx >= _PYO_CHAIN.length) { document.getElementById('pyodide-main').remove(); return; }
+            var s = document.createElement('script');
+            s.src = _PYO_CHAIN[idx];
+            s.onload = function() { PYODIDE_BASE = _PYO_CHAIN[idx].replace('pyodide.js', ''); document.body.removeChild(s); };
+            s.onerror = function() { s.remove(); idx++; tryNext(); };
+            document.body.appendChild(s);
+        }
+        tryNext();
+    })();
+</script>
+<script>
+    // Defer mirror-fallback script creation so the browser can render the UI first
+    // without waiting for network latency on CDN probes.
+    window.addEventListener('load', function() {
+        // Already executed via the inline script above, but this acts as a
+        // safety net in case the inline block was blocked (e.g. CSP).
+        var el = document.getElementById('pyodide-main');
+        if (!el || el._deferred) return;
+        el._deferred = true;
+        var idx = 0;
+        var _PYO_CHAIN = [
+            'https://cdn.jsdmirror.com/pyodide/v0.27.1/full/pyodide.js',
+            'https://cdn.jsdmirror.cn/pyodide/v0.27.1/full/pyodide.js',
+            'https://jsdelivr.aby.pub/pyodide/v0.27.1/full/pyodide.js',
+            'https://jsd.cdn.zzko.cn/pyodide/v0.27.1/full/pyodide.js',
+            'https://jsd.onmicrosoft.cn/pyodide/v0.27.1/full/pyodide.js',
+            'https://gcore.jsdelivr.net/pyodide/v0.27.1/full/pyodide.js',
+        ];
+        function tryNext() {
+            if (idx >= _PYO_CHAIN.length) return;
+            var s = document.createElement('script');
+            s.src = _PYO_CHAIN[idx];
+            s.onload = function() { PYODIDE_BASE = _PYO_CHAIN[idx].replace('pyodide.js', ''); s.remove(); };
+            s.onerror = function() { s.remove(); idx++; tryNext(); };
+            document.head.appendChild(s);
+        }
+        tryNext();
+    });
+</script>
+
+<script>
+/* ===========================================================
+ * PyIDE — 浏览器内 Python 集成开发环境
+ * Powered by Pyodide (WebAssembly runtime in browser)
+ * =========================================================== */
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+function escapeHtml(str) {
+    if (!str) return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try { return new Date(dateStr).toLocaleDateString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit' }); } catch(e) { return dateStr; }
+}
+
+function showToastApp(msg, type) {
+    var t = document.getElementById('_appToast');
+    if (!t) {
+        t = document.createElement('div'); t.id = '_appToast'; t.className = 'app-toast';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.className = 'app-toast' + (type ? ' ' + type : '');
+    requestAnimationFrame(function() { t.classList.add('show'); });
+    clearTimeout(t._t);
+    t._t = setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+// ---------------------------------------------------------------------------
+// theme sync (shared with portal)
+// ---------------------------------------------------------------------------
+(function() {
+    var el = document.getElementById('toolTitle');
+    if (el) { try { el.textContent = document.title.replace(/\s*[-\u2013\u2014]\s*.*/, '').trim() || 'PyIDE'; } catch(e) {} }
+    function getTheme() { try { return localStorage.getItem('portal-theme') || 'light'; } catch(e) { return 'light'; } }
+    function setTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        try { localStorage.setItem('portal-theme', t); } catch(e) {}
+        var ic = document.getElementById('portalThemeIcon');
+        if (ic) ic.textContent = t === 'dark' ? '\uD83C\uDF19' : '\u2600\uFE0F';
+    }
+    window.toggleTheme = function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); };
+    window.getTheme = getTheme;
+    window.setTheme = setTheme;
+    var btn = document.getElementById('portalThemeToggle');
+    if (btn) { btn.addEventListener('click', function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); }); }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function() { setTheme(getTheme()); }); } else { setTheme(getTheme()); }
+})();
+
+// ---------------------------------------------------------------------------
+// examples data
+// ---------------------------------------------------------------------------
+var EXAMPLES = [
+    {
+        name: "你好世界", icon: "\uD83D\uDC4B", code:
+            '# \u4F60\u597D\uff0C\u4E16\u754C\uff01\n' +
+            'print("\u6B22\u8FCE\u4F7F\u7528 PyIDE\uff01")\n' +
+            'print("\u8FD9\u662F\u5728\u6D4F\u89C8\u5668\u4E2D\u8FD0\u884C\u7684 Python \u4EE3\u7801")\n' +
+            '\n' +
+            'print("\\n\u4E3A\u4EC0\u4E48\u8FD9\u4E48\u68D2\uff1a")\n' +
+            'print("\u2705 \u65E0\u9700\u5B89\u88C5\u2014\u2014\u76F4\u63A5\u5728\u6D4F\u89C8\u5668\u4E2D\u8FD0\u884C")\n' +
+            'print("\u2705 \u4FDD\u62A4\u9690\u79C1\u2014\u2014\u4EE3\u7801\u5728\u672C\u5730\u6267\u884C")\n' +
+            'print("\u2705 \u5373\u6253\u5373\u8FD0\u2014\u2014\u6539\u52A8\u4EE3\u7801\u5373\u53EF\u770B\u5230\u7ED3\u679C")'
+    },
+    {
+        name: "斐波那契数列", icon: "\uD83D\uDD22", code:
+            '# \u83F2\u6CE2\u90A3\u5951\u6570\u5217\n' +
+            'def fibonacci(n):\n' +
+            '    """\u8FD4\u56DE\u524D n \u4E2A\u83F2\u6CE2\u90A3\u5951\u6570"""\n' +
+            '    seq = [0, 1]\n' +
+            '    for i in range(2, n):\n' +
+            '        seq.append(seq[-1] + seq[-2])\n' +
+            '    return seq[:n]\n' +
+            '\n' +
+            'result = fibonacci(15)\n' +
+            'print("\u524D 15 \u4E2A\u83F2\u6CE2\u90A3\u5951\u6570\uff1a")\n' +
+            'print(result)\n' +
+            'print("\\u603B\u548C =", sum(result))'
+    },
+    {
+        name: "数学运算", icon: "\u269B\uFE0F", code:
+            '# \u6570\u5B66\u8FD0\u7B97\u793A\u4F8B\n' +
+            'import math\n' +
+            'import random\n' +
+            '\n' +
+            '# \u968F\u673A\u6570\n' +
+            'random.seed(42)\n' +
+            'nums = [random.randint(1, 100) for _ in range(20)]\n' +
+            'print("\u968F\u673A\u6570\u7EC4\uff1a", nums)\n' +
+            'print("\u6700\u5927\u503C\uff1a", max(nums))\n' +
+            'print("\u6700\u5C0F\u503C\uff1a", min(nums))\n' +
+            'print("\u5E73\u5747\u503C\uff1a", sum(nums) / len(nums))\n' +
+            '\n' +
+            '# \u6570\u5B66\u51FD\u6570\n' +
+            'print("\\n\u6570\u5B66\u51FD\u6570\uff1a")\n' +
+            'print("pi =", math.pi)\n' +
+            'print("sqrt(2) =", math.sqrt(2))\n' +
+            'print("sin(45\\u00B0) =", math.sin(math.radians(45)))\n' +
+            'print("factorial(10) =", math.factorial(10))'
+    },
+    {
+        name: "字符统计器", icon: "\uD83D\uDCCB", code:
+            '# \u6587\u672C\u5206\u6790\u5668\n' +
+            'text = """Python is a great programming language.\n' +
+            'It is widely used in data science, web development,\n' +
+            'artificial intelligence, and automation.\n' +
+            'Many developers love Python for its simplicity."""\n' +
+            '\n' +
+            'words = text.split()\n' +
+            'print("\u603B\u5B57\u6570:", len(text))\n' +
+            'print("\u5355\u8BCD\u6570:", len(words))\n' +
+            'print("\u884C\u6570:", len(text.splitlines()))\n' +
+            '\n' +
+            '# \u5355\u8BCD\u9891\u7387\n' +
+            'freq = {}\n' +
+            'for w in words:\n' +
+            '    w = w.lower().strip(".,!?;:")\n' +
+            '    freq[w] = freq.get(w, 0) + 1\n' +
+            '\n' +
+            'print("\\n\u5355\u8BCD\u9891\u7387\uFF08\u524D 8\uFF09:")\n' +
+            'for word, count in sorted(freq.items(), key=lambda x:-x[1])[:8]:\n' +
+            '    bar = "\\u2588" * count\n' +
+            '    print(f"  {word:<12} {count:>2}  {bar}")'
+    },
+    {
+        name: "列表推导式", icon: "\u{1F4DD}", code:
+            '# \u5217\u8868\u63A8\u5BFC\u5F0F\u793A\u4F8B\n' +
+            '# \u5076\u6570\u5E73\u65B9\n' +
+            'even_squares = [x**2 for x in range(20) if x % 2 == 0]\n' +
+            'print("\u5076\u6570\u5E73\u65B9:", even_squares)\n' +
+            '\n' +
+            '# \u5B57\u7B26\u957F\u5EA6\u5217\u8868\n' +
+            'words = ["Python", "JavaScript", "Rust", "Go", "TypeScript"]\n' +
+            'lengths = [len(w) for w in words]\n' +
+            'print("\\u5B57\u7B26\u957F\u5EA6:", lengths)\n' +
+            '\n' +
+            '# \u5B57\u5178\u63A8\u5BFC\u5F0F\n' +
+            'squares = {x: x**2 for x in range(1, 11)}\n' +
+            'print("\\u5E73\u65B9\u8868:\\n", squares)\n' +
+            '\n' +
+            '# \u5D4C\u5957\u5217\u8868\u63A8\u5BFC\u5F0F\n' +
+            'matrix = [[i*j for j in range(1,6)] for i in range(1,6)]\n' +
+            'print("\\u4E58\u6CD5\u8868\uff1a")\n' +
+            'for row in matrix:\n' +
+            '    print("  ".join(f"{v:4d}" for v in row))'
+    },
+    {
+        name: "简易计算器", icon: "\uD83E\uDED0", code:
+            '# \u7B80\u6613\u8BA1\u7B97\u5668\n' +
+            'def calculator(a, b, op):\n' +
+            '    """\u7B80\u5355\u7684\u56DB\u5219\u8FD0\u7B97\u8BA1\u7B97\u5668"""\n' +
+            '    ops = {\n' +
+            '        "+": lambda x, y: x + y,\n' +
+            '        "-": lambda x, y: x - y,\n' +
+            '        "*": lambda x, y: x * y,\n' +
+            '        "/": lambda x, y: x / y if y != 0 else "\\u9519\u8BEF\uFF1A\u9664\u6570\u4E0D\u80FD\u4E3A 0",\n' +
+            '        "**": lambda x, y: x ** y,\n' +
+            '        "//": lambda x, y: x // y if y != 0 else "\\u9519\u8BEF\uFF1A\u9664\u6570\u4E0D\u80FD\u4E3A 0",\n' +
+            '        "%": lambda x, y: x % y if y != 0 else "\\u9519\u8BEF\uFF1A\u9664\u6570\u4E0D\u80FD\u4E3A 0",\n' +
+            '    }\n' +
+            '    if op not in ops:\n' +
+            '        return f"\\u65E0\u6548\u8FD0\u7B97\u7B26\uFF1A{op}"\n' +
+            '    result = ops[op](a, b)\n' +
+            '    return f"{a} {op} {b} = {result}"\n' +
+            '\n' +
+            'print("\\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510")\n' +
+            'print("\\u2502    \u7B80\u6613\u8BA1\u7B97\u5668     \\u2502")\n' +
+            'print("\\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518")\n' +
+            '\n' +
+            'operations = [("+", 5, 3), ("-", 10, 7), ("*", 6, 7), ("/", 10, 3),\n' +
+            '              ("**", 2, 10), ("//", 17, 5), ("%", 17, 5)]\n' +
+            'for op, a, b in operations:\n' +
+            '    print(calculator(a, b, op))'
+    },
+    {
+        name: "ASCII 艺术", icon: "\uD83C\uDFA8", code:
+            '# ASCII \u827A\u672F\u56FE\u6848\n' +
+            'shapes = {\n' +
+            '    "\\u25A0": ["\\u25A0" * 5] * 5,\n' +
+            '    "\\u25CF": ["  " + "\\u25CF" * 5 + "  "],\n' +
+            '}\n' +
+            '\n' +
+            '# \u591A\u8FB9\u5F62\u8868\n' +
+            'def polygon(side, length):\n' +
+            '    symbols = ["\\u25B3", "\\u25AD", "\\u25B2", "\\u25B8", "\\u25C0", "\\u25C6"]\n' +
+            '    s = symbols[(side - 3) % len(symbols)] if side >= 3 else "\\u25AA"\n' +
+            '    for _ in range(length):\n' +
+            '        print((s + " ") * side)\n' +
+            '\n' +
+            'print("\\n\u591A\u8FB9\u5F62\u8868\uff1a")\n' +
+            'for s in range(3, 8):\n' +
+            '    print(f"  {s}-\\u8FB9\\u5F62:", end=" ")\n' +
+            '    symbols = ["\\u25B3", "\\u25AD", "\\u25B2", "\\u25B8", "\\u25C0", "\\u25C6"]\n' +
+            '    print(symbols[(s - 3) % len(symbols)])\n' +
+            '\n' +
+            '# \u6253\u5370\u8272\u5F69\u5468\u671F\n' +
+            'colors = ["\\u001b[31m", "\\u001b[33m", "\\u001b[32m", "\\u001b[34m", "\\u001b[35m"]\n' +
+            'msg = "Hello PyIDE!"\n' +
+            'colored = "".join(colors[i % len(colors)] + c for i, c in enumerate(msg))\n' +
+            'print(colored + "\\u001b[0m")'
+    },
+    {
+        name: "数据可视化", icon: "\uD83D\uDCCA", code:
+            '# \u7B80\u6613\u6570\u636E\u53EF\u89C6\u5316\n' +
+            'import math\n' +
+            '\n' +
+            '# \u6761\u5F62\u56FE\n' +
+            'data = {\n' +
+            '    "Python": 85,\n' +
+            '    "JavaScript": 92,\n' +
+            '    "Rust": 78,\n' +
+            '    "Go": 70,\n' +
+            '    "TypeScript": 88,\n' +
+            '    "R": 65,\n' +
+            '}\n' +
+            '\n' +
+            'max_val = max(data.values())\n' +
+            'bar_char = "\\u2588"\n' +
+            '\n' +
+            'print("=" * 40)\n' +
+            'print("     \\u7F16\u7A0B\u8BED\u8A00\u71B1\u95E8\u5EA6\\u0007")\n' +
+            'print("=" * 40)\n' +
+            'for name, val in sorted(data.items(), key=lambda x: -x[1]):\n' +
+            '    bar_len = int(val / max_val * 20)\n' +
+            '    bar = bar_char * bar_len\n' +
+            '    print(f"  {name:<12} |{bar} {val}")\n' +
+            'print("=" * 40)\n' +
+            '\n' +
+            '# \u6B63\u5F26\u6CE2\u56FE\u5F62\n' +
+            'print("\\n\\n  \\u6B63\u5F26\u6CE2\u56FE\u5F62\uff1a")\n' +
+            'for y in range(-10, 11, -2):\n' +
+            '    line = ""\n' +
+            '    for x in range(-30, 31):\n' +
+            '        expected = int(math.sin(x / 5) * 10)\n' +
+            '        line += "\\u2588" if abs(y - expected) <= 2 else " "\n' +
+            '    print(f"  {y:+2d}|{line}|")\n' +
+            'print("   +-" + "-" * 60)'
+    },
+    {
+        name: "面向对象编程", icon: "\uD83E\uDDEB", code:
+            '# \u9762\u5411\u5BF9\u8C61\u7F16\u7A0B\u793A\u4F8B\n' +
+            'class Animal:\n' +
+            '    """\u52A8\u7269\u57FA\u7C7B"""\n' +
+            '    def __init__(self, name, sound):\n' +
+            '        self.name = name\n' +
+            '        self.sound = sound\n' +
+            '    def speak(self):\n' +
+            '        return f"{self.name}\\u00A0\\u8BF4\uFF1A{self.sound}!"\n' +
+            '\n' +
+            'class Dog(Animal):\n' +
+            '    def __init__(self, name, breed):\n' +
+            '        super().__init__(name, "\\u55B1\u55B1")\n' +
+            '        self.breed = breed\n' +
+            '    def fetch(self, item):\n' +
+            '        return f"{self.name}\\u00A0\u8DD1\u53BB\u628A {item} \\u53EB\u56DE\u6765!"\n' +
+            '\n' +
+            'class Cat(Animal):\n' +
+            '    def __init__(self, name):\n' +
+            '        super().__init__(name, "\\u55E4\u55E4")\n' +
+            '    def pounce(self):\n' +
+            '        return f"{self.name}\\u00A0\u6F5C\u4F0F\u5E76\u731B\u6263!"\n' +
+            '\n' +
+            '# \u521B\u5EFA\u52A8\u7269\u5708\n' +
+            'animals = [\n' +
+            '    Dog("\\u5927\u9ED1", "\\u91D1\u6BDB\u7267\u72AC"),\n' +
+            '    Cat("\\u5C0F\u523A"),\n' +
+            '    Dog("\\u5C0F\u767D", "\\u9A6C\u5170"),\n' +
+            '    Cat("\\u82B1\u82B1"),\n' +
+            ']\n' +
+            '\n' +
+            'print("\\u263A\\uFE0F  \\u52A8\u7269\u5708\u65E5\u8BB0\\u0007")\n' +
+            'print("-" * 30)\n' +
+            'for a in animals:\n' +
+            '    print(a.speak())\n' +
+            '    if isinstance(a, Dog):\n' +
+            '        print("  ", a.fetch("\\u85CF\u574F"))\n' +
+            '    elif isinstance(a, Cat):\n' +
+            '        print("  ", a.pounce())\n' +
+            'print("-" * 30)\n' +
+            'print(f"\\u603B\u5171 {len(animals)} \\u53EA\u52A8\u7269")'
+    }
+];
+
+// ---------------------------------------------------------------------------
+// welcome code
+// ---------------------------------------------------------------------------
+var WELCOME_CODE = [
+    '# =============================================',
+    '#  PyIDE \u2014 \u6D4F\u89C8\u5668\u5185 Python \u96C6\u6210\u5F00\u53D1\u73AF\u5883',
+    '#  Powered by Pyodide (WebAssembly)',
+    '# =============================================',
+    '',
+    'print("\\u2728 \u6B22\u8FCE\u4F7F\u7528 PyIDE\uff01")',
+    'print("")',
+    'print("\\uD83D\\uDCCB \u5FEB\u6377\u6307\u5357:")',
+    'print("  \\u25B6\\uFE0F   Ctrl+Enter  \u2014 \u8FD0\u884C\u4EE3\u7801")',
+    'print("  +      \\u65B0\u589E\u6587\u4EF6\u6807\u7B7E")',
+    'print("  \\u{1F4DA}   \\u70B9\u51FB\u5DE5\u5177\u680F\u300C\u793A\u4F8B\u300D\u83B7\u53D6\u793A\u4F8B\u7A0B\u5E8F")',
+    'print("  >>>    \\u5728\u4E0B\u65B9\u63A7\u5236\u53F0\u8F93\u5165\u4EE3\u7801")',
+    '',
+    'print("")',
+    'print("\\uD83D\\uDCDA \\u53EF\u7528\u6A21\u5757:")',
+    'print("  math, random, json, csv, datetime,", end="")',
+    'print(" collections, functools, itertools")',
+    'print("  numpy, pandas, matplotlib (\\u4F9D\u8D56)")',
+    'print("")',
+    'print("\\u2728 \u5F00\u59CB\u7F16\u7801\u5427\uff01")'
+].join('\n');
+
+// ---------------------------------------------------------------------------
+// state
+// ---------------------------------------------------------------------------
+var pyodideReady  = false;
+var pyodideInst   = null;
+var pyPromise     = null;
+var layoutMode    = 'right'; // 'right' or 'bottom'
+var activeFileId  = null;
+var files         = [];      // [{id, name, cm}]
+var fileCounter   = 0;
+var running       = false;
+
+// ---------------------------------------------------------------------------
+// CodeMirror editor
+// ---------------------------------------------------------------------------
+var editor;
+
+function initEditor(code) {
+    editor = CodeMirror(document.getElementById('editor'), {
+        mode: 'python',
+        theme: 'material-darker',
+        lineNumbers: true,
+        styleActiveLine: true,
+        autoCloseBrackets: true,
+        autoCloseTags: true,
+        matchBrackets: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        lineWrapping: true,
+        extraKeys: {
+            'Ctrl-Enter':   runCode,
+            'Cmd-Enter':    runCode,
+            'Ctrl-/':       'toggleComment',
+            'Cmd-/':        'toggleComment',
+            'Ctrl-Shift-/': 'toggleComment'
+        }
+    });
+    editor.setValue(code || WELCOME_CODE);
+    // On first load the theme may mismatch; restyle on theme change
+    document.addEventListener('themeChange', restyleEditor);
+    restyleEditor();
+    return editor;
+}
+
+function restyleEditor() {
+    var isDark = !document.documentElement.getAttribute('data-theme') ||
+                 document.documentElement.getAttribute('data-theme') !== 'light';
+    editor.setOption('theme', isDark ? 'material-darker' : 'default');
+}
+
+// ---------------------------------------------------------------------------
+// File (tab) management
+// ---------------------------------------------------------------------------
+function createFile(name, code) {
+    var id = ++fileCounter;
+    var fname = name || ('untitled-' + id);
+    var tab  = document.createElement('div');
+    tab.className = 'tab';
+    tab.dataset.id = id;
+    tab.innerHTML = '<span class="tab-name">' + escapeHtml(fname) + '</span>' +
+                    '<span class="tab-close" title="关闭">\u00D7</span>';
+    tab.querySelector('.tab-name').addEventListener('click', (function(fid, tEl) {
+        return function() { switchFile(fid); };
+    })(id, tab));
+    tab.querySelector('.tab-close').addEventListener('click', (function(fid, tEl) {
+        return function(e) { e.stopPropagation(); closeFile(fid); };
+    })(id, tab));
+    tab.addEventListener('click', function() { if (this.dataset.id != activeFileId) switchFile(id); });
+
+    var addBtn = document.getElementById('addTabBtn');
+    document.getElementById('tabBar').insertBefore(tab, addBtn);
+
+    var cm = editor;
+    files.push({id: id, name: fname, cm: cm, element: tab});
+    // Sync welcome into it
+    if (code !== undefined) { cm.setValue(code); }
+    switchFile(id);
+    return id;
+}
+
+function switchFile(id) {
+    if (!id) return;
+    var old = getFile(activeFileId);
+    if (old) {
+        old.cm.toTextArea(); // detach from DOM
+    }
+    activeFileId = id;
+    var f = getFile(id);
+    if (!f) return;
+    f.cm = initEditor(f.cm ? f.cm.getValue() : WELCOME_CODE);
+    // Reuse existing editor instance but move its DOM node
+    // We already initEditor above; now just show
+    document.getElementById('editor').replaceChild(
+        f.cm.getWrapperElement(),
+        document.getElementById('editor').querySelector('.cm-s-pyide')
+    );
+    f.cm.refresh();
+    f.cm.focus();
+
+    // Update tab active state
+    document.querySelectorAll('.tab').forEach(function(t) {
+        t.classList.toggle('active', parseInt(t.dataset.id) === id);
+    });
+}
+
+function closeFile(id) {
+    if (files.length <= 1) { showToastApp('\u6700\u540E\u4E00\u4E2A\u6587\u4EF6\u65E0\u6CD5\u5173\u95ED', 'error'); return; }
+    var idx = -1;
+    files.forEach(function(f, i) { if (f.id === id) idx = i; });
+    if (idx === -1) return;
+
+    var f = files[idx];
+    var domEl = f.cm.getWrapperElement();
+    if (domEl && domEl.parentNode) domEl.parentNode.removeChild(domEl);
+    f.element.remove();
+    files.splice(idx, 1);
+
+    if (activeFileId === id) {
+        switchFile(files[0].id);
+    }
+}
+
+function getFile(id) { return files.find(function(f){ return f.id === id; }); }
+
+// ---------------------------------------------------------------------------
+// Output console
+// ---------------------------------------------------------------------------
+var outputLines = []; // accumulate for copy
+
+function appendOutput(text, type) {
+    type = type || 'stdout';
+    outputLines.push({text: text, type: type});
+
+    var placeholder = document.getElementById('outputPlaceholder');
+    if (placeholder) placeholder.style.display = 'none';
+
+    var box = document.getElementById('outputContent');
+    var line = document.createElement('div');
+    line.className = 'output-line ' + type;
+    line.textContent = text;
+    box.appendChild(line);
+
+    // Auto scroll
+    box.scrollTop = box.scrollHeight;
+}
+
+function clearOutput() {
+    outputLines = [];
+    var box = document.getElementById('outputContent');
+    box.innerHTML = '';
+    var ph = document.getElementById('outputPlaceholder');
+    if (ph) {
+        ph.style.display = '';
+        ph.innerHTML = '<div class="output-placeholder-icon">&#x25B6;&#xFE0F;</div>' +
+                       '<div class="output-placeholder-text">&#x70B9;&#x51FB;&#x300C;&#x8FD0;&#x884C;&#x300D;&#x6216;&#x6309; Ctrl+Enter &#x6267;&#x884C;&#x4EE3;&#x7801;</div>';
+        ph.style.display = 'flex';
+    }
+    box.appendChild(ph);
+}
+
+function copyOutput() {
+    var txt = outputLines.map(function(l){ return l.text; }).join('\n');
+    if (!txt.trim()) { showToastApp('\u8F93\u51FA\u4E3A\u7A7A', 'info'); return; }
+    navigator.clipboard.writeText(txt).then(function() {
+        showToastApp('\u00A0\u590D\u5236\u6210\u529F', 'success');
+    }).catch(function() {
+        // fallback
+        var ta = document.createElement('textarea');
+        ta.value = txt; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToastApp('\u590D\u5236\u6210\u529F', 'success');
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Run code via Pyodide
+// ---------------------------------------------------------------------------
+async function ensurePyodide() {
+    if (pyodideReady) return pyodideInst;
+    if (pyPromise) return pyPromise;
+
+    setLoadingStatus(true, '\u4E0B\u8F7D\u5F15\u64CE...');
+    updateLoadingText('\u6B63\u5728\u4E0B\u8F7D Pyodide \u5F15\u64CE...', '\u9996\u6B21\u4E0B\u8F7D\u7EA6 10-20 MB\uff0C\u8BF7\u8010\u5FC3\u7B49\u5F85');
+
+    try {
+        // Phase indicator: show download progress via status badge
+        setLoadingStatus(true, '\u4E0B\u8F7D\u4E2D...');
+
+        pyPromise = loadPyodide({
+            indexURL: PYODIDE_BASE || 'https://cdn.jsdmirror.com/pyodide/v0.27.1/full/'
+        });
+        pyodideInst = await pyPromise;
+
+        // Redirect stdout/stderr
+        var stdoutAccum = '';
+        var stderrAccum = '';
+        pyodideInst.stdout = function(text) {
+            stdoutAccum += text;
+            appendOutput(text, 'stdout');
+        };
+        pyodideInst.stderr = function(text) {
+            stderrAccum += text;
+            appendOutput(text, 'stderr');
+        };
+
+        // Setup matplotlib inline
+        try {
+            await pyodideInst.runPythonAsync(`
+import sys
+from pyodide.ffi import JsProxy
+
+class JsWriter:
+    def write(self, s):
+        if hasattr(window, '_appendPyOutput'):
+            window._appendPyOutput(s, 'stdout')
+    def flush(self): pass
+
+sys.stdout = JsWriter()
+sys.stderr = JsWriter()
+`);
+        } catch(e) { /* matplotlib setup non-critical */ }
+
+        pyodideReady = true;
+        setReadyStatus();
+
+        return pyodideInst;
+
+    } catch(err) {
+        setErrorStatus('\u52A0\u8F7D\u5931\u8D25: ' + err.message);
+        throw err;
+    }
+}
+
+// Bridge for matplotlib redirection
+window._appendPyOutput = function(text, type) {
+    appendOutput(text, type || 'stdout');
+};
+
+function setLoadingStatus(loading, text) {
+    var badge = document.getElementById('statusBadge');
+    var stxt  = document.getElementById('statusText');
+    badge.className = 'status-badge' + (loading ? ' loading' : '');
+    stxt.textContent = text;
+}
+
+function setReadyStatus() {
+    var badge = document.getElementById('statusBadge');
+    var stxt  = document.getElementById('statusText');
+    badge.className = 'status-badge ready';
+    stxt.textContent = 'Pyodide \u5C31\u7EEE';
+}
+
+function setErrorStatus(text) {
+    var badge = document.getElementById('statusBadge');
+    var stxt  = document.getElementById('statusText');
+    badge.className = 'status-badge error';
+    stxt.textContent = text;
+}
+
+async function runCode() {
+    if (running) return;
+    if (!pyodideReady) {
+        showToastApp('\u6B63\u5728\u52A0\u8F7D Pyodide\uff0C\u8BF7\u7A0D\u5019...', 'info');
+        return;
+    }
+
+    var code = editor.getValue();
+    if (!code.trim()) {
+        showToastApp('\u4EE3\u7801\u4E3A\u7A7A\uff0C\u8BF7\u8F93\u5165\u5185\u5BB9', 'info');
+        return;
+    }
+
+    // Clear previous output for fresh run
+    clearOutput();
+    appendOutput('# \u279C \u8FD0\u884C\u5F00\u59CB \u2014\u2014 ' + new Date().toLocaleTimeString('zh-CN'), 'info');
+
+    running = true;
+    var runBtn = document.getElementById('runBtn');
+    runBtn.disabled = true;
+    runBtn.classList.add('running');
+    runBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"></span><span class="btn-label">\u8FD0\u884C\u4E2D...</span>';
+
+    try {
+        await pyodideInst.loadPackagesFromImports(code, {
+            messageCallback: function(msg) {
+                appendOutput('[\u52A0\u8F7D] ' + msg, 'info');
+            }
+        });
+        await pyodideInst.runPythonAsync(code);
+        appendOutput('# \u2705 \u6267\u884C\u5B8C\u6210 \u2014\u2014 ' + new Date().toLocaleTimeString('zh-CN'), 'success');
+    } catch(err) {
+        appendOutput(String(err), 'stderr');
+    } finally {
+        running = false;
+        runBtn.disabled = false;
+        runBtn.classList.remove('running');
+        runBtn.innerHTML = '<span>&#x25B6;</span><span class="btn-label">&#x8FD0;&#x884C;</span>';
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Console input (interactive REPL)
+// ---------------------------------------------------------------------------
+async function handleConsoleInput() {
+    var inputEl = document.getElementById('consoleInput');
+    var expr = inputEl.value.trim();
+    if (!expr) return;
+    inputEl.value = '';
+
+    appendOutput('> ' + expr, 'info');
+
+    if (!pyodideReady) {
+        appendOutput('\u26A0\uFE0F Pyodide \u8FD8\u672A\u5C31\u7EEE\uff0C\u8BF7\u7A0D\u5019...', 'stderr');
+        return;
+    }
+
+    try {
+        var result = await pyodideInst.runPythonAsync(expr);
+        if (result !== undefined && result !== null) {
+            // Handle JsProxy from matplotlib etc.
+            var strResult = String(result);
+            if (strResult && !strResult.includes('<JsProxy')) {
+                appendOutput(strResult, 'stdout');
+            } else {
+                appendOutput(String(result), 'stdout');
+            }
+        }
+    } catch(err) {
+        appendOutput(String(err), 'stderr');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Layout toggle
+// ---------------------------------------------------------------------------
+function toggleLayout() {
+    var main = document.getElementById('mainSplit');
+    var icon = document.getElementById('layoutIcon');
+    var lbl  = document.getElementById('layoutLabel');
+
+    if (layoutMode === 'right') {
+        layoutMode = 'bottom';
+        main.className = 'main-layout bottom-split';
+        icon.textContent = '\u25B3';
+        lbl.textContent  = '\u4E0B\u65B9\u8F93\u51FA';
+    } else {
+        layoutMode = 'right';
+        main.className = 'main-layout split-view';
+        icon.textContent = '\u2B05';
+        lbl.textContent  = '\u53F3\u4FA7\u8F93\u51FA';
+    }
+    // Force refresh editor size
+    setTimeout(function() { if (editor) editor.refresh(); }, 100);
+}
+
+// ---------------------------------------------------------------------------
+// Examples menu
+// ---------------------------------------------------------------------------
+function buildExamplesMenu() {
+    var menu = document.getElementById('examplesMenu');
+    EXAMPLES.forEach(function(ex) {
+        var item = document.createElement('div');
+        item.className = 'example-item';
+        item.innerHTML = '<span class="example-icon">' + ex.icon + '</span><span>' + escapeHtml(ex.name) + '</span>';
+        item.addEventListener('click', function() {
+            createFile(ex.name, ex.code);
+            menu.classList.remove('show');
+        });
+        menu.appendChild(item);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Loading indicators
+// ---------------------------------------------------------------------------
+function updateLoadingText(main, detail) {
+    var mt = document.getElementById('loadingText');
+    var dt = document.getElementById('loadingDetail');
+    if (mt) mt.textContent = main || mt.textContent;
+    if (dt) dt.textContent = detail || dt.textContent;
+}
+
+function hideLoading() {
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.classList.add('hidden');
+    setTimeout(function() {
+        var o = document.getElementById('loadingOverlay');
+        if (o) o.style.display = 'none';
+    }, 500);
+}
+
+// ---------------------------------------------------------------------------
+// Initialization — show UI immediately, load Pyodide in background
+// ---------------------------------------------------------------------------
+async function init() {
+    // 1. Show UI IMMEDIATELY (no waiting for Pyodide)
+    hideLoading();
+    document.getElementById('appContainer').style.display = '';
+
+    // 2. Build UI components (all cheap DOM operations)
+    buildExamplesMenu();
+
+    // Event bindings
+    document.getElementById('runBtn').addEventListener('click', runCode);
+    document.getElementById('clearOutputBtn').addEventListener('click', clearOutput);
+    document.getElementById('clearOutputSmallBtn').addEventListener('click', clearOutput);
+    document.getElementById('copyOutputBtn').addEventListener('click', copyOutput);
+    document.getElementById('copyOutputSmallBtn').addEventListener('click', copyOutput);
+    document.getElementById('layoutBtn').addEventListener('click', toggleLayout);
+    document.getElementById('addTabBtn').addEventListener('click', function() {
+        createFile();
+    });
+
+    // Examples dropdown toggle
+    var exBtn = document.getElementById('examplesBtn');
+    var exMenu = document.getElementById('examplesMenu');
+    exBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        exMenu.classList.toggle('show');
+    });
+    document.addEventListener('click', function() { exMenu.classList.remove('show'); });
+
+    // Console input
+    document.getElementById('consoleInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleConsoleInput();
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+T: new file
+        if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+            e.preventDefault();
+            createFile();
+        }
+        // Ctrl+S: save/download current file
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            downloadCurrentFile();
+        }
+    });
+
+    // 3. Create welcome tab and switch editor into DOM
+    var welcomeId = createFile('welcome.py', WELCOME_CODE);
+    switchFile(welcomeId);
+
+    // 4. Fire Pyodide loading in background (non-blocking)
+    startPyodideBoot();
+}
+
+// Start Pyodide background loading with progress updates
+function startPyodideBoot() {
+    setLoadingStatus(true, '初始化中...');
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('runBtn').innerHTML = '<span>⌛</span><span class="btn-label">等待 Pyodide...</span>';
+
+    ensurePyodide().then(function() {
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('runBtn').innerHTML = '<span>&#x25B6;</span><span class="btn-label">&#x8FD0;&#x884C;</span>';
+    }).catch(function(err) {
+        setErrorStatus('❌ 加载失败');
+        showToastApp('Pyodide 加载失败: ' + err.message, 'error');
+        // Re-enable run button so user can retry
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('runBtn').innerHTML = '<span>&#x25B6;</span><span class="btn-label">&#x91CD试</span>';
+        document.getElementById('runBtn').addEventListener('click', function() {
+            document.getElementById('runBtn').disabled = true;
+            startPyodideBoot();
+        }, { once: true });
+    });
+}
+
+// Download current file as .py
+function downloadCurrentFile() {
+    var f = getFile(activeFileId);
+    if (!f || !editor) return;
+    var code = editor.getValue();
+    var blob = new Blob([code], { type: 'text/plain' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (f.name || 'untitled') + '.py';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    showToastApp('文件已下载', 'success');
+}
+
+// Run
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+</script>
+
+<script>
+(function() {
+  var toolTitle = document.getElementById('toolTitle');
+  if (toolTitle) { try { toolTitle.textContent = document.title.replace(/PyIDE\s*[-\u2013\u2014]\s*.*/, '').trim() || 'PyIDE'; } catch(e) {} }
+  function getTheme() { try { return localStorage.getItem('portal-theme') || 'light'; } catch(e) { return 'light'; } }
+  function setTheme(t) { document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem('portal-theme', t); } catch(e) {}; var ic = document.getElementById('portalThemeIcon'); if (ic) ic.textContent = t === 'dark' ? '\uD83C\uDF19' : '\u2600\uFE0F'; }
+  window.toggleTheme = function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); };
+  window.getTheme = getTheme;
+  window.setTheme = setTheme;
+  var btn = document.getElementById('portalThemeToggle');
+  var icon = document.getElementById('portalThemeIcon');
+  if (btn && icon) { btn.addEventListener('click', function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); }); }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function() { setTheme(getTheme()); }); } else { setTheme(getTheme()); }
+})();
+</script>
+</body>
+</html>
