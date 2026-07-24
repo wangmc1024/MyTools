@@ -99,10 +99,10 @@
       var raw = window.giteeToRaw(path);
       if (raw) {
         fetch(raw).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-          .then(cb).catch(function () {
+          .then(function (text) { cb(null, text); }).catch(function () {
             fetch('https://download.wangmc1024.workers.dev/?target=' + encodeURIComponent(raw))
               .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-              .then(cb).catch(function (e) { cb(e.message); });
+              .then(function (text) { cb(null, text); }).catch(function (e) { cb(e.message); });
           });
       } else {
         cb('无效链接');
@@ -110,24 +110,24 @@
     } else {
       // relative/local path — fetch directly first, fallback to gitee
       fetch(path).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-        .then(cb).catch(function () {
+        .then(function (text) { cb(null, text); }).catch(function () {
           var raw = window.giteeToRaw(path);
           if (raw) {
             fetch(raw).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-              .then(cb).catch(function () {
+              .then(function (text) { cb(null, text); }).catch(function () {
                 fetch('https://download.wangmc1024.workers.dev/?target=' + encodeURIComponent(raw))
                   .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-                  .then(cb).catch(function (e) { cb(e.message); });
+                  .then(function (text) { cb(null, text); }).catch(function (e) { cb(e.message); });
               });
           } else {
             // Fallback: build Gitee raw URL for relative/local paths
             var rawUrl = window.buildGiteeRawUrl(path);
             if (rawUrl) {
               fetch(rawUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-                .then(cb).catch(function () {
+                .then(function (text) { cb(null, text); }).catch(function () {
                   fetch('https://download.wangmc1024.workers.dev/?target=' + encodeURIComponent(rawUrl))
                     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-                    .then(cb).catch(function (e) { cb(e.message); });
+                    .then(function (text) { cb(null, text); }).catch(function (e) { cb(e.message); });
                 });
             } else {
               cb('无法获取文件');
