@@ -15,6 +15,7 @@
             --accent-light: #818cf8;
             --border-hover: rgba(255,255,255,0.28);
             --bg-card: rgba(255,255,255,0.14);
+            --bg-card-hover: rgba(255,255,255,0.20);
 
             /* App-specific (dark) */
             --bg-primary: #0f172a;
@@ -28,6 +29,7 @@
             --success: #22c55e;
             --error: #ef4444;
             --warning: #f59e0b;
+            --border: #334155;
             --border-color: #334155;
             --line-number-bg: #0d1117;
             --line-number-fg: #475569;
@@ -46,6 +48,7 @@
             --accent-light: #2563eb;
             --border-hover: rgba(0,0,0,0.12);
             --bg-card: #ffffff;
+            --bg-card-hover: rgba(99,91,255,0.08);
 
             --bg-primary: #ffffff;
             --bg-secondary-app: #f1f5f9;
@@ -58,6 +61,7 @@
             --success: #16a34a;
             --error: #dc2626;
             --warning: #d97706;
+            --border: #e2e8f0;
             --border-color: #e2e8f0;
             --line-number-bg: #f8fafc;
             --line-number-fg: #cbd5e1;
@@ -81,28 +85,28 @@
             flex-direction: column;
         }
 
-        /* ========== Navbar ========== */
+        /* ========== Portal Navbar ========== */
         #portalNavbar {
             position: sticky; top: 0; z-index: 9999;
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border);
             display: flex; align-items: center;
-            height: 40px; padding: 0 16px;
+            height: 44px; padding: 0 16px;
             font-size: 13px; color: var(--text-muted); gap: 8px;
         }
         #portalNavbar a {
             color: var(--accent-light); text-decoration: none;
-            font-weight: 700; display: flex; align-items: center; gap: 4px;
+            font-weight: 700; display: flex; align-items: center; gap: 4px; transition: opacity .2s;
         }
-        #portalNavbar span:nth-of-type(2) { color: var(--border-hover); }
+        #portalNavbar a:hover { opacity: .8; }
         #portalThemeToggle {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 6px; padding: 3px 8px; cursor: pointer;
-            font-size: 13px; color: var(--text-secondary);
+            border-radius: 8px; padding: 4px 10px; cursor: pointer;
+            font-size: 14px; color: var(--text-secondary);
             display: flex; align-items: center; gap: 4px;
             transition: all 0.2s;
         }
-
+        #portalThemeToggle:hover { background: var(--bg-card-hover); transform: scale(1.05); }
         /* ========== Toolbar ========== */
         .toolbar {
             display: flex; align-items: center; gap: 6px;
@@ -1360,22 +1364,6 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
-</script>
-
-<script>
-(function() {
-  var toolTitle = document.getElementById('toolTitle');
-  if (toolTitle) { try { toolTitle.textContent = document.title.replace(/PyIDE\s*[-\u2013\u2014]\s*.*/, '').trim() || 'PyIDE'; } catch(e) {} }
-  function getTheme() { try { return localStorage.getItem('portal-theme') || 'light'; } catch(e) { return 'light'; } }
-  function setTheme(t) { document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem('portal-theme', t); } catch(e) {}; var ic = document.getElementById('portalThemeIcon'); if (ic) ic.textContent = t === 'dark' ? '\uD83C\uDF19' : '\u2600\uFE0F'; }
-  window.toggleTheme = function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); };
-  window.getTheme = getTheme;
-  window.setTheme = setTheme;
-  var btn = document.getElementById('portalThemeToggle');
-  var icon = document.getElementById('portalThemeIcon');
-  if (btn && icon) { btn.addEventListener('click', function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); }); }
-  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function() { setTheme(getTheme()); }); } else { setTheme(getTheme()); }
-})();
 </script>
 </body>
 </html>

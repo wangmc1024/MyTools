@@ -63,6 +63,17 @@
             "path": "apps/reader-concrete/index.html"
           }
         ]
+      },
+      {
+        "name": "voice-craft",
+        "type": "dir",
+        "children": [
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/voice-craft/index.html"
+          }
+        ]
       }
     ]
   },
@@ -82,9 +93,35 @@
         ]
       },
       {
+        "name": "img",
+        "type": "dir",
+        "children": [
+          {
+            "name": "apple-touch-icon.png",
+            "type": "file",
+            "path": "assets/img/apple-touch-icon.png"
+          },
+          {
+            "name": "favicon-16.png",
+            "type": "file",
+            "path": "assets/img/favicon-16.png"
+          },
+          {
+            "name": "favicon-32.png",
+            "type": "file",
+            "path": "assets/img/favicon-32.png"
+          }
+        ]
+      },
+      {
         "name": "data",
         "type": "dir",
         "children": [
+          {
+            "name": "repo-tree.json",
+            "type": "file",
+            "path": "assets/data/repo-tree.json"
+          },
           {
             "name": "tools.json",
             "type": "file",

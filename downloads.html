@@ -26,6 +26,7 @@
       --text: #e8eaf0; --text-muted: #9ca3af;
       --border: rgba(255,255,255,0.08);
       --accent: rgba(99,91,255,0.12);
+      --accent-light: #8b83ff;
     }
     [data-theme="light"] {
       --bg: #f0f2f8; --bg-card: rgba(255,255,255,0.8);
@@ -33,6 +34,7 @@
       --text: #1a1a2e; --text-muted: #666;
       --border: rgba(0,0,0,0.08);
       --accent: rgba(99,91,255,0.08);
+      --accent-light: #635bff;
     }
     body { background: var(--bg); color: var(--text); transition: background .3s, color .3s; }
     .nav-glass {
@@ -43,6 +45,20 @@
       border-bottom: 1px solid var(--border);
     }
     [data-theme="light"] .nav-glass { background: rgba(255,255,255,.72) !important; }
+    .back-link {
+      color: var(--accent-light, #635bff); font-weight: 600; text-decoration: none;
+      display: flex; align-items: center; gap: 4px; transition: opacity .2s;
+    }
+    .back-link:hover { opacity: .8; }
+    .theme-btn {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer; transition: all .2s; flex-shrink: 0;
+      line-height: 1;
+    }
+    .theme-btn:hover { background: var(--bg-card-hover); transform: scale(1.05); }
+    /* ---- switch bar tabs ---- */
     .dl-card {
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 16px; padding: 20px 24px;
@@ -251,8 +267,14 @@
       <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</span>
     </a>
     <div class="flex items-center gap-1">
-      <a href="index.html" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">返回首页</a>
-      <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
+      <a href="index.html" class="back-link" title="返回首页">
+        <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:.75;">
+          <path d="M14 3l2.2 5.7L22 9.8l-4.6 3.4L18.3 19 14 16.6 9.7 19l.9-5.8L6 9.8l5.8-1.1L14 3z" fill="url(#lg)"/>
+          <defs><linearGradient id="lg" x1="5" y1="2" x2="23" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#a99fff"/><stop offset=".5" stop-color="#8b83ff"/><stop offset="1" stop-color="#635bff"/></linearGradient></defs>
+        </svg>
+        返回首页
+      </a>
+      <button id="themeToggle" class="theme-btn" title="切换主题">
         <span id="themeIcon">☽️</span>
       </button>
     </div>

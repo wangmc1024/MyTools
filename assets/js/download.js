@@ -120,7 +120,18 @@
                   .then(cb).catch(function (e) { cb(e.message); });
               });
           } else {
-            cb('无法获取文件');
+            // Fallback: build Gitee raw URL for relative/local paths
+            var rawUrl = window.buildGiteeRawUrl(path);
+            if (rawUrl) {
+              fetch(rawUrl).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+                .then(cb).catch(function () {
+                  fetch('https://download.wangmc1024.workers.dev/?target=' + encodeURIComponent(rawUrl))
+                    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+                    .then(cb).catch(function (e) { cb(e.message); });
+                });
+            } else {
+              cb('无法获取文件');
+            }
           }
         });
     }
@@ -202,7 +213,7 @@
         arrow.classList.toggle('open', !open);
         return;
       }
-      if (e.target.classList.contains('repo-dl-btn')) return;
+      if (e.target.closest('.repo-dl-btn')) return;
       var file = e.target.closest('.repo-row.file');
       if (file && file.dataset.path) openPv(file.dataset.path, file.dataset.name);
     });

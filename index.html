@@ -63,6 +63,14 @@
       background: rgba(255,255,255,.72) !important;
     }
 
+    /* ---- Nav links (theme-aware) ---- */
+    .nav-link {
+      color: rgba(255,255,255,.7); transition: all .2s;
+    }
+    [data-theme="light"] .nav-link {
+      color: rgba(0,0,0,.6);
+    }
+    .nav-link:hover { background: var(--bg-card-hover); }
     /* ---- Active nav link ---- */
     .active-tool { color: #fff; background: rgba(99,91,255,.15); }
     [data-theme="light"] .active-tool { color: #635bff; background: rgba(99,91,255,.1); }
@@ -120,6 +128,9 @@
       background: rgba(255,255,255,.96);
       border-color: rgba(0,0,0,.12);
       box-shadow: 0 12px 40px rgba(0,0,0,.1);
+    }
+    #tooltip button {
+      pointer-events: auto; cursor: pointer;
     }
 
     /* ---- Canvas ---- */
@@ -201,8 +212,8 @@
       <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</span>
     </a>
     <div class="flex items-center gap-1">
-      <a href="#" id="navTools" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 active-tool">工具</a>
-      <a href="downloads.html" id="navDownloads" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10">下载</a>
+      <a href="#" id="navTools" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link active-tool">工具</a>
+      <a href="downloads.html" id="navDownloads" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link">下载</a>
       <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
         <span id="themeIcon">☽️</span>
       </button>

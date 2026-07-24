@@ -33,6 +33,7 @@
             --accent-light: #818cf8;
             --border-hover: rgba(255,255,255,0.28);
             --bg-card: rgba(255,255,255,0.14);
+            --bg-card-hover: rgba(255,255,255,0.20);
         }
 
         [data-theme="light"] {
@@ -40,6 +41,7 @@
             --accent-light: #2563eb;
             --border-hover: rgba(0,0,0,0.12);
             --bg-card: #ffffff;
+            --bg-card-hover: rgba(99,91,255,0.08);
         }
         
         * {
@@ -807,12 +809,12 @@
     </style>
 </head>
 <body>
-<div id="portalNavbar" style="position:sticky;top:0;z-index:9999;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;height:40px;padding:0 16px;font-size:13px;color:var(--text-muted);gap:8px;">
-  <a href="../../index.html" style="color:var(--accent-light);text-decoration:none;font-weight:700;display:flex;align-items:center;gap:4px;">← MyTools</a>
-  <span style="color:var(--border-hover);">|</span>
+<div id="portalNavbar" style="position:sticky;top:0;z-index:9999;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;height:44px;padding:0 16px;font-size:13px;color:var(--text-muted);gap:8px;">
+  <a href="../../index.html" style="color:var(--accent-light);text-decoration:none;font-weight:700;display:flex;align-items:center;gap:4px;transition:opacity .2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity=''">← MyTools</a>
+  <span>|</span>
   <span style="font-weight:500;color:var(--text-primary);" id="toolTitle">VoiceCraft</span>
   <div style="flex:1;"></div>
-  <button id="portalThemeToggle" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="切换主题"><span id="portalThemeIcon"></span></button>
+  <button id="portalThemeToggle" style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="切换主题"><span id="portalThemeIcon"></span></button>
 </div>
     <!-- 语言切换器 -->
     <div class="language-switcher">
@@ -2148,7 +2150,7 @@
   var toolTitle = document.getElementById('toolTitle');
   if (toolTitle) { try { toolTitle.textContent = document.title.replace(/VoiceCraft\s*[-–—].*/, '').trim() || 'VoiceCraft'; } catch(e) {} }
   function getTheme() { try { return localStorage.getItem('portal-theme') || 'light'; } catch(e) { return 'light'; } }
-  function setTheme(t) { document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem('portal-theme', t); } catch(e) {}; var ic = document.getElementById('portalThemeIcon'); if (ic) ic.textContent = t === 'dark' ? '🌙' : '☀️'; }
+  function setTheme(t) { document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem('portal-theme', t); } catch(e) {}; var ic = document.getElementById('portalThemeIcon'); if (ic) ic.textContent = t === 'dark' ? '☾' : '☀️'; }
   window.toggleTheme = function() { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); };
   window.getTheme = getTheme;
   window.setTheme = setTheme;
