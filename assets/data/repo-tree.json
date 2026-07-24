@@ -10,8 +10,15 @@
       }
     ]
   },
-  { "name": "article-reader", "type": "dir", "children": [
-      { "name": "index.html", "type": "file", "path": "article-reader/index.html" }
+  { "name": "apps", "type": "dir", "children": [
+      { "name": "article-reader", "type": "dir", "children": [
+          { "name": "index.html", "type": "file", "path": "apps/article-reader/index.html" }
+        ]
+      },
+      { "name": "reader-concrete", "type": "dir", "children": [
+          { "name": "index.html", "type": "file", "path": "apps/reader-concrete/index.html" }
+        ]
+      }
     ]
   },
   { "name": "assets", "type": "dir", "children": [
@@ -24,7 +31,6 @@
         ]
       },
       { "name": "js", "type": "dir", "children": [
-          { "name": "app.js", "type": "file", "path": "assets/js/app.js" },
           { "name": "download.js", "type": "file", "path": "assets/js/download.js" },
           { "name": "tools.js", "type": "file", "path": "assets/js/tools.js" }
         ]
@@ -33,10 +39,6 @@
   },
   { "name": "mermaid", "type": "dir", "children": [
       { "name": "demo.txt", "type": "file", "path": "mermaid/demo.txt" }
-    ]
-  },
-  { "name": "reader-concrete", "type": "dir", "children": [
-      { "name": "index.html", "type": "file", "path": "reader-concrete/index.html" }
     ]
   },
   { "name": "tempermonkeyScript", "type": "dir", "children": [

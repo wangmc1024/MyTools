@@ -1,46 +1,43 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 项目概述
 
-## Repository Overview
+个人生产力工具集 — 纯浏览器运行，无需构建工具。
 
-This is a collection of personal productivity tools — standalone HTML apps and Tampermonkey browser scripts. There is no build system, package manager, or test framework. Everything runs directly in the browser.
+- **下载源**: Gitee raw (`https://gitee.com/wangmc1024/MyTools/raw/main/...`)
+- **GitHub 镜像**: 自动同步到 Gitee
 
-- **Portal downloads**: All file download links use Gitee raw URLs (`https://gitee.com/wangmc1024/MyTools/raw/main/...`). GitHub repo is mirrored at Gitee.
+## 项目结构
 
-## Project Structure
+```
+MyTools/
+├── index.html              # 门户 - Canvas 星图 + 标签筛选
+├── downloads.html          # 下载中心
+├── apps/                   # Web 应用文件夹
+├── tempermonkeyScript/     # 浏览器脚本
+└── assets/
+    ├── js/tools.js         # 共享工具（主题、下载、Toast）
+    ├── js/download.js      # downloads.html 逻辑
+    ├── data/tools.json     # 【核心】工具注册表（单一事实源）
+    └── data/repo-tree.json # 下载中心目录树
+```
 
-| File | Purpose |
-|------|---------|
-| `index.html` | Dashboard — category tabs, search, D3-powered animated SVG canvas |
-| `downloads.html` | Download center — tool cards + repo directory tree (tab switcher) |
-| `article-reader/index.html` | English/Chinese article reader with TTS, translation, word lookup |
-| `reader-concrete/index.html` | Lighter-weight English learning reader |
-| `assets/js/tools.js` | Shared utilities: theme toggle, toast, Gitee URL helpers, download handler |
-| `assets/js/download.js` | Downloads page logic — loads tools.json + repo-tree.json |
-| `assets/data/tools.json` | Tool registry — single source of truth for tool cards |
-| `assets/data/repo-tree.json` | Repo directory tree for download center's explorer tab |
+## 添加新工具
 
-## Adding New Tools
+### Web 应用
+1. 在 `apps/` 创建文件夹 `mytool/index.html`
+2. 引入主题同步（路径调整为 `../../assets/js/tools.js`）
+3. 在 `assets/data/tools.json` 注册（设置 `url: "./apps/mytool/index.html"`，`downloadUrl: null`）
+4. 在 `assets/data/repo-tree.json` 镜像路径
+5. 测试: `python3 -m http.server 8080`
 
-### Web App
-1. Create folder (e.g., `mytool/index.html`)
-2. Sync theme toggle with portal via `window.toggleTheme()`
-3. Register in `assets/data/tools.json` with `url` set, `downloadUrl: null`
-4. Mirror structure in `assets/data/repo-tree.json`
-5. Test: `python3 -m http.server 8080`, visit `http://localhost:8080/mytool/index.html`
+### Tampermonkey 脚本
+1. 放入 `tempermonkeyScript/`
+2. 在 `assets/data/tools.json` 注册（设置 `downloadUrl`，`url: null`）
+3. 更新 `repo-tree.json`
 
-### Tampermonkey Script
-1. Add to `assets/data/tools.json`: set `downloadUrl` (Gitee raw URL), set `type`/`fileType`, `url: null`
-2. Mirror in `assets/data/repo-tree.json`
+### JSON 字段
+- **必填**: `name`, `icon` (emoji), `type`, `category`, `description`, `status` ("online"), `updatedAt` ("YYYY-MM-DD")
+- **可选**: `version`, `fileType`
 
-### JSON Entry Fields
-- Required: `name`, `icon` (emoji), `type`, `category`, `description`, `status` ("online"), `updatedAt` ("YYYY-MM-DD")
-- Optional: `version`, `fileType`
-
-## Development Notes
-
-- All HTML files are self-contained (HTML + CSS + JS inline). No external deps beyond CDN libraries.
-- Tampermonkey scripts use `// ==UserScript==` blocks with `@match` for target domains.
-- Two HTML readers share CSS custom properties in `:root` for dark/light themes.
-- Git history shows iterative direct edits; changes are typically straight to HTML/JS.
+**注意**: `type`/`category` 自动生成分页标签 — 无需手动改 HTML！

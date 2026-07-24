@@ -6,11 +6,11 @@
     "category": "阅读",
     "description": "英语文章阅读、翻译、TTS朗读工具。支持导入 Markdown 文章，逐句翻译，单词悬停释义，云端/系统双引擎朗读。",
     "status": "online",
-    "url": "./article-reader/index.html",
+    "url": "./apps/article-reader/index.html",
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-07-23"
+    "updatedAt": "2026-07-24"
   },
   {
     "name": "English Learning Reader",
@@ -19,11 +19,11 @@
     "category": "学习",
     "description": "交互式英语学习阅读器，提供文章阅读与学习辅助功能。",
     "status": "online",
-    "url": "./reader-concrete/index.html",
+    "url": "./apps/reader-concrete/index.html",
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-07-23"
+    "updatedAt": "2026-07-24"
   },
   {
     "name": "DeepSeek 问答一键导出 MD",

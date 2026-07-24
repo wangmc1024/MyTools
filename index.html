@@ -241,22 +241,38 @@
 
   /* ================================================================
      TOOLS DATA — loaded from assets/data/tools.json at runtime
+     Categories are auto-derived from unique type/category values.
      ================================================================ */
   var TOOLS_DATA = [];
-  var CATEGORIES = ['全部', 'Web Tool', '浏览器脚本', '效率工具', '阅读', '学习'];
+  var CATEGORIES = ['全部'];
   var filteredTools = [];
   var activeCategory = '全部';
   var searchQuery = '';
+
+  /** Build unique category list from loaded tools data */
+  function buildCategories(data) {
+    var map = {};
+    data.forEach(function(t) {
+      if (!t) return;
+      if (t.type) map[t.type] = true;
+      if (t.category) map[t.category] = true;
+    });
+    return ['全部'].concat(Object.keys(map));
+  }
 
   /* Fetch tools.json on init */
   fetch('assets/data/tools.json')
     .then(function(r) { return r.json(); })
     .then(function(data) {
       TOOLS_DATA = data;
+      CATEGORIES = buildCategories(data);
+      renderCategories();
       applyFilters();
     })
-    .catch(function(err) { 
-      console.error('Failed to load tools.json:', err); 
+    .catch(function(err) {
+      console.error('Failed to load tools.json:', err);
+      // Fallback: still render categories and canvas (with empty data)
+      renderCategories();
     });
 
   /* ================================================================
@@ -751,7 +767,8 @@
   });
 
   /* ================================================================
-     INIT — wait for DOM then start
+     INIT
+     Always render categories (they may already have defaults from global scope)
      ================================================================ */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { renderCategories(); });
