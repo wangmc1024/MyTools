@@ -65,6 +65,19 @@
     "updatedAt": "2026-07-25"
   },
   {
+    "name": "Talk2GeoGebra",
+    "icon": "🎨",
+    "type": "Web Tool",
+    "category": "学习",
+    "description": "AI 指令驱动的 GeoGebra 自动绘图工具。自然语言描述几何图形，支持 2D/3D、圆锥曲线、三角函数等，可导出 PNG/XML。",
+    "status": "online",
+    "url": "./apps/Talk2GeoGebra/index.html",
+    "version": null,
+    "downloadUrl": null,
+    "fileType": null,
+    "updatedAt": "2026-07-25"
+  },
+  {
     "name": "VoiceCraft",
     "icon": "🎙️",
     "type": "Web Tool",

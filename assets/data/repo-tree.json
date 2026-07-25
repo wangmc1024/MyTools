@@ -43,6 +43,37 @@
         ]
       },
       {
+        "name": "Talk2GeoGebra",
+        "type": "dir",
+        "children": [
+          {
+            "name": "README.md",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/README.md"
+          },
+          {
+            "name": "app.js",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/app.js"
+          },
+          {
+            "name": "ggb-api.js",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/ggb-api.js"
+          },
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/index.html"
+          },
+          {
+            "name": "style.css",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/style.css"
+          }
+        ]
+      },
+      {
         "name": "py-ide",
         "type": "dir",
         "children": [

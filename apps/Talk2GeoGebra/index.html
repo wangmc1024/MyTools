@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoGebra 自动绘图</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Portal Navbar -->
+  <div id="portalNavbar" style="position:sticky;top:0;z-index:9999;background:var(--bg-secondary,#f8f9fa);border-bottom:1px solid var(--border,#d7dbdf);display:flex;align-items:center;height:44px;padding:0 16px;font-size:13px;color:var(--text-muted,#6c757d);gap:8px;">
+    <a href="../../index.html" style="color:var(--accent-light,#b0d5df);text-decoration:none;font-weight:700;display:flex;align-items:center;gap:4px;">← MyTools</a>
+    <span>|</span>
+    <span style="font-weight:500;color:var(--text-primary,#2c3e50);">Talk2GeoGebra</span>
+    <div style="flex:1;"></div>
+    <button id="portalThemeToggle" style="background:var(--bg-card,rgba(255,255,255,0.95));border:1px solid var(--border,#d7dbdf);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px;color:var(--text-secondary,#495057);display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="切换主题"><span id="portalThemeIcon"></span></button>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h2>🎨 AI 指令 → GeoGebra 自动绘图</h2>
+      <div class="header-actions">
+        <button id="themeToggle" class="btn-icon" title="切换主题">🌙</button>
+        <button id="helpToggle" class="btn-icon" title="帮助">❓</button>
+      </div>
+    </div>
+
+    <section class="toolbar">
+      <div class="toolbar-row">
+        <div class="input-wrapper">
+          <input id="prompt" type="text" placeholder="输入指令，如：画圆心(0,0)半径3的圆" autocomplete="off" />
+          <button id="clearInputBtn" class="clear-input-btn" title="清空输入">×</button>
+        </div>
+        <div class="mode-buttons">
+          <button id="btn2D" class="mode-btn active">2D</button>
+          <button id="btn3D" class="mode-btn">3D</button>
+        </div>
+        <select id="commandMode" title="命令解析模式">
+          <option value="auto">自动（本地-AI备选）</option>
+          <option value="local">本地解析</option>
+          <option value="ai">AI解析</option>
+        </select>
+      </div>
+      
+      <div class="toolbar-row">
+        <div class="left-buttons">
+          <div class="loading-spinner" id="loadingSpinner"></div>
+          <button id="drawButton" class="btn-primary btn-large">🎯 绘图</button>
+          <button id="clearButton" class="btn-secondary btn-large">🗑️ 清空</button>
+        </div>
+        <div class="right-buttons">
+          <button id="zoomInButton" class="btn-icon" title="放大">🔍+</button>
+          <button id="zoomOutButton" class="btn-icon" title="缩小">🔍-</button>
+          <button id="axesToggle" class="btn-icon" title="坐标轴">📐</button>
+          <button id="gridToggle" class="btn-icon" title="网格">▦</button>
+          <button id="settingsButton" class="btn-icon" title="设置">⚙️</button>
+        </div>
+      </div>
+      
+      <div class="toolbar-row">
+        <div class="left-buttons">
+          <button id="btnExportPNG" class="btn-primary">📷 导出PNG</button>
+          <button id="btnSaveXML" class="btn-primary">💾 保存XML</button>
+          <button id="btnLoadXML" class="btn-primary">📂 加载XML</button>
+        </div>
+      </div>
+      
+      <div class="xml-section">
+        <textarea id="xmlInput" placeholder="粘贴 XML 内容后点击加载XML" rows="2"></textarea>
+      </div>
+    </section>
+
+    <section class="status-area">
+      <div id="statusMessage" class="status-message status-info">系统已就绪</div>
+    </section>
+
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <span id="settingsClose" class="close" aria-label="Close">&times;</span>
+        <h3>AI 配置</h3>
+        <div class="form-group">
+          <label for="settingsApiUri">API URI</label>
+          <input id="settingsApiUri" type="text" placeholder="https://ark.cn-beijing.volces.com/api/v3/chat/completions" />
+        </div>
+        <div class="form-group">
+          <label for="settingsApiKey">API Key</label>
+          <input id="settingsApiKey" type="password" placeholder="输入 AI API Key" />
+        </div>
+        <div class="form-group">
+          <label for="settingsModelName">Model Name</label>
+          <input id="settingsModelName" type="text" placeholder="ep-20260307234016-726fd" />
+        </div>
+        <div class="modal-actions">
+          <button id="settingsClear" class="btn-secondary">清除设置</button>
+          <button id="settingsCancel" class="btn-secondary">取消</button>
+          <button id="settingsSave" class="btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-wrapper">
+      <div id="ggbApplet"></div>
+    </div>
+
+    <section class="panels">
+      <div class="panel">
+        <h3>📊 对象列表</h3>
+        <div class="panel-actions">
+          <button id="refreshObjects" class="btn-small">🔄 刷新</button>
+          <button id="clearHistory" class="btn-small">🗑️ 清空历史</button>
+        </div>
+        <div id="objectList" class="object-list">暂无对象</div>
+      </div>
+
+      <div class="panel">
+        <h3>📜 命令历史</h3>
+        <div id="historyList" class="history-list">暂无历史</div>
+      </div>
+    </section>
+
+    <section class="help-panel" id="helpPanel" style="display: none;">
+      <h3>📚 常用指令示例</h3>
+      <div class="help-categories">
+        <div class="help-category">
+          <h4>🔵 圆形</h4>
+          <ul>
+            <li>圆心(0,0)半径3的圆</li>
+            <li>圆心(2,3)半径5的圆</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>🟦 正方形</h4>
+          <ul>
+            <li>边长为4的正方形</li>
+            <li>边长为2的正方形，中心在原点</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>📐 直线</h4>
+          <ul>
+            <li>过点(1,2)和(3,4)的直线</li>
+            <li>斜率为2，过点(1,1)的直线</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>📈 函数</h4>
+          <ul>
+            <li>函数 y = x²</li>
+            <li>函数 y = sin(x)</li>
+            <li>函数 y = 2x + 1</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>🔺 三角形</h4>
+          <ul>
+            <li>三角形顶点(0,0)(3,0)(0,4)</li>
+            <li>等边三角形，边长为4</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>⬡ 正多边形</h4>
+          <ul>
+            <li>正多边形边数6中心(0,0)半径3</li>
+            <li>正五边形，边长为3</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>⭕ 椭圆</h4>
+          <ul>
+            <li>椭圆中心(0,0)长轴5短轴3</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>📊 抛物线</h4>
+          <ul>
+            <li>抛物线顶点(0,0)焦点(0,1)</li>
+          </ul>
+        </div>
+        <div class="help-category">
+          <h4>🔮 3D图形</h4>
+          <ul>
+            <li>球体中心(0,0,0)半径3</li>
+            <li>圆柱底面中心(0,0,0)高5</li>
+            <li>圆锥顶点(0,0,5)底面半径2</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+  <script src="app.js"></script>
+  <noscript>请启用 JavaScript 后再使用此页面。</noscript>
+  <script>
+    if (window.location.protocol === 'file:') {
+      const status = document.getElementById('statusMessage');
+      if (status) {
+        status.textContent = '当前为 file:// 本地打开模式，如出现异常建议使用 HTTP 服务。';
+        status.className = 'status-message status-info';
+      }
+    }
+  </script>
+
+  <!-- Portal theme sync -->
+  <script>
+    (function() {
+      var portalNavbar = document.getElementById('portalNavbar');
+      var portalBtn = document.getElementById('portalThemeToggle');
+      var portalIcon = document.getElementById('portalThemeIcon');
+      function updatePortalIcon() {
+        if (portalIcon) portalIcon.textContent = STATE.theme === 'dark' ? '☾' : '☀️';
+      }
+      function syncPortalTheme(isDark) {
+        if (!portalNavbar) return;
+        if (isDark) {
+          portalNavbar.style.background = '#1a1a2e';
+          portalNavbar.style.borderColor = '#3a3a5c';
+          portalNavbar.style.color = '#b0b0b0';
+          if (portalBtn) {
+            portalBtn.style.background = '#1a1a2e';
+            portalBtn.style.borderColor = '#3a3a5c';
+            portalBtn.style.color = '#e0e0e0';
+          }
+          portalNavbar.querySelector('a').style.color = '#667eea';
+          var titleEl = portalNavbar.querySelectorAll('span')[1];
+          if (titleEl) titleEl.style.color = '#e0e0e0';
+        } else {
+          portalNavbar.style.background = '#f8f9fa';
+          portalNavbar.style.borderColor = '#d7dbdf';
+          portalNavbar.style.color = '#6c757d';
+          if (portalBtn) {
+            portalBtn.style.background = 'rgba(255,255,255,0.95)';
+            portalBtn.style.borderColor = '#d7dbdf';
+            portalBtn.style.color = '#495057';
+          }
+          portalNavbar.querySelector('a').style.color = '#b0d5df';
+          var titleEl = portalNavbar.querySelectorAll('span')[1];
+          if (titleEl) titleEl.style.color = '#2c3e50';
+        }
+      }
+      updatePortalIcon();
+      syncPortalTheme(false);
+      if (portalBtn) {
+        portalBtn.addEventListener('click', function() {
+          toggleTheme();
+          setTimeout(function() {
+            updatePortalIcon();
+            syncPortalTheme(STATE.theme === 'dark');
+          }, 0);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
