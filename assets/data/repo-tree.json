@@ -74,6 +74,110 @@
         ]
       },
       {
+        "name": "ChatOCR",
+        "type": "dir",
+        "children": [
+          {
+            "name": "assets",
+            "type": "dir",
+            "children": [
+              {
+                "name": "css",
+                "type": "dir",
+                "children": [
+                  {
+                    "name": "style.css",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/css/style.css"
+                  }
+                ]
+              },
+              {
+                "name": "js",
+                "type": "dir",
+                "children": [
+                  {
+                    "name": "api.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/api.js"
+                  },
+                  {
+                    "name": "chat.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/chat.js"
+                  },
+                  {
+                    "name": "config.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/config.js"
+                  },
+                  {
+                    "name": "gallery.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/gallery.js"
+                  },
+                  {
+                    "name": "main.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/main.js"
+                  },
+                  {
+                    "name": "media.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/media.js"
+                  },
+                  {
+                    "name": "ocr.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/ocr.js"
+                  },
+                  {
+                    "name": "router.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/router.js"
+                  },
+                  {
+                    "name": "theme.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/theme.js"
+                  },
+                  {
+                    "name": "ui-wrapper.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/ui-wrapper.js"
+                  },
+                  {
+                    "name": "ui.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/ui.js"
+                  },
+                  {
+                    "name": "websearch.js",
+                    "type": "file",
+                    "path": "apps/ChatOCR/assets/js/websearch.js"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "code.html",
+            "type": "file",
+            "path": "apps/ChatOCR/code.html"
+          },
+          {
+            "name": "gallery.html",
+            "type": "file",
+            "path": "apps/ChatOCR/gallery.html"
+          },
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/ChatOCR/index.html"
+          }
+        ]
+      },
+      {
         "name": "py-ide",
         "type": "dir",
         "children": [
@@ -103,92 +207,6 @@
             "name": "index.html",
             "type": "file",
             "path": "apps/voice-craft/index.html"
-          }
-        ]
-      },
-      {
-        "name": "ChatOCR",
-        "type": "dir",
-        "path": "apps/ChatOCR",
-        "children": [
-          {
-            "name": "css",
-            "type": "dir",
-            "path": "apps/ChatOCR/assets/css",
-            "children": [
-              {
-                "name": "style.css",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/css/style.css"
-              }
-            ]
-          },
-          {
-            "name": "js",
-            "type": "dir",
-            "path": "apps/ChatOCR/assets/js",
-            "children": [
-              {
-                "name": "api.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/api.js"
-              },
-              {
-                "name": "chat.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/chat.js"
-              },
-              {
-                "name": "config.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/config.js"
-              },
-              {
-                "name": "gallery.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/gallery.js"
-              },
-              {
-                "name": "main.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/main.js"
-              },
-              {
-                "name": "media.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/media.js"
-              },
-              {
-                "name": "ocr.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/ocr.js"
-              },
-              {
-                "name": "router.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/router.js"
-              },
-              {
-                "name": "theme.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/theme.js"
-              },
-              {
-                "name": "ui-wrapper.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/ui-wrapper.js"
-              },
-              {
-                "name": "ui.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/ui.js"
-              },
-              {
-                "name": "websearch.js",
-                "type": "file",
-                "path": "apps/ChatOCR/assets/js/websearch.js"
-              }
-            ]
           }
         ]
       }

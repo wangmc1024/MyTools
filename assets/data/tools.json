@@ -94,7 +94,7 @@
     "name": "ChatOCR",
     "icon": "🪟",
     "type": "Web Tool",
-    "category": "AI",
+    "category": "工具",
     "description": "对话式 OCR 多模态工作台：智能路由分发 OCR 识别、内容问答、图像/视频生成与联网搜索。",
     "status": "online",
     "url": "./apps/ChatOCR/index.html",
