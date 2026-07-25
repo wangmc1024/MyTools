@@ -1525,11 +1525,9 @@ const MAX_CACHE_ENTRIES = 50;
 // Translation result validation
 const TRANSLATION_ERROR_MARKERS = [
   '\u7FFB\u8BD1\u5931\u8D25', '\u65E0\u8BD1\u6587', '\u8BF7\u68C0\u67E5\u7F51\u7EDC',
-  'mymemory warning', 'query limit', 'rate limit',
-  'please select two distinct', 'invalid lang', 'timeout',
-  'service unavailable', 'internal error', 'bad gateway',
-  'please try again', 'too many requests', 'access denied', '429',
-  'endpoint', 'cloudflare', 'worker error', '502', '503', '524'
+  'timeout', 'service unavailable', 'internal error', 'bad gateway',
+  'too many requests', 'access denied', '429',
+  'cloudflare', 'worker error', '502', '503', '524'
 ];
 
 function isValidTranslation(text) {
@@ -2000,29 +1998,21 @@ function escapeAttr(str) {
 }
 
 // ============================================================
-//  TRANSLATION (DeepLX primary, MyMemory fallback)
+//  TRANSLATION (Silicon Flow API primary, Cloudflare Worker fallback)
 // ============================================================
-var DEEPLX_API = 'https://deeplx.wangmc1024.workers.dev/deepl';
+var SILICON_FLOW_API_KEY = 'sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt';
+var SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+var SILICON_FLOW_MODEL = 'tencent/Hunyuan-MT-7B';
+var CLOUDFLARE_WORKER_URL = 'https://deeplx.wangmc1024.workers.dev/translate';
 
 function createTranslationRecord(key, text, lang, value) {
-  return {
-    key: key,
-    source: text,
-    lang: lang,
-    value: value,
-    updatedAt: Date.now()
-  };
+  return { key: key, source: text, lang: lang, value: value, updatedAt: Date.now() };
 }
 
 async function saveTranslation(store, key, text, lang, value) {
   if (!isValidTranslation(value)) return false;
-  try {
-    await dbPut(store, createTranslationRecord(key, text, lang, value));
-    return true;
-  } catch (e) {
-    console.warn('Failed to cache translation:', e);
-    return false;
-  }
+  try { await dbPut(store, createTranslationRecord(key, text, lang, value)); return true; }
+  catch (e) { console.warn('Failed to cache translation:', e); return false; }
 }
 
 async function readCachedTranslation(store, key, text, lang, cache) {
@@ -2030,21 +2020,148 @@ async function readCachedTranslation(store, key, text, lang, cache) {
     var stored = await dbGet(store, key);
     if (stored && isValidTranslation(stored.value)) {
       cache[key] = stored.value;
-      if (stored.source !== text || stored.lang !== lang) {
-        saveTranslation(store, key, text, lang, stored.value);
-      }
+      if (stored.source !== text || stored.lang !== lang) { saveTranslation(store, key, text, lang, stored.value); }
       return stored.value;
     }
     if (stored) await dbDelete(store, key);
-  } catch (e) {
-    console.warn('Failed to read translation cache:', e);
+  } catch (e) { console.warn('Failed to read translation cache:', e); }
+  return null;
+}
+
+function cleanCache(cache) {
+  var keys = Object.keys(cache);
+  if (keys.length > MAX_CACHE_ENTRIES) {
+    keys.slice(0, keys.length - MAX_CACHE_ENTRIES).forEach(function(key) { delete cache[key]; });
   }
+}
+
+function buildTranslationPrompt(text, lang) {
+  if (lang === 'zh') {
+    return 'Translate the following Chinese text into natural English. Only output the translation, nothing else:\n\n' + text;
+  }
+  return 'Translate the following English text into natural Simplified Chinese. Only output the translation, nothing else:\n\n' + text;
+}
+
+async function translateWithModel(apiUrl, apiKey, model, text, lang) {
+  var prompt = buildTranslationPrompt(text.substring(0, 1500), lang);
+  var resp = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey,
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: 'You are a professional translator. Translate accurately and naturally. Only output the translation.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 2048,
+      temperature: 0.3,
+      top_p: 0.9
+    })
+  });
+  if (!resp.ok) throw new Error('API error: HTTP ' + resp.status);
+  var data = await resp.json();
+  if (data.choices && data.choices[0] && data.choices[0].message) {
+    return data.choices[0].message.content.trim();
+  }
+  throw new Error('Unexpected response format');
+}
+
+async function translateTextWithFallback(text, lang) {
+  var pair = getLangPair(lang);
+  var sourceCode = lang === 'zh' ? 'zh' : 'en';
+  var targetCode = lang === 'zh' ? 'en' : 'zh';
+
+  // 1st: Silicon Flow API (Hunyuan-MT-7B)
+  try {
+    var result = await translateWithModel(SILICON_FLOW_API_URL, SILICON_FLOW_API_KEY, SILICON_FLOW_MODEL, text, lang);
+    if (isValidTranslation(result)) return result;
+  } catch(e) {
+    console.log('Silicon Flow API error:', e);
+  }
+
+  // 2nd: Cloudflare Worker fallback
+  try {
+    var resp = await fetch(CLOUDFLARE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.substring(0, 1500), source: sourceCode, target: targetCode })
+    });
+    if (resp.ok) {
+      var data = await resp.json();
+      if (data && (data.translation || data.text)) {
+        return data.translation || data.text;
+      }
+    }
+  } catch(e) {
+    console.log('Cloudflare Worker error:', e);
+  }
+
+  return null;
+}
+
+async function translateWordWithFallback(word, lang) {
+  var sourceCode = lang === 'zh' ? 'zh' : 'en';
+  var targetCode = lang === 'zh' ? 'en' : 'zh';
+
+  // 1st: Silicon Flow API
+  try {
+    var prompt = buildTranslationPrompt(word, lang);
+    var resp = await fetch(SILICON_FLOW_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SILICON_FLOW_API_KEY,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        model: SILICON_FLOW_MODEL,
+        messages: [
+          { role: 'system', content: 'You are a professional translator. Translate this single word accurately. Only output the translation, nothing else.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 128,
+        temperature: 0.3,
+        top_p: 0.9
+      })
+    });
+    if (resp.ok) {
+      var data = await resp.json();
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        var result = data.choices[0].message.content.trim();
+        if (isValidTranslation(result)) return result;
+      }
+    }
+  } catch(e) {
+    console.log('Silicon Flow word API error:', e);
+  }
+
+  // 2nd: Cloudflare Worker fallback
+  try {
+    var resp = await fetch(CLOUDFLARE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: word, source: sourceCode, target: targetCode })
+    });
+    if (resp.ok) {
+      var data = await resp.json();
+      if (data && (data.translation || data.text)) {
+        var result = data.translation || data.text;
+        if (isValidTranslation(result)) return result;
+      }
+    }
+  } catch(e) {
+    console.log('Cloudflare word worker error:', e);
+  }
+
   return null;
 }
 
 async function translateText(text, lang) {
   lang = lang || currentArticleLang;
-  var pair = getLangPair(lang);
   var cacheKey = lang + '|' + text.trim();
 
   // Check memory cache
@@ -2054,80 +2171,16 @@ async function translateText(text, lang) {
   var cachedTranslation = await readCachedTranslation('translations', cacheKey, text, lang, translationCache);
   if (cachedTranslation) return cachedTranslation;
 
-  var lastError = null;
-  function recordError(error) {
-    if (!lastError || (error && error.code)) lastError = error;
+  // Attempt online translation
+  var result = await translateTextWithFallback(text, lang);
+  if (result && isValidTranslation(result)) {
+    translationCache[cacheKey] = result;
+    saveTranslation('translations', cacheKey, text, lang, result);
+    cleanCache(translationCache);
+    return result;
   }
 
-  // 1st: DeepLX API
-  try {
-    var resp = await fetch(DEEPLX_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text.substring(0, 1500),
-        source_lang: pair.deeplx.source,
-        target_lang: pair.deeplx.target
-      })
-    });
-    if (!resp.ok) {
-      recordError({ code: resp.status, message: 'DeepLX API error' });
-    } else {
-      var data = await resp.json();
-      if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-        translationCache[cacheKey] = data.data;
-        saveTranslation('translations', cacheKey, text, lang, data.data);
-        cleanCache(translationCache);
-        return data.data;
-      }
-      if (data && data.code && data.code !== 200) {
-        recordError({ code: data.code, message: 'DeepLX service error' });
-      }
-    }
-  } catch(e) {
-    console.log('DeepLX API error:', e);
-    recordError({ code: 0, message: e.message });
-  }
-
-  // 2nd: MyMemory API
-  try {
-    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0, 500)) + '&langpair=' + pair.mymemory;
-    var resp = await fetch(url);
-    if (!resp.ok) {
-      recordError({ code: resp.status, message: 'MyMemory API error' });
-    } else {
-      var data = await resp.json();
-      if (data && data.responseData && data.responseData.translatedText) {
-        if (isValidTranslation(data.responseData.translatedText)) {
-          translationCache[cacheKey] = data.responseData.translatedText;
-          saveTranslation('translations', cacheKey, text, lang, data.responseData.translatedText);
-          cleanCache(translationCache);
-          return data.responseData.translatedText;
-        }
-      }
-      if (data && data.responseStatus && data.responseStatus >= 400) {
-        recordError({ code: data.responseStatus, message: 'MyMemory service error' });
-      }
-    }
-  } catch(e) {
-    console.log('MyMemory API error:', e);
-    recordError({ code: 0, message: e.message });
-  }
-
-  var errorMsg = '\u7FFB\u8BD1\u5931\u8D25';
-  if (lastError && lastError.code) {
-    errorMsg += ' (Error ' + lastError.code + ')';
-  }
-  return errorMsg;
-}
-
-function cleanCache(cache) {
-  var keys = Object.keys(cache);
-  if (keys.length > MAX_CACHE_ENTRIES) {
-    keys.slice(0, keys.length - MAX_CACHE_ENTRIES).forEach(function(key) {
-      delete cache[key];
-    });
-  }
+  return '\u7FFB\u8BD1\u5931\u8D25';
 }
 
 async function translateWord(word, lang) {
@@ -2139,67 +2192,15 @@ async function translateWord(word, lang) {
   var cachedWord = await readCachedTranslation('wordTranslations', cacheKey, word, lang, wordCache);
   if (cachedWord) return cachedWord;
 
-  var pair = getLangPair(lang);
-  var lastError = null;
-
-  // 1st: DeepLX API
-  try {
-    var resp = await fetch(DEEPLX_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: word,
-        source_lang: pair.deeplx.source,
-        target_lang: pair.deeplx.target
-      })
-    });
-    if (!resp.ok) {
-      lastError = { code: resp.status, message: 'DeepLX API error' };
-    } else {
-      var data = await resp.json();
-      if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-        wordCache[cacheKey] = data.data;
-        saveTranslation('wordTranslations', cacheKey, word, lang, data.data);
-        cleanCache(wordCache);
-        return data.data;
-      }
-      if (data && data.code && data.code !== 200) {
-        lastError = { code: data.code, message: 'DeepLX service error' };
-      }
-    }
-  } catch(e) {
-    lastError = { code: 0, message: e.message };
+  var result = await translateWordWithFallback(word, lang);
+  if (result && isValidTranslation(result)) {
+    wordCache[cacheKey] = result;
+    saveTranslation('wordTranslations', cacheKey, word, lang, result);
+    cleanCache(wordCache);
+    return result;
   }
 
-  // 2nd: MyMemory API
-  try {
-    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=' + pair.mymemory;
-    var resp = await fetch(url);
-    if (!resp.ok) {
-      lastError = { code: resp.status, message: 'MyMemory API error' };
-    } else {
-      var data = await resp.json();
-      if (data && data.responseData && data.responseData.translatedText) {
-        if (isValidTranslation(data.responseData.translatedText)) {
-          wordCache[cacheKey] = data.responseData.translatedText;
-          saveTranslation('wordTranslations', cacheKey, word, lang, data.responseData.translatedText);
-          cleanCache(wordCache);
-          return data.responseData.translatedText;
-        }
-      }
-      if (data && data.responseStatus && data.responseStatus >= 400) {
-        lastError = { code: data.responseStatus, message: 'MyMemory service error' };
-      }
-    }
-  } catch(e) {
-    lastError = { code: 0, message: e.message };
-  }
-
-  var errorMsg = '\u65E0\u8BD1\u6587';
-  if (lastError && lastError.code) {
-    errorMsg += ' (Error ' + lastError.code + ')';
-  }
-  return errorMsg;
+  return '\u65E0\u8BD1\u6587';
 }
 
 // ============================================================

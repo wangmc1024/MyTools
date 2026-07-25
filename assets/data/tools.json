@@ -89,5 +89,18 @@
     "downloadUrl": null,
     "fileType": null,
     "updatedAt": "2026-07-24"
+  },
+  {
+    "name": "ChatOCR",
+    "icon": "🪟",
+    "type": "Web Tool",
+    "category": "AI",
+    "description": "对话式 OCR 多模态工作台：智能路由分发 OCR 识别、内容问答、图像/视频生成与联网搜索。",
+    "status": "online",
+    "url": "./apps/ChatOCR/index.html",
+    "downloadUrl": null,
+    "version": null,
+    "fileType": null,
+    "updatedAt": "2026-07-26"
   }
 ]

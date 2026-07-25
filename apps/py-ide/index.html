@@ -210,6 +210,12 @@
         }
         .tab:hover .tab-close, .tab.active .tab-close { opacity: 0.7; }
         .tab-close:hover { opacity: 1 !important; background: var(--error); color: #fff; }
+        .tab-rename-input {
+            width: 90px; font-size: 12px; font-weight: 500;
+            background: var(--bg-primary); color: var(--text-primary);
+            border: 1px solid var(--accent); border-radius: 3px;
+            padding: 0 4px; outline: none; font-family: inherit;
+        }
         .tab-add {
             display: flex; align-items: center; justify-content: center;
             width: 32px; height: 32px; font-size: 18px;
@@ -219,15 +225,57 @@
         }
         .tab-add:hover { color: var(--accent); }
 
+        /* ========== App container (flex column filling remaining height) ========== */
+        #appContainer {
+            display: flex; flex-direction: column;
+            flex: 1; min-height: 0;
+        }
+
         /* ========== Main layout ========== */
         .main-layout {
             display: flex; flex: 1; overflow: hidden;
         }
         .editor-pane {
-            flex: 1; display: flex; flex-direction: column; min-width: 0;
+            flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+        }
+        #editor {
+            flex: 1; min-height: 0;
         }
         .split-view .output-pane {
             border-left: 1px solid var(--border-color);
+        }
+
+        /* ========== Resize splitter ========== */
+        .resize-splitter {
+            flex-shrink: 0;
+            width: 6px;
+            cursor: col-resize;
+            background: transparent;
+            transition: background 0.15s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            z-index: 10;
+        }
+        .resize-splitter:hover,
+        .resize-splitter.active {
+            background: var(--accent);
+            opacity: 0.5;
+        }
+        .resize-splitter::after {
+            content: '';
+            width: 2px;
+            height: 24px;
+            background: var(--text-muted);
+            border-radius: 1px;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .resize-splitter:hover::after,
+        .resize-splitter.active::after {
+            opacity: 0.6;
+        }
+        .bottom-split .resize-splitter {
+            display: none;
         }
 
         /* ========== CodeMirror overrides ========== */
@@ -461,6 +509,7 @@
         <div class="editor-pane" id="editorPane">
             <div id="editor" class="cm-s-pyide"></div>
         </div>
+        <div class="resize-splitter" id="resizeSplitter"></div>
         <div class="output-pane" id="outputPane">
             <div class="output-header">
                 <span>&#x1F4A1; &#x8F93;&#x51FA;&#x63A7;&#x5236;&#x53F0;</span>

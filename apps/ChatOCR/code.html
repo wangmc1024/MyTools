@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI API Key 清单</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#635bff',
+                        darkbg: '#0f1118',
+                        cardbg: '#1a1d27',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .scrollbar::-webkit-scrollbar { width:6px;height:6px; }
+        .scrollbar::-webkit-scrollbar-thumb { background:#444; border-radius:4px; }
+        .key-text { word-break: break-all; font-family: Consolas, monospace; }
+    </style>
+</head>
+<body class="bg-darkbg text-gray-200 min-h-screen p-4 md:p-8">
+<div class="max-w-5xl mx-auto">
+    <header class="mb-8">
+        <h1 class="text-[clamp(1.5rem,3vw,2.2rem)] font-bold text-white flex items-center gap-3">
+            <i class="fa fa-key text-primary"></i> AI API Key 清单
+        </h1>
+        <p class="text-gray-400 mt-2">仅展示预设配置，无新增编辑功能；密钥支持隐藏/显示切换</p>
+    </header>
+
+    <div id="listWrap" class="space-y-4"></div>
+</div>
+
+<script>
+// 固定预设数据
+const dataList = [
+    {
+        platform: "硅基流动",
+        apiUrl: "https://api.siliconflow.cn/v1/chat/completions",
+        apiKey: "sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt",
+        models: [
+            "THUDM/GLM-Z1-9B-0414",
+            "deepseek-ai/DeepSeek-OCR",
+            "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+            "PaddlePaddle/PaddleOCR-VL-1.5"
+        ]
+    },
+    {
+        platform: "ChatGLM 智谱开放平台",
+        apiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        apiKey: "19344c09a7c047a69ae0ee36cd75c4f3.wOrnR0cm2GL2kiCD",
+        models: ["glm-4.7-flash"]
+    },
+    {
+        platform: "Agnes AI 对话",
+        apiUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
+        apiKey: "sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG",
+        models: [
+            "agnes-2.0-flash"
+        ]
+    },
+    {
+        platform: "Agnes AI 图像生成",
+        apiUrl: "https://apihub.agnes-ai.com/v1/images/generations",
+        apiKey: "sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG",
+        models: [
+            "agnes-image-2.1-flash",
+            "agnes-image-2.0-flash"
+        ]
+    },
+    {
+        platform: "Agnes AI 视频生成",
+        apiUrl: "POST https://apihub.agnes-ai.com/v1/videos",
+        apiKey: "sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG",
+        models: [
+            "agnes-video-v2.0",
+            "查询任务 GET https://apihub.agnes-ai.com/agnesapi?video_id=<VIDEO_ID>"
+        ]
+    }
+];
+
+// 复制文本
+async function copyText(txt) {
+    try {
+        await navigator.clipboard.writeText(txt);
+        alert("✅ 复制成功");
+    } catch (e) {
+        const ta = document.createElement("textarea");
+        ta.value = txt;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        alert("✅ 复制成功");
+    }
+}
+
+// 切换密钥显示隐藏
+function toggleKey(btn) {
+    const keyWrap = btn.parentElement.nextElementSibling;
+    const realKey = btn.dataset.key;
+    if (btn.dataset.show === "0") {
+        keyWrap.innerText = realKey;
+        btn.innerHTML = '<i class="fa fa-eye-slash"></i> 隐藏';
+        btn.dataset.show = "1";
+    } else {
+        keyWrap.innerText = "●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●";
+        btn.innerHTML = '<i class="fa fa-eye"></i> 显示';
+        btn.dataset.show = "0";
+    }
+}
+
+// 渲染列表
+function renderList() {
+    const wrap = document.getElementById("listWrap");
+    let html = "";
+    dataList.forEach(item => {
+        const modelHtml = item.models.map(m => `
+            <div class="inline-block bg-gray-800 px-2 py-1 rounded mr-2 mb-2 text-sm cursor-pointer hover:bg-gray-700" onclick="copyText('${m}')" title="点击复制模型名/接口地址">
+                ${m} <i class="fa fa-copy text-gray-400 text-xs"></i>
+            </div>
+        `).join("");
+
+        html += `
+        <div class="bg-cardbg rounded-xl p-5 border border-gray-700">
+            <div class="flex justify-between items-start mb-3">
+                <h3 class="text-xl font-semibold text-white">${item.platform}</h3>
+            </div>
+
+            <div class="mb-3">
+                <div class="text-sm text-gray-400 mb-1">API URL
+                    <button onclick='copyText("${item.apiUrl}")' class="ml-2 text-primary text-sm"><i class="fa fa-copy"></i>复制</button>
+                </div>
+                <div class="key-text text-gray-300 bg-gray-800 p-2 rounded">${item.apiUrl}</div>
+            </div>
+
+            <div class="mb-3">
+                <div class="text-sm text-gray-400 mb-1">API Key
+                    <button onclick='copyText("${item.apiKey}")' class="ml-2 text-primary text-sm"><i class="fa fa-copy"></i>复制</button>
+                    <button onclick="toggleKey(this)" data-key="${item.apiKey}" data-show="0" class="ml-3 text-primary text-sm">
+                        <i class="fa fa-eye"></i> 显示
+                    </button>
+                </div>
+                <div class="key-text text-gray-300 bg-gray-800 p-2 rounded">●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●</div>
+            </div>
+
+            <div>
+                <div class="text-sm text-gray-400 mb-2">可用模型（点击复制名称）</div>
+                <div class="flex flex-wrap">${modelHtml}</div>
+            </div>
+        </div>
+        `;
+    });
+    wrap.innerHTML = html;
+}
+
+window.onload = renderList;
+</script>
+</body>
+</html>

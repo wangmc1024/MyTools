@@ -1125,11 +1125,9 @@ const wordCache = {};
 // Translation result validation — prevents error messages from being cached
 const TRANSLATION_ERROR_MARKERS = [
   '翻译失败', '无译文', '请检查网络',
-  'mymemory warning', 'query limit', 'rate limit',
-  'please select two distinct', 'invalid lang', 'timeout',
-  'service unavailable', 'internal error', 'bad gateway',
-  'please try again', 'too many requests', 'access denied',
-  'endpoint', 'cloudflare', 'worker error', '429', '502', '503', '504', '524'
+  'timeout', 'service unavailable', 'internal error', 'bad gateway',
+  'too many requests', 'access denied', '429',
+  'cloudflare', 'worker error', '502', '503', '504', '524'
 ];
 
 function isValidTranslation(text) {
@@ -1376,192 +1374,151 @@ function escapeAttr(str) {
 }
 
 // ============================================================
-//  TRANSLATION (DeepLX primary, MyMemory fallback)
+//  TRANSLATION (Silicon Flow API primary, Cloudflare Worker fallback)
 // ============================================================
-const DEEPLX_API = 'https://deeplx.wangmc1024.workers.dev/deepl';
+const SILICON_FLOW_API_KEY = 'sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt';
+const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const SILICON_FLOW_MODEL = 'tencent/Hunyuan-MT-7B';
+const CLOUDFLARE_WORKER_URL = 'https://deeplx.wangmc1024.workers.dev/translate';
 
-// Helper: save to localStorage with cleanup on quota exceeded
-function saveToLS(key, value) {
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch(e) {
-    if (e.name === 'QuotaExceededError' || e.code === 22) {
-      var keys = [];
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && (k.startsWith('tr_') || k.startsWith('wd_'))) keys.push(k);
-      }
-      var removeCount = Math.max(1, Math.floor(keys.length * 0.2));
-      for (var j = 0; j < removeCount && j < keys.length; j++) {
-        localStorage.removeItem(keys[j]);
-      }
-      try { localStorage.setItem(key, value); return true; } catch(e2) {}
-    }
-    return false;
-  }
+function buildTranslationPrompt(text) {
+  return 'Translate the following English text into natural Simplified Chinese. Only output the translation, nothing else:\n\n' + text;
 }
 
-// Helper: check memory cache + localStorage, return cached value or null
-function lookupCache(memCache, memKey, lsKey) {
-  if (memCache[memKey]) return memCache[memKey];
+async function translateWithModel(url, key, model, text) {
+  const prompt = buildTranslationPrompt(text.substring(0, 1500));
+  const resp = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key,
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: 'You are a professional translator. Translate accurately and naturally. Only output the translation.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 2048,
+      temperature: 0.3,
+      top_p: 0.9
+    })
+  }, 15000);
+  if (!resp.ok) throw new Error('API error: HTTP ' + resp.status);
+  const data = await resp.json();
+  if (data.choices && data.choices[0] && data.choices[0].message) {
+    return data.choices[0].message.content.trim();
+  }
+  throw new Error('Unexpected response format');
+}
+
+async function translateTextFallback(text) {
+  // 1st: Silicon Flow API (Hunyuan-MT-7B)
   try {
-    var stored = localStorage.getItem(lsKey);
-    if (stored) {
-      if (isValidTranslation(stored)) {
-        memCache[memKey] = stored;
-        return stored;
+    const result = await translateWithModel(SILICON_FLOW_API_URL, SILICON_FLOW_API_KEY, SILICON_FLOW_MODEL, text);
+    if (isValidTranslation(result)) return result;
+  } catch(e) { console.log('Silicon Flow API error:', e.message); }
+
+  // 2nd: Cloudflare Worker fallback
+  try {
+    const resp = await fetchWithTimeout(CLOUDFLARE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.substring(0, 1500), source: 'en', target: 'zh' })
+    }, 10000);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && (data.translation || data.text)) {
+        return data.translation || data.text;
       }
-      localStorage.removeItem(lsKey);
     }
-  } catch(e) {}
+  } catch(e) { console.log('Cloudflare Worker error:', e.message); }
+
   return null;
 }
 
-// Helper: fetch with timeout and status code checking
-async function fetchWithTimeout(url, options, timeoutMs) {
-  var controller = new AbortController();
-  var timer = setTimeout(function() { controller.abort(); }, timeoutMs || 15000);
+async function translateWordFallback(word) {
+  // 1st: Silicon Flow API
   try {
-    return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
-  } finally {
-    clearTimeout(timer);
-  }
+    const prompt = buildTranslationPrompt(word);
+    const resp = await fetchWithTimeout(SILICON_FLOW_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SILICON_FLOW_API_KEY,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        model: SILICON_FLOW_MODEL,
+        messages: [
+          { role: 'system', content: 'You are a professional translator. Translate this single word accurately. Only output the translation, nothing else.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 128,
+        temperature: 0.3,
+        top_p: 0.9
+      })
+    }, 10000);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        const result = data.choices[0].message.content.trim();
+        if (isValidTranslation(result)) return result;
+      }
+    }
+  } catch(e) { console.log('Silicon Flow word API error:', e.message); }
+
+  // 2nd: Cloudflare Worker fallback
+  try {
+    const resp = await fetchWithTimeout(CLOUDFLARE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: word, source: 'en', target: 'zh' })
+    }, 8000);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && (data.translation || data.text)) {
+        const result = data.translation || data.text;
+        if (isValidTranslation(result)) return result;
+      }
+    }
+  } catch(e) { console.log('Cloudflare word worker error:', e.message); }
+
+  return null;
 }
 
 async function translateText(text) {
-  var cacheKey = text.trim().substring(0, 200);
+  const cacheKey = text.trim().substring(0, 200);
   if (translationCache[cacheKey]) return translationCache[cacheKey];
 
-  var lsKey = 'tr_' + cacheKey.replace(/[^a-zA-Z0-9]/g, function(c) { return c.charCodeAt(0).toString(16); }).substring(0, 50);
-  var cached = lookupCache(translationCache, cacheKey, lsKey);
+  const lsKey = 'tr_' + cacheKey.replace(/[^a-zA-Z0-9]/g, function(c) { return c.charCodeAt(0).toString(16); }).substring(0, 50);
+  const cached = lookupCache(translationCache, cacheKey, lsKey);
   if (cached) return cached;
 
-  // 1st: DeepLX API (self-hosted Cloudflare Worker)
-  try {
-    var resp = await fetchWithTimeout(DEEPLX_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text.substring(0, 1500),
-        source_lang: 'EN',
-        target_lang: 'ZH'
-      })
-    }, 15000);
-    if (!resp.ok) {
-      throw new Error('HTTP ' + resp.status);
-    }
-    var data = await resp.json();
-    if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-      var translation = data.data;
-      translationCache[cacheKey] = translation;
-      saveToLS(lsKey, translation);
-      return translation;
-    }
-    // DeepLX returned non-200 code in body
-    if (data && data.code && data.code !== 200) {
-      throw new Error('DeepLX ' + data.code);
-    }
-  } catch(e) {
-    console.log('DeepLX API error:', e.message);
-    if (/429|502|503|504|403/.test(e.message)) {
-      return '翻译失败 (DeepLX: ' + e.message.replace('DeepLX ', '') + ')，正在尝试备用接口...';
-    }
-  }
-
-  // 2nd: MyMemory API
-  try {
-    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.substring(0, 500)) + '&langpair=en|zh-CN';
-    var resp = await fetchWithTimeout(url, {}, 10000);
-    if (!resp.ok) {
-      throw new Error('HTTP ' + resp.status);
-    }
-    var data = await resp.json();
-    if (data && data.responseData && data.responseData.translatedText) {
-      var translation = data.responseData.translatedText;
-      if (isValidTranslation(translation)) {
-        translationCache[cacheKey] = translation;
-        saveToLS(lsKey, translation);
-        return translation;
-      }
-    }
-    // MyMemory rate limit
-    if (data && data.responseStatus && data.responseStatus >= 400) {
-      throw new Error('MyMemory ' + data.responseStatus);
-    }
-  } catch(e) {
-    console.log('MyMemory API error:', e.message);
-    if (/429|502|503|504|403/.test(e.message)) {
-      return '翻译失败 (MyMemory: ' + e.message.replace('MyMemory ', '') + ')，正在尝试备用接口...';
-    }
+  const result = await translateTextFallback(text);
+  if (result && isValidTranslation(result)) {
+    translationCache[cacheKey] = result;
+    saveToLS(lsKey, result);
+    return result;
   }
 
   return '翻译失败: 请检查网络连接';
 }
 
 async function translateWord(word) {
-  var lowerWord = word.toLowerCase();
+  const lowerWord = word.toLowerCase();
   if (wordCache[lowerWord]) return wordCache[lowerWord];
 
-  var lsKey = 'wd_' + lowerWord;
-  var cached = lookupCache(wordCache, lowerWord, lsKey);
+  const lsKey = 'wd_' + lowerWord;
+  const cached = lookupCache(wordCache, lowerWord, lsKey);
   if (cached) return cached;
 
-  // 1st: DeepLX API
-  try {
-    var resp = await fetchWithTimeout(DEEPLX_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: word,
-        source_lang: 'EN',
-        target_lang: 'ZH'
-      })
-    }, 10000);
-    if (!resp.ok) {
-      throw new Error('HTTP ' + resp.status);
-    }
-    var data = await resp.json();
-    if (data && data.code === 200 && data.data && isValidTranslation(data.data)) {
-      var translation = data.data;
-      wordCache[lowerWord] = translation;
-      saveToLS(lsKey, translation);
-      return translation;
-    }
-    if (data && data.code && data.code !== 200) {
-      throw new Error('DeepLX ' + data.code);
-    }
-  } catch(e) {
-    console.log('DeepLX word translation error:', e.message);
-    if (/429|502|503|504|403/.test(e.message)) {
-      return '无译文 (DeepLX: ' + e.message.replace('DeepLX ', '') + ')';
-    }
-  }
-
-  // 2nd: MyMemory for single word
-  try {
-    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=en|zh-CN';
-    var resp = await fetchWithTimeout(url, {}, 8000);
-    if (!resp.ok) {
-      throw new Error('HTTP ' + resp.status);
-    }
-    var data = await resp.json();
-    if (data && data.responseData && data.responseData.translatedText) {
-      var translation = data.responseData.translatedText;
-      if (isValidTranslation(translation)) {
-        wordCache[lowerWord] = translation;
-        saveToLS(lsKey, translation);
-        return translation;
-      }
-    }
-    if (data && data.responseStatus && data.responseStatus >= 400) {
-      throw new Error('MyMemory ' + data.responseStatus);
-    }
-  } catch(e) {
-    console.log('MyMemory word translation error:', e.message);
-    if (/429|502|503|504|403/.test(e.message)) {
-      return '无译文 (MyMemory: ' + e.message.replace('MyMemory ', '') + ')';
-    }
+  const result = await translateWordFallback(word);
+  if (result && isValidTranslation(result)) {
+    wordCache[lowerWord] = result;
+    saveToLS(lsKey, result);
+    return result;
   }
 
   return '无译文';

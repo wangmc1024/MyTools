@@ -406,7 +406,7 @@ function initEditor(code) {
             'Ctrl-Shift-/': 'toggleComment'
         }
     });
-    editor.setValue(code || WELCOME_CODE);
+    editor.setValue(code !== undefined && code !== null ? code : WELCOME_CODE);
     restyleEditorFromInstance(editor);
     return editor;
 }
@@ -430,8 +430,17 @@ function restyleEditorFromInstance(cm) {
 // ---------------------------------------------------------------------------
 // All files share a single CodeMirror instance. Content is saved/restored
 // in file.content when switching tabs.
+/** Compute the next unused file ID (avoids monotonically increasing counter). */
+function nextFileId() {
+    var used = {};
+    files.forEach(function(f) { used[f.id] = true; });
+    var id = 1;
+    while (used[id]) id++;
+    return id;
+}
+
 function createFile(name, code) {
-    var id = ++fileCounter;
+    var id = nextFileId();
     var fname = name || ('untitled-' + id);
     // Blank file when no code provided
     if (code === undefined) code = '';
@@ -440,12 +449,16 @@ function createFile(name, code) {
     tab.dataset.id = id;
     tab.innerHTML = '<span class="tab-name">' + escapeHtml(fname) + '</span>' +
                     '<span class="tab-close" title="\u5173\u95ed">\u00d7</span>';
-    tab.querySelector('.tab-name').addEventListener('click', (function(fid, tEl) {
+    tab.querySelector('.tab-name').addEventListener('click', (function(fid) {
         return function() { switchFile(fid); };
-    })(id, tab));
-    tab.querySelector('.tab-close').addEventListener('click', (function(fid, tEl) {
+    })(id));
+    tab.querySelector('.tab-close').addEventListener('click', (function(fid) {
         return function(e) { e.stopPropagation(); closeFile(fid); };
-    })(id, tab));
+    })(id));
+    // Double-click tab name to rename
+    tab.querySelector('.tab-name').addEventListener('dblclick', (function(fid) {
+        return function(e) { e.stopPropagation(); startRenameTab(e, fid); };
+    })(id));
     tab.addEventListener('click', function() { if (this.dataset.id != activeFileId) switchFile(id); });
 
     var addBtn = document.getElementById('addTabBtn');
@@ -488,29 +501,91 @@ function switchFile(id) {
 }
 
 function closeFile(id) {
-    if (files.length <= 1) { showToastApp('\u6700\u540e\u4e00\u4e2a\u6587\u4ef6\u65e0\u6cd5\u5173\u95ed', 'error'); return; }
     var idx = -1;
     files.forEach(function(f, i) { if (f.id === id) idx = i; });
     if (idx === -1) return;
+
+    // Ensure we always have at least one tab
+    if (files.length <= 1) {
+        // Last tab: save content and replace with a fresh blank tab
+        if (editor && id === activeFileId) {
+            try { files[idx].content = editor.getValue(); } catch(e) {}
+        }
+        // Remove tab DOM element
+        var tabEl = files[idx].tabEl;
+        if (tabEl && tabEl.parentNode) {
+            tabEl.parentNode.removeChild(tabEl);
+        }
+        files.splice(idx, 1);
+        activeFileId = null;
+        createFile();  // creates new blank tab and calls switchFile
+        return;
+    }
 
     // Remove tab DOM element
     var tabEl = files[idx].tabEl;
     if (tabEl && tabEl.parentNode) {
         tabEl.parentNode.removeChild(tabEl);
     }
-    // Detach editor if this file's tab is currently showing
+
+    // Save content if this is the active file being closed
     if (id === activeFileId && editor) {
-        editor.toTextArea();
-        editor = null;
+        try { files[idx].content = editor.getValue(); } catch(e) {}
     }
+
+    // Remove from files array
     files.splice(idx, 1);
 
+    // Switch to the first remaining tab if the closed one was active
     if (activeFileId === id) {
         switchFile(files[0].id);
     }
 }
 
 function getFile(id) { return files.find(function(f){ return f.id === id; }); }
+
+/** Start inline renaming of a tab. */
+function startRenameTab(e, id) {
+    var f = getFile(id);
+    if (!f) return;
+    var nameSpan = f.tabEl.querySelector('.tab-name');
+    if (!nameSpan) return;
+
+    // Replace span with input
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tab-rename-input';
+    input.value = f.name;
+    nameSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    function finishRename() {
+        var newName = input.value.trim();
+        if (newName && newName !== f.name) {
+            f.name = newName;
+            showToastApp('已重命名', 'success');
+        }
+        var span = document.createElement('span');
+        span.className = 'tab-name';
+        span.textContent = f.name;
+        input.replaceWith(span);
+        // Re-bind click
+        span.addEventListener('click', (function(fid) {
+            return function() { switchFile(fid); };
+        })(id));
+        // Re-bind double-click for rename
+        span.addEventListener('dblclick', (function(fid) {
+            return function(ev) { ev.stopPropagation(); startRenameTab(ev, fid); };
+        })(id));
+    }
+
+    input.addEventListener('blur', finishRename);
+    input.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') { input.blur(); }
+        else if (ev.key === 'Escape') { input.value = f.name; input.blur(); }
+    });
+}
 
 /** Get the CodeMirror editor instance (null when switching between tabs). */
 function getActiveEditor() { return editor; }
@@ -711,9 +786,92 @@ async function handleConsoleInput() {
 }
 
 // ---------------------------------------------------------------------------
+// Splitter resize
+// ---------------------------------------------------------------------------
+var SPLIT_MIN_EDITOR = 200;
+var SPLIT_MIN_OUTPUT = 200;
+var SPLIT_DEFAULT_RATIO = 0.6;
+var splitDragState = null;
+
+function initSplitter() {
+    var splitter  = document.getElementById('resizeSplitter');
+    var editorPn  = document.getElementById('editorPane');
+    var outputPn  = document.getElementById('outputPane');
+    if (!splitter || !editorPn || !outputPn) return;
+
+    applySplitRatio(editorPn, outputPn, SPLIT_DEFAULT_RATIO);
+
+    splitter.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        splitDragState = {
+            splitter: splitter,
+            editorPn: editorPn,
+            outputPn: outputPn,
+            startX: e.clientX,
+            startEditorWidth: editorPn.getBoundingClientRect().width,
+            startOutputWidth: outputPn.getBoundingClientRect().width,
+        };
+        splitter.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', handleSplitMouseMove);
+    document.addEventListener('mouseup', handleSplitMouseUp);
+}
+
+function handleSplitMouseMove(e) {
+    if (!splitDragState) return;
+    e.preventDefault();
+
+    var s = splitDragState;
+    var dx = e.clientX - s.startX;
+
+    var newEditorW = Math.max(SPLIT_MIN_EDITOR, s.startEditorWidth + dx);
+    var maxEditorW = s.startEditorWidth + s.startOutputWidth - SPLIT_MIN_OUTPUT;
+    if (newEditorW > maxEditorW) newEditorW = maxEditorW;
+
+    applySplitRatio(s.editorPn, s.outputPn, newEditorW / (s.startEditorWidth + s.startOutputWidth));
+
+    if (editor) editor.refresh();
+}
+
+function handleSplitMouseUp(e) {
+    if (!splitDragState) return;
+    var s = splitDragState;
+    s.splitter.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    splitDragState = null;
+    if (editor) editor.refresh();
+}
+
+function applySplitRatio(editorPane, outputPane, ratio) {
+    ratio = Math.max(0.2, Math.min(0.8, ratio));
+    var total = editorPane.parentElement.getBoundingClientRect().width;
+    var editorW = Math.round(total * ratio);
+    var outputW = total - editorW;
+    editorPane.style.flex = 'none';
+    editorPane.style.width = editorW + 'px';
+    outputPane.style.flex = 'none';
+    outputPane.style.width = outputW + 'px';
+}
+
+function resetSplitRatio() {
+    var editorPn  = document.getElementById('editorPane');
+    var outputPn  = document.getElementById('outputPane');
+    if (!editorPn || !outputPn) return;
+    editorPn.style.flex = '';
+    editorPn.style.width = '';
+    outputPn.style.flex = '';
+    outputPn.style.width = '';
+}
+
+// ---------------------------------------------------------------------------
 // Layout toggle
 // ---------------------------------------------------------------------------
 function toggleLayout() {
+    if (splitDragState) return; // ignore while dragging splitter
     var main = document.getElementById('mainSplit');
     var icon = document.getElementById('layoutIcon');
     var lbl  = document.getElementById('layoutLabel');
@@ -723,11 +881,17 @@ function toggleLayout() {
         main.className = 'main-layout bottom-split';
         icon.textContent = '\u25b3';
         lbl.textContent  = '\u4e0b\u65b9\u8f93\u51fa';
+        resetSplitRatio();
     } else {
         layoutMode = 'right';
         main.className = 'main-layout split-view';
         icon.textContent = '\u2b05';
         lbl.textContent  = '\u53f3\u4fa7\u8f93\u51fa';
+        applySplitRatio(
+            document.getElementById('editorPane'),
+            document.getElementById('outputPane'),
+            SPLIT_DEFAULT_RATIO
+        );
     }
     // Force refresh editor size
     setTimeout(function() { if (editor) editor.refresh(); }, 100);
@@ -808,6 +972,9 @@ async function init() {
         }
     });
 
+    // Window resize → recalculate editor dimensions
+    window.addEventListener('resize', function() { if (editor) editor.refresh(); });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         // Ctrl+T: new file
@@ -831,7 +998,10 @@ async function init() {
     var welcomeId = createFile('welcome.py', WELCOME_CODE);
     switchFile(welcomeId);
 
-    // 4. Fire Pyodide loading in background (non-blocking)
+    // 4. Initialize split handle
+    initSplitter();
+
+    // 5. Fire Pyodide loading in background (non-blocking)
     startPyodideBoot();
 }
 
