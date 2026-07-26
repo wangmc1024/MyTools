@@ -1,327 +1,887 @@
-/**
- * main.js — Entry point. Wires composer, file drop, intents, settings modal,
- * export menu, clear. Bootstraps welcome state + ribbon.
- */
-import { initTheme } from './theme.js';
-import { PROVIDERS, getKey, setKey, bindSettings, getPrefs, setPrefs, DEFAULTS, modelsWithCap, CAP } from './config.js';
-import { attachRibbon } from './ui-wrapper.js';
-import * as chat from './chat.js';
-import { toast } from './ui.js';
+/* ============================================================
+ *  ChatOCR Pro — Core (聚焦 OCR 核心目的)
+ *  修复: 欢迎消息渲染/多模态消息构建/加载状态/API参数
+ * ========================================================== */
 
-let dom = {};
+/* ---------- 通用工具 ---------- */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-function init() {
-  dom = {
-    stream: document.getElementById('stream'),
-    composer: document.getElementById('composer'),
-    textarea: document.getElementById('composerInput'),
-    sendBtn: document.getElementById('sendBtn'),
-    fileBtn: document.getElementById('fileBtn'),
-    fileInput: document.getElementById('fileInput'),
-    attachRow: document.getElementById('attachRow'),
-    intents: document.getElementById('intents'),
-    ribbon: document.getElementById('ribbon'),
-    formatSegs: document.querySelectorAll('.format-seg'),
-    ocrModelSel: document.getElementById('ocrModelSel'),
-    settingsBtn: document.getElementById('settingsBtn'),
-    clearBtn: document.getElementById('clearBtn'),
-    exportBtn: document.getElementById('exportBtn'),
-    galleryLink: document.getElementById('galleryLink'),
+function toast(msg, ms=1500) {
+  const t = $('#toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+function confirmAsync(msg, onOk) {
+  const existing = $('.confirm-bar');
+  if (existing) existing.remove();
+  const bar = document.createElement('div');
+  bar.className = 'confirm-bar';
+  bar.innerHTML = `<span>${esc(msg)}</span><div class="confirm-bar-actions"><button class="confirm-bar-btn cancel">取消</button><button class="confirm-bar-btn ok">确认</button></div>`;
+  document.body.appendChild(bar);
+  const close = () => { bar.remove(); clearTimeout(confirmAsync._t); };
+  bar.querySelector('.cancel').onclick = close;
+  bar.querySelector('.ok').onclick = () => { close(); onOk(); };
+  confirmAsync._t = setTimeout(close, 8000);
+}
+
+function scrollToBottom(ms=60) {
+  setTimeout(()=> {
+    const el = document.querySelector('.stream-wrapper');
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior:'smooth' });
+    else window.scrollTo({ top: document.documentElement.scrollHeight, behavior:'smooth' });
+  }, ms);
+}
+
+/* ---------- 全局状态 ---------- */
+const state = {
+  messages: [],
+  selectedModel: null,
+  smartRouter: true,
+  routerMode: 'ai',
+  pendingImages: [],
+  isGenerating: false,
+};
+
+/* ---------- API Key 读取 ---------- */
+function apiKey(providerId) {
+  const p = PROVIDERS[providerId]; if (!p) return '';
+  const el = document.getElementById(p.keyEl);
+  return el ? el.value.trim() : '';
+}
+
+/* ---------- 主题切换 ---------- */
+function bindThemeToggle() {
+  const btn = $('#portalThemeToggle');
+  const icon = $('#portalThemeIcon');
+  if (!btn) return;
+  const apply = (th) => {
+    document.documentElement.setAttribute('data-theme', th);
+    if (icon) icon.textContent = th === 'dark' ? '🌙' : '☀️';
+    localStorage.setItem('theme', th);
   };
-
-  initTheme();
-  const ribbon = attachRibbon(dom.ribbon);
-  chat.setRibbon(ribbon);
-
-  initComposer();
-  initFileUpload();
-  initIntents();
-  initFormatSegs();
-  initModelSelect();
-  initSettings();
-  initExport();
-  initClear();
-
-  if (window.location.protocol === 'file:') showFileWarn();
-
-  // welcome
-  renderWelcome();
+  const saved = localStorage.getItem('theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  apply(saved);
+  btn.onclick = () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    apply(cur === 'dark' ? 'light' : 'dark');
+  };
 }
 
-function showFileWarn() {
-  const w = document.createElement('div');
-  w.className = 'file-warn';
-  w.innerHTML = '⚠️ 当前以 file:// 打开，ES 模块无法加载。请用本地 HTTP 访问，例如在仓库根目录运行 <code>python3 -m http.server</code> 后访问 <code>http://localhost:8000/apps/ChatOCR/</code>';
-  document.querySelector('.app')?.prepend(w);
-}
-
-function renderWelcome() {
-  const row = document.createElement('div');
-  row.className = 'msg ai';
-  row.innerHTML = `
-    <div class="avatar">C</div>
-    <div class="msg-inner">
-      <div class="bubble">
-        <div class="md">
-          <p>你好。上传图片我来<strong>OCR 识别</strong>，或直接告诉我你想做什么 —— 系统会自动选择最合适的引擎：</p>
-          <ul>
-            <li>📎 丢一张发票/文档/截图 → 识别文字、表格、转 Markdown</li>
-            <li>💬 识别完直接追问「总额多少？」「概括一下」</li>
-            <li>🎨 说「画一张…」→ 生成图片</li>
-            <li>🎬 说「做个…视频」→ 生成视频</li>
-            <li>🔍 问需要联网的问题 → 联网搜索</li>
-          </ul>
-          <p style="color:var(--text-faint);font-size:13px">路由栏会实时显示当前选用的工具与模型。</p>
-        </div>
-      </div>
+/* ---------- 模型渲染 ---------- */
+function renderModelList() {
+  const wrap = $('#modelList'); if (!wrap) return;
+  const all = Object.values(PROVIDERS).flatMap(p =>
+    p.models.map(m => ({ ...m, providerId: p.id, providerLabel: p.label })));
+  all.sort((a,b)=> (b.caps?.includes('ocr')?1:0) - (a.caps?.includes('ocr')?1:0));
+  wrap.innerHTML = all.map(m => {
+    const selected = state.selectedModel === m.id ? 'selected' : '';
+    const caps = (m.caps||[]).map(c=>`<span class="ctag">${CAP_LABELS[c]||c}</span>`).join('');
+    return `<div class="mcard ${selected}" data-id="${esc(m.id)}" title="${esc(m.blurb)}">
+      <div class="mrow1"><span class="mlabel">${esc(m.label)}</span><span class="mprov">${esc(m.providerLabel)}</span></div>
+      <div class="mrow2">${esc(m.blurb)}</div>
+      <div class="mtags">${caps}</div>
     </div>`;
-  dom.stream.appendChild(row);
-}
-
-/* ---------- Composer ---------- */
-function initComposer() {
-  dom.sendBtn.addEventListener('click', handleSend);
-  dom.textarea.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  });
-  dom.textarea.addEventListener('input', () => {
-    dom.textarea.style.height = 'auto';
-    dom.textarea.style.height = Math.min(160, dom.textarea.scrollHeight) + 'px';
-  });
-}
-
-async function handleSend() {
-  const text = dom.textarea.value;
-  dom.textarea.value = '';
-  dom.textarea.style.height = 'auto';
-  await chat.send(text, { container: dom.stream });
-}
-
-/* ---------- File upload ---------- */
-function initFileUpload() {
-  dom.fileBtn.addEventListener('click', () => dom.fileInput.click());
-  dom.fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length) handleFile(e.target.files[0]);
-  });
-
-  // drag-drop on composer
-  const drop = dom.composer;
-  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, (e) => {
-    e.preventDefault(); drop.style.borderColor = 'var(--accent)';
-  }));
-  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => {
-    e.preventDefault(); drop.style.borderColor = '';
-  }));
-  drop.addEventListener('drop', (e) => {
-    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  }).join('');
+  wrap.querySelectorAll('.mcard').forEach(c => {
+    c.onclick = () => {
+      const wasSelected = state.selectedModel === c.dataset.id;
+      if (wasSelected) {
+        state.selectedModel = null;
+        state.smartRouter = true;
+        const rt = $('#routerToggle');
+        if (rt) rt.checked = true;
+        savePrefs();
+        renderModelList();
+        setRibbon('智能路由已启用', '按意图自动匹配模型');
+        toast('已切换回智能路由模式');
+      } else {
+        state.selectedModel = c.dataset.id;
+        state.smartRouter = false;
+        const rt2 = $('#routerToggle');
+        if (rt2) rt2.checked = false;
+        savePrefs();
+        renderModelList();
+        const found = findModel(state.selectedModel);
+        setRibbon(`手动 · ${esc(found?.model.label||'OCR模型')}`, '已选择模型');
+        toast(`已选择: ${esc(found?.model.label||'模型')}`);
+      }
+    };
   });
 }
 
-function handleFile(file) {
-  const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
-  if (!allowed.includes(file.type)) { toast('仅支持 PNG/JPG/WEBP/GIF/PDF', 'error'); return; }
-  if (file.size > 12 * 1024 * 1024) { toast('文件过大（>12MB），请压缩后上传', 'error'); return; }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    const base64 = dataUrl.split(',')[1];
-    chat.setPendingImage({ mimeType: file.type, base64, dataUrl, name: file.name });
-    renderAttach(file, dataUrl);
-  };
-  reader.readAsDataURL(file);
-  dom.fileInput.value = '';
+/* ---------- Ribbon 状态栏 ---------- */
+function setRibbon(chips, status, icon) {
+  const r = $('#ribbonChips'); const p = $('#ribbonProgress'); if (!r) return;
+  r.innerHTML = `<span class="rchip"><span class="rdot"></span>${icon || ''}${esc(status||'待机中')}</span>`
+    + (chips ? `<span class="rchip secondary">${esc(chips)}</span>` : '');
+  if (p) p.textContent = '';
+}
+function setRibbonProgress(pct, text) {
+  const p = $('#ribbonProgress'); if (!p) return;
+  p.textContent = (pct != null ? pct + '% ' : '') + (text||'');
 }
 
-function renderAttach(file, dataUrl) {
-  dom.attachRow.innerHTML = '';
-  const chip = document.createElement('div');
-  chip.className = 'attach-chip';
-  const preview = file.type.startsWith('image/')
-    ? `<img src="${dataUrl}">`
-    : `<span style="display:inline-flex;width:28px;height:28px;border-radius:6px;background:var(--bg-secondary);align-items:center;justify-content:center;font-size:13px">📄</span>`;
-  chip.innerHTML = `${preview}<span class="nm">${file.name}</span><span class="rm" title="移除">✕</span>`;
-  chip.querySelector('.rm').addEventListener('click', () => {
-    chat.clearPendingImage();
-    dom.attachRow.innerHTML = '';
-  });
-  dom.attachRow.appendChild(chip);
+/* ---------- 路由方案1：关键词匹配（保留） ---------- */
+function routeIntentKeyword(text, hasImage) {
+  const t = String(text||'').toLowerCase();
+  if (hasImage) return { tool:'ocr_recognize', reason:'包含图片', method:'keyword' };
+  if (/(ocr|识别|提取|文字|内容|表格|公式|手写|票据|发票|扫|读|文档|pdf|截图|图片)/.test(t) && !hasImage)
+    return { tool:'chat_about_content', reason:'OCR上下文问答', method:'keyword' };
+  if (/(生成|画|画一|做个|出个|设计|图像|图片|绘画)/.test(t))
+    return { tool:'generate_image', reason:'文生图关键词', method:'keyword' };
+  if (/(生成|做个|创建|短片|动画|视频)/.test(t))
+    return { tool:'generate_video', reason:'视频生成关键词', method:'keyword' };
+  if (/(翻译|译成|译为|翻成|translate|译|中译|英译|日译|韩译)/.test(t))
+    return { tool:'translate', reason:'翻译关键词', method:'keyword' };
+  if (/(搜索|查一下|最新|新闻|现在|今天|联网)/.test(t))
+    return { tool:'web_search', reason:'联网搜索关键词', method:'keyword' };
+  return { tool:'chat_about_content', reason:'常规问答', method:'keyword' };
 }
 
-/* ---------- Intent chips ---------- */
-function initIntents() {
-  dom.intents.addEventListener('click', (e) => {
-    const b = e.target.closest('.intent');
-    if (!b) return;
-    dom.textarea.value = b.dataset.prompt || '';
-    dom.textarea.focus();
-    dom.textarea.dispatchEvent(new Event('input'));
-  });
-}
+/* ---------- 路由方案2：AI 小模型路由 (glm-4.7-flash) ---------- */
+async function routeIntentAI(text, hasImage) {
+  if (hasImage) return { tool:'ocr_recognize', reason:'包含图片', method:'ai' };
+  if (!text || !text.trim()) return { tool:'chat_about_content', reason:'空输入', method:'ai' };
 
-/* ---------- OCR format + model selectors ---------- */
-function initFormatSegs() {
-  const prefs = getPrefs();
-  dom.formatSegs.forEach(s => {
-    if (s.dataset.format === (prefs.ocrFormat || DEFAULTS.ocrFormat)) s.classList.add('active');
-    s.addEventListener('click', () => {
-      dom.formatSegs.forEach(x => x.classList.remove('active'));
-      s.classList.add('active');
-      setPrefs({ ocrFormat: s.dataset.format });
-      // also update the OCR model default to match format
-      const m = defaultOcrForFormat(s.dataset.format);
-      if (m) { setPrefs({ ocrModel: m }); syncModelSel(m); }
+  const key = apiKey('zhipu');
+  if (!key) {
+    console.warn('智谱 Key 未填写，降级为关键词匹配');
+    const kw = routeIntentKeyword(text, false);
+    kw.method = 'keyword(fallback)';
+    return kw;
+  }
+
+  try {
+    const resp = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method:'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'glm-4.7-flash',
+        messages: [
+          { role:'system',
+            content: '你是一个路由助手。分析用户输入，判断意图并返回JSON。\n\n'
+              + '意图类型：\n'
+              + '- ocr_recognize: 用户上传了图片/PDF需要OCR识别文字\n'
+              + '- chat_about_content: 普通对话、问答、文档内容讨论、总结\n'
+              + '- translate: 翻译任务，将文本从一种语言翻译为另一种语言\n'
+              + '- generate_image: 要求生成/画图/设计/创建图像\n'
+              + '- generate_video: 要求生成/制作/创建视频\n'
+              + '- web_search: 需要联网搜索最新信息、新闻、实时数据\n\n'
+              + '只返回JSON：{"tool":"<意图>","reason":"<简短理由(中文)>"}\n'
+              + '不要返回其他内容。' },
+          { role:'user', content: text.slice(0, 500) }
+        ],
+        temperature: 0,
+        max_tokens: 128,
+        stream: false,
+      }),
     });
-  });
-}
 
-function initModelSelect() {
-  const prefs = getPrefs();
-  const ocrModels = modelsWithCap(CAP.OCR).concat(modelsWithCap(CAP.VISION));
-  // dedupe by id
-  const seen = new Set(); const list = [];
-  for (const x of ocrModels) { if (!seen.has(x.model.id)) { seen.add(x.model.id); list.push(x); } }
-  dom.ocrModelSel.innerHTML = list.map(x =>
-    `<option value="${x.model.id}">${x.provider.label} · ${x.model.label}</option>`).join('');
-  const cur = prefs.ocrModel || DEFAULTS.ocrModel;
-  dom.ocrModelSel.value = list.some(x => x.model.id === cur) ? cur : list[0]?.model.id;
-  setPrefs({ ocrModel: dom.ocrModelSel.value });
-  dom.ocrModelSel.addEventListener('change', () => setPrefs({ ocrModel: dom.ocrModelSel.value }));
-}
+    if (!resp.ok) throw new Error(`Router HTTP ${resp.status}`);
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content || '';
 
-function syncModelSel(id) {
-  if ([...dom.ocrModelSel.options].some(o => o.value === id)) {
-    dom.ocrModelSel.value = id;
-    setPrefs({ ocrModel: id });
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (ROUTE_DEFAULTS[parsed.tool]) {
+        return { tool: parsed.tool, reason: parsed.reason || 'AI路由判断', method:'ai' };
+      }
+    }
+    throw new Error('Invalid router response: ' + content.slice(0, 100));
+  } catch (e) {
+    console.warn('AI路由失败，降级为关键词匹配:', e.message);
+    const kw = routeIntentKeyword(text, false);
+    kw.method = 'keyword(fallback)';
+    return kw;
   }
 }
 
-function defaultOcrForFormat(fmt) {
-  switch (fmt) {
-    case 'plain': return 'PaddlePaddle/PaddleOCR-VL-1.5';
-    case 'describe': return 'THUDM/GLM-Z1-9B-0414';
-    default: return 'deepseek-ai/DeepSeek-OCR';
+/* ---------- 路由调度器 ---------- */
+async function routeIntent(text, hasImage) {
+  if (state.routerMode === 'keyword') {
+    return routeIntentKeyword(text, hasImage);
+  }
+  return await routeIntentAI(text, hasImage);
+}
+function resolveModelFor(tool) {
+  const mid = ROUTE_DEFAULTS[tool];
+  if (findModel(mid)) return mid;
+  return 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B';
+}
+
+/* ---------- 附件（图片/PDF）---------- */
+function fileToDataUrl(file) {
+  return new Promise((rs, rj) => {
+    const fr = new FileReader();
+    fr.onload = () => rs({ name:file.name, mime:file.type||'application/octet-stream',
+                           dataUrl:fr.result, size:file.size });
+    fr.onerror = rj;
+    fr.readAsDataURL(file);
+  });
+}
+function renderAttachChips() {
+  const wrap = $('#attachChips'); if (!wrap) return;
+  if (!state.pendingImages.length) { wrap.innerHTML=''; return; }
+  wrap.innerHTML = state.pendingImages.map((a,i) =>
+    `<div class="chip">
+      <span class="chip-name">${esc(a.name)} <em>${(a.size/1024).toFixed(0)} KB</em></span>
+      <button class="chip-x" data-i="${i}" title="移除">×</button>
+    </div>`).join('');
+  wrap.querySelectorAll('.chip-x').forEach(b => b.onclick = () => {
+    state.pendingImages.splice(+b.dataset.i, 1);
+    renderAttachChips(); renderFilePreview();
+  });
+}
+function renderFilePreview() {
+  const wrap = $('#filePreviewWrap'); if (!wrap) return;
+  if (!state.pendingImages.length) { wrap.innerHTML=''; return; }
+  wrap.innerHTML = state.pendingImages.map(a => {
+    if (a.mime.startsWith('image/'))
+      return `<img class="preview-thumb" src="${a.dataUrl}" alt="${esc(a.name)}" onclick="openLightbox('${a.dataUrl.replace(/'/g,"\\'")}')">`;
+    return `<div class="preview-thumb pdf">📄<span>${esc(a.name)}</span></div>`;
+  }).join('');
+}
+async function handleFiles(fileList) {
+  const files = [...fileList].filter(f => /(image\/|application\/pdf)/.test(f.type));
+  if (!files.length) { toast('请选择图片或PDF文件'); return; }
+  for (const f of files) {
+    if (f.size > 20 * 1024 * 1024) { toast(`文件过大跳过: ${f.name}`); continue; }
+    try { state.pendingImages.push(await fileToDataUrl(f)); }
+    catch { toast('读取文件失败'); }
+  }
+  renderAttachChips(); renderFilePreview(); scrollToBottom(60);
+  const ci = $('#composerInput');
+  if (ci) ci.focus();
+}
+
+/* ---------- 消息渲染 ---------- */
+function renderMessages() {
+  const stream = $('#stream'); const hero = $('#hero'); const welcome = $('#welcomeMsg');
+  if (!stream) return;
+
+  if (!state.messages.length) {
+    if (hero) hero.style.display = '';
+    if (welcome) welcome.style.display = '';
+    stream.querySelectorAll('.msg:not(#welcomeMsg)').forEach(n => n.remove());
+    return;
+  }
+  if (hero) hero.style.display = 'none';
+  if (welcome) welcome.style.display = 'none';
+  stream.querySelectorAll('.msg:not(#welcomeMsg)').forEach(n => n.remove());
+  for (const m of state.messages) stream.appendChild(buildMsgEl(m));
+  scrollToBottom(30);
+}
+function buildMsgEl(m) {
+  const el = document.createElement('section');
+  el.className = `msg ${m.role}`; el.dataset.msgId = m.id;
+  const isAi = m.role === 'ai';
+  const intent = m.intent ? `<div class="intent-chip">🪄 ${esc(m.intent)}</div>` : '';
+  const modelTag = m.model ? `<div class="model-tag">${esc(findModel(m.model)?.model.label||m.model)}</div>` : '';
+  const attach = (m.attachments||[]).map(a => {
+    if (a.mime?.startsWith('image/'))
+      return `<img class="msg-img" src="${a.dataUrl}" onclick="openLightbox('${a.dataUrl.replace(/'/g,"\\'")}')">`;
+    if (a.mime === 'application/pdf')
+      return `<div class="msg-pdf">📄 ${esc(a.name||'PDF')} <em>${(a.size/1024).toFixed(0)} KB</em></div>`;
+    return '';
+  }).join('');
+  const thinking = m._thinking ? '<div class="thinking"><span></span><span></span><span></span></div>' : '';
+  const atc = isAi && !m._thinking ? `
+    <div class="ai-actions">
+      <button class="icon-btn xxs" title="复制回答" data-act="copy">📋</button>
+      <button class="icon-btn xxs" title="引用" data-act="quote">↩️</button>
+      <button class="icon-btn xxs" title="重新生成" data-act="regen">🔁</button>
+      <button class="icon-btn xxs danger" title="删除" data-act="del">🗑️</button>
+    </div>` : '';
+  el.innerHTML = `
+    <div class="avatar">${isAi?'🤖':'👤'}</div>
+    <div class="bubble">
+      ${intent}${modelTag}
+      ${attach}
+      <div class="mdx">${thinking || (isAi ? renderMarkdown(m.content||'') : esc(m.content||''))}</div>
+      ${atc}
+    </div>`;
+  if (isAi) {
+    el.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+      const a = b.dataset.act;
+      if (a==='copy') { copyText(m.content||''); toast('已复制回答'); }
+      if (a==='quote') { const ci = $('#composerInput'); if (ci) { ci.value = `> ${(m.content||'').slice(0,200).replace(/\n/g,'\n> ')}\n\n`; ci.focus(); } }
+      if (a==='regen') { regenerate(m.id); }
+      if (a==='del') { state.messages = state.messages.filter(x=>x.id!==m.id); savePrefs(); renderMessages(); }
+    });
+  }
+  return el;
+}
+
+/* ---------- 极简 Markdown ---------- */
+function renderMarkdown(s) {
+  let t = esc(s || '');
+  t = t.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m,lang,code) =>
+    `<pre><code class="lang-${esc(lang)}">${code}</code></pre>`);
+  t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/(^|\n)(#{1,6})\s+(.+)/g, (_m, nl, hs, txt) => {
+    const lv = hs.length;
+    return `${nl}<h${lv}>${txt}</h${lv}>`;
+  });
+  t = t.replace(/(^|\n)\s*[-*]\s+(.+)/g, '$1<li>$2</li>');
+  t = t.replace(/(?:<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+  t = t.replace(/(^|\n)\s*(\d+)\.\s+(.+)/g, '$1<li value="$2">$3</li>');
+  t = t.replace(/(?:<li value="\d+">.*<\/li>\n?)+/g, m => `<ol>${m}</ol>`);
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  t = t.replace(/\n/g, '<br>');
+  return t;
+}
+
+/* ---------- 复制 ---------- */
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; }
+  catch {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta); return true;
   }
 }
 
-/* ---------- Settings modal ---------- */
-function initSettings() {
-  dom.settingsBtn.addEventListener('click', openSettings);
+/* ---------- Lightbox ---------- */
+window.openLightbox = function(src) {
+  const w = $('#lightboxWrap'); if (!w) return;
+  w.classList.add('active');
+  w.innerHTML = `<div class="lightbox-mask"><img src="${esc(src)}" class="lightbox-img"></div>`;
+  w.onclick = () => { w.innerHTML=''; w.onclick=null; w.classList.remove('active'); };
+};
+
+/* ---------- 发送主流程 ---------- */
+async function send() {
+  if (state.isGenerating) { toast('请等待当前任务完成'); return; }
+  const inputEl = $('#composerInput');
+  if (!inputEl) return;
+  const txt = inputEl.value.trim();
+  const hasImg = !!state.pendingImages.length;
+  if (!txt && !hasImg) { toast('请上传图片或输入文字'); return; }
+
+  state.isGenerating = true;
+  const sb = $('#sendBtn');
+  if (sb) sb.disabled = true;
+
+  const intent = await routeIntent(txt, hasImg);
+  let modelId = state.smartRouter
+    ? resolveModelFor(intent.tool)
+    : (state.selectedModel || resolveModelFor(intent.tool));
+  const found = findModel(modelId);
+  if (!found) { toast('未找到模型'); state.isGenerating = false; const sb0 = $('#sendBtn'); if (sb0) sb0.disabled = false; return; }
+
+  if (state.selectedModel) setRibbon(`手动 · ${found.model.label}`, `由 ${found.provider.label}`);
+  else {
+    const methodTag = intent.method === 'ai' ? '🤖 AI路由' : '🔤 关键词';
+    setRibbon(`${methodTag} → ${intent.tool}`, `${found.model.label} · ${intent.reason}`);
+  }
+
+  const attachments = state.pendingImages.slice();
+  const userMsg = {
+    id: crypto.randomUUID?.() || 'u'+Date.now(),
+    role: 'user', content: txt, ts: Date.now(),
+    attachments: attachments.length ? attachments : undefined,
+  };
+  state.messages.push(userMsg);
+  state.pendingImages = []; renderAttachChips(); renderFilePreview();
+  inputEl.value = ''; inputEl.style.height='auto';
+  renderMessages();
+
+  try {
+    if (intent.tool === 'generate_image') {
+      await runImageGen(userMsg, modelId);
+    } else if (intent.tool === 'generate_video') {
+      await runVideoGen(userMsg, modelId);
+    } else {
+      await runChat(userMsg, modelId, intent, attachments);
+    }
+  } catch (e) {
+    console.error('send error:', e);
+    const errMsg = e.message || String(e);
+    if (!state.messages.some(m => m._thinking)) {
+      appendAI(`❌ 请求出错：${errMsg}`, modelId, intent.tool);
+    } else {
+      const thinking = state.messages.find(m => m._thinking);
+      if (thinking) { thinking._thinking = false; thinking.content = `❌ 请求出错：${errMsg}`; }
+      renderMessages();
+    }
+    setRibbon('请求失败', 'Error');
+  }
+  state.isGenerating = false;
+  const sb2 = $('#sendBtn');
+  if (sb2) sb2.disabled = false;
 }
 
-function openSettings() {
-  const mask = document.createElement('div');
-  mask.className = 'modal-mask';
-  const m = document.createElement('div');
-  m.className = 'modal';
-  m.innerHTML = `
-    <div class="modal-head"><h3>设置</h3><button class="x">✕</button></div>
-    <div class="modal-body">
-      ${Object.values(PROVIDERS).map(p => `
-        <div class="field">
-          <label>${p.label} API Key</label>
-          <div class="kv-row">
-            <input type="password" data-provider="${p.id}" style="flex:1;margin-right:8px">
-            <button class="pw-toggle" type="button">显示</button>
-          </div>
-          <div class="hint">${p.baseUrl}</div>
-        </div>
-      `).join('')}
-      <div class="field">
-        <label>生成图片模型</label>
-        <select id="setImgModel">
-          ${modelsWithCap(CAP.IMAGE).map(x => `<option value="${x.model.id}">${x.model.label} — ${x.model.blurb}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label>图片尺寸</label>
-        <select id="setImgSize">
-          <option value="1K">1K</option>
-          <option value="2K">2K</option>
-          <option value="3K">3K</option>
-          <option value="4K">4K</option>
-        </select>
-      </div>
-    </div>`;
-  mask.appendChild(m);
-  document.body.appendChild(mask);
+/* ---------- 聊天/多模态（SSE 流式）---------- */
+async function runChat(userMsg, modelId, intent, attachments) {
+  const { provider, model } = findModel(modelId);
+  const key = apiKey(provider.id);
+  if (!key) {
+    toast(`${provider.label} Key 未填写，请在左侧 API Keys 中填写`);
+    throw new Error(`Missing API Key: ${provider.label}`);
+  }
+  setRibbonProgress(null, '⏳ 连接中…');
 
-  mask.querySelector('.x').addEventListener('click', () => mask.remove());
-  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
+  const needVision = (attachments.length > 0) || (model.caps||[]).some(c=>['ocr','vision'].includes(c));
+  const msgs = buildChatMessages(needVision, attachments);
 
-  bindSettings(m);
-  // populate pw toggles
-  m.querySelectorAll('.pw-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const input = btn.parentElement.querySelector('input');
-      const showing = input.type === 'text';
-      input.type = showing ? 'password' : 'text';
-      btn.textContent = showing ? '显示' : '隐藏';
-    });
+  const hasStream = provider.id !== 'zhipu';
+  const body = {
+    model: modelId,
+    messages: msgs,
+    stream: hasStream,
+    temperature: /PaddleOCR|DeepSeek-OCR|Hunyuan/.test(modelId) ? 0 : 0.2,
+    max_tokens: 4096,
+  };
+
+  const aiId = 'a'+Date.now();
+  const aiMsg = { id:aiId, role:'ai', content:'', ts:Date.now(), model:modelId, intent:intent.tool, provider:provider.id, _thinking:true };
+  state.messages.push(aiMsg);
+  renderMessages();
+  scrollToBottom(0);
+
+  const resp = await fetch(provider.baseUrl + provider.endpoints.chat, {
+    method:'POST',
+    headers: {
+      'Content-Type':'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify(body),
   });
-  // populate + bind image model/size
-  const prefs = getPrefs();
-  const imgSel = m.querySelector('#setImgModel');
-  imgSel.value = prefs.imageModel || DEFAULTS.imageModel;
-  imgSel.addEventListener('change', () => setPrefs({ imageModel: imgSel.value }));
-  const sizeSel = m.querySelector('#setImgSize');
-  sizeSel.value = prefs.imageSize || DEFAULTS.imageSize;
-  sizeSel.addEventListener('change', () => setPrefs({ imageSize: sizeSel.value }));
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(()=>'');
+    let errDetail = errText;
+    try { errDetail = JSON.parse(errText).error?.message || errText.slice(0,300); } catch {}
+    throw new Error(`HTTP ${resp.status}: ${errDetail}`);
+  }
+
+  if (!hasStream) {
+    const d = await resp.json();
+    const c = d.choices?.[0]?.message?.content ?? '';
+    aiMsg._thinking = false;
+    aiMsg.content = c;
+    renderMessages();
+    setRibbon('完成', `模型 ${model.label}`);
+    savePrefs();
+    return;
+  }
+
+  const reader = resp.body.getReader(); const dec = new TextDecoder('utf-8');
+  let buf='', full='', first=true;
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream:true});
+    const lines = buf.split(/\r?\n/); buf = lines.pop()||'';
+    for (const ln of lines) {
+      if (!ln.startsWith('data:')) continue;
+      const piece = ln.slice(5).trim();
+      if (piece === '[DONE]') continue;
+      try {
+        const j = JSON.parse(piece);
+        const c = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
+        if (!c) continue;
+        full += c;
+        if (first) { aiMsg._thinking = false; setRibbonProgress(null, '输出中…'); first=false; }
+        aiMsg.content = full;
+        patchAI(aiId, full);
+        scrollToBottom(0);
+      } catch {}
+    }
+  }
+  aiMsg._thinking = false;
+  setRibbonProgress(null, '');
+  setRibbon(full.length+' 字', `${provider.label} · ${model.label} · 完成 ✅`);
+  savePrefs();
 }
 
-/* ---------- Export ---------- */
-function initExport() {
-  let open = false;
-  const menu = document.createElement('div');
-  menu.className = 'menu-pop';
-  menu.style.display = 'none';
-  menu.innerHTML = `
-    <button class="menu-item" data-fmt="md">📝 Markdown (.md)</button>
-    <button class="menu-item" data-fmt="txt">📄 纯文本 (.txt)</button>
-    <button class="menu-item" data-fmt="html">🌐 网页 (.html)</button>`;
-  dom.exportBtn.parentElement.style.position = 'relative';
-  dom.exportBtn.parentElement.appendChild(menu);
-
-  dom.exportBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    open = !open;
-    menu.style.display = open ? 'block' : 'none';
-  });
-  document.addEventListener('click', () => { open = false; menu.style.display = 'none'; });
-  menu.querySelectorAll('.menu-item').forEach(b => {
-    b.addEventListener('click', () => {
-      download(chat.exportConversation(b.dataset.fmt), b.dataset.fmt);
-      open = false; menu.style.display = 'none';
-    });
-  });
+function buildChatMessages(needVision, currentAttachments) {
+  const recent = state.messages.filter(m => m.role !== 'tool').slice(-12);
+  const msgs = [];
+  msgs.push({ role:'system', content:
+    '你是 ChatOCR Pro 助手，擅长：\n' +
+    '1. 识别图片/PDF中的文字、表格、公式、手写；\n' +
+    '2. 对识别结果问答、翻译、整理；\n' +
+    '3. 对话简洁专业，保留原文结构。' });
+  for (const m of recent) {
+    const msgAtts = m.attachments || [];
+    if (needVision && msgAtts.length > 0) {
+      const parts = [{ type:'text', text: m.content||'请识别图片中的文字' }];
+      for (const a of msgAtts) {
+        if (a.mime?.startsWith('image/'))
+          parts.push({ type:'image_url', image_url:{ url: a.dataUrl } });
+      }
+      msgs.push({ role:'user', content: parts });
+    } else {
+      msgs.push({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content||'' });
+    }
+  }
+  return msgs;
 }
 
-function download(content, fmt) {
-  const map = { md: ['text/markdown', '.md'], txt: ['text/plain', '.txt'], html: ['text/html', '.html'] };
-  const [mime, ext] = map[fmt] || map.md;
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
+function patchAI(msgId, content) {
+  const m = state.messages.find(x => x.id === msgId); if (!m) return;
+  m.content = content;
+  const oldWrap = document.querySelector(`.msg[data-msg-id="${msgId}"]`);
+  const parent = oldWrap?.parentNode; if (!parent) return;
+  const fresh = buildMsgEl(m);
+  parent.replaceChild(fresh, oldWrap);
+  scrollToBottom(0);
+}
+
+function appendAI(content, modelId, intent) {
+  const aiMsg = { id:'a'+Date.now(), role:'ai', content, ts:Date.now(), model:modelId, intent };
+  state.messages.push(aiMsg); renderMessages(); savePrefs();
+}
+
+/* ---------- 文生图 ---------- */
+async function runImageGen(userMsg, modelId) {
+  const found = findModel(modelId); if (!found) throw new Error('模型未找到');
+  const key = apiKey(found.provider.id);
+  if (!key) { toast(`${found.provider.label} Key 未填写`); throw new Error('Missing API Key'); }
+  setRibbon('🎨 生成图像', `${found.provider.label} · ${found.model.label}`, '⏳ ');
+  const resp = await fetch(found.provider.baseUrl + found.provider.endpoints.images, {
+    method:'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${key}` },
+    body: JSON.stringify({ model:modelId, prompt: userMsg.content, n:1, size:'1024x1024', response_format:'url' })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(()=>'');
+    throw new Error(`HTTP ${resp.status}: ${errText.slice(0,200)}`);
+  }
+  const d = await resp.json();
+  const url = d.data?.[0]?.url || d.data?.[0]?.b64_json
+    ? 'data:image/png;base64,'+d.data[0].b64_json : '';
+  if (!url) throw new Error('无图像返回');
+  appendAI(`\n![生成图像](${url})\n\n> ${esc(userMsg.content)}`, modelId, 'generate_image');
+  setRibbon('完成', '图像生成 ✅');
+}
+
+/* ---------- 视频生成（异步）---------- */
+async function runVideoGen(userMsg, modelId) {
+  const found = findModel(modelId); if (!found) throw new Error('模型未找到');
+  const key = apiKey(found.provider.id);
+  if (!key) { toast(`${found.provider.label} Key 未填写`); throw new Error('Missing API Key'); }
+  setRibbon('🎬 生成视频', `${found.provider.label} · 提交任务中…`, '⏳ ');
+  const resp = await fetch(found.provider.baseUrl + found.provider.endpoints.videos, {
+    method:'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${key}` },
+    body: JSON.stringify({ model:modelId, prompt: userMsg.content })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(()=>'');
+    throw new Error(`HTTP ${resp.status}: ${errText.slice(0,200)}`);
+  }
+  const d = await resp.json();
+  const taskId = d.id || d.taskId;
+  appendAI(`视频任务已提交，ID: \`${taskId}\`\n\n可稍后到 Agnes 平台查看结果。`, modelId, 'generate_video');
+  setRibbon('已提交', `视频任务 ${taskId}`);
+}
+
+/* ---------- 重新生成 ---------- */
+function regenerate(aiMsgId) {
+  const idx = state.messages.findIndex(m => m.id === aiMsgId);
+  if (idx <= 0) return;
+  const prevUser = state.messages[idx-1];
+  if (prevUser?.role !== 'user') return;
+  state.messages = state.messages.slice(0, idx);
+  savePrefs(); renderMessages();
+  if (prevUser.attachments) state.pendingImages = prevUser.attachments.slice();
+  renderAttachChips(); renderFilePreview();
+  const ri = $('#composerInput');
+  if (ri) { ri.value = prevUser.content || ''; autoGrow(ri); }
+  send();
+}
+
+/* ---------- 导入/导出/清空 ---------- */
+function exportSession() {
+  if (!state.messages.length) { toast('无会话可导出'); return; }
+  const blob = new Blob([JSON.stringify({
+    version:1, ts:Date.now(), messages:state.messages,
+    selectedModel:state.selectedModel, smartRouter:state.smartRouter,
+    routerMode: state.routerMode,
+  }, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
-  a.href = url; a.download = `chatorcr_${Date.now()}${ext}`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('已导出', 'success');
+  a.href = URL.createObjectURL(blob);
+  a.download = `chatocr-session-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  toast('已导出会话');
 }
-
-/* ---------- Clear ---------- */
-function initClear() {
-  dom.clearBtn.addEventListener('click', () => {
-    if (!confirm('清空所有对话记录？')) return;
-    chat.clear();
-    dom.stream.innerHTML = '';
-    renderWelcome();
-    document.querySelector('.ribbon') && attachRibbon(document.getElementById('ribbon'));
-    toast('已清空', 'info');
+function importSession(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const d = JSON.parse(fr.result);
+      if (!Array.isArray(d.messages)) throw new Error('格式错误');
+      state.messages = d.messages;
+      state.selectedModel = d.selectedModel || null;
+      state.smartRouter = d.smartRouter ?? true;
+      state.routerMode = d.routerMode || 'ai';
+      const rt3 = $('#routerToggle');
+      if (rt3) rt3.checked = state.smartRouter;
+      updateRouterModeUI();
+      renderModelList(); renderMessages(); savePrefs();
+      toast(`已导入 ${d.messages.length} 条消息`);
+    } catch { toast('导入失败：文件格式不正确'); }
+  };
+  fr.onerror = () => toast('读取文件失败');
+  fr.readAsText(file);
+}
+function clearAllMessages() {
+  if (!state.messages.length) return;
+  confirmAsync('确认清空上下文对话？之前的对话记录将被清除，但模型选择与 Key 配置保留。', () => {
+    state.messages = []; state.pendingImages = [];
+    renderAttachChips(); renderFilePreview();
+    savePrefs(); renderMessages();
+    setRibbon('待机中', state.routerMode === 'ai' ? '🤖 AI路由就绪' : '🔤 关键词匹配就绪');
+    toast('已清空上下文');
   });
 }
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+function newConversation() {
+  const doIt = () => {
+    state.messages = []; state.pendingImages = [];
+    state.selectedModel = null;
+    state.smartRouter = true;
+    const rt = $('#routerToggle'); if (rt) rt.checked = true;
+    renderAttachChips(); renderFilePreview();
+    renderModelList(); renderMessages(); savePrefs();
+    setRibbon('新对话', '🪄 智能路由已启用');
+    toast('🆕 已开启新对话');
+  };
+  if (state.messages.length) {
+    confirmAsync('开启新对话将清空当前所有对话记录，是否继续？', doIt);
+  } else {
+    doIt();
+  }
 }
+function copyAllAnswers() {
+  const s = state.messages.filter(m=>m.role==='ai').map(m=>m.content).filter(Boolean).join('\n\n---\n\n');
+  if (!s) { toast('暂无可复制的回答'); return; }
+  copyText(s); toast('已复制全部回答');
+}
+
+/* ---------- 偏好 ---------- */
+function savePrefs() {
+  localStorage.setItem('ocr:msgs', JSON.stringify(state.messages));
+  localStorage.setItem('ocr:prefs', JSON.stringify({
+    smartRouter: state.smartRouter, selectedModel: state.selectedModel,
+    routerMode: state.routerMode,
+  }));
+  Object.values(PROVIDERS).forEach(p => {
+    const v = document.getElementById(p.keyEl)?.value || '';
+    localStorage.setItem('key:'+p.id, v);
+  });
+}
+function loadPrefs() {
+  try { state.messages = JSON.parse(localStorage.getItem('ocr:msgs')||'[]'); } catch { state.messages = []; }
+  try {
+    const pr = JSON.parse(localStorage.getItem('ocr:prefs')||'{}');
+    state.smartRouter = pr.smartRouter ?? true;
+    state.selectedModel = pr.selectedModel || null;
+    state.routerMode = pr.routerMode || 'ai';
+  } catch {}
+  const sf = localStorage.getItem('key:siliconflow'); if (sf) { const el = $('#siliconflowKey'); if (el) el.value = sf; }
+  const zp = localStorage.getItem('key:zhipu');      if (zp) { const el = $('#zhipuKey'); if (el) el.value = zp; }
+  const ag = localStorage.getItem('key:agnes');      if (ag) { const el = $('#agnesKey'); if (el) el.value = ag; }
+}
+
+/* ---------- 自动增长 Textarea ---------- */
+function autoGrow(ta) {
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+}
+
+/* ---------- 欢迎消息 & Hero 互动绑定 ---------- */
+function bindWelcomeInteractions() {
+  const wm = $('#welcomeMsg');
+  if (wm) {
+    wm.querySelectorAll('li[data-action]').forEach(li => {
+      li.style.cursor = 'pointer';
+      li.style.transition = 'background .15s, transform .15s';
+      li.style.padding = '4px 10px 4px 8px';
+      li.style.borderRadius = '7px';
+      li.style.marginBottom = '2px';
+      li.onmouseenter = () => { li.style.background = 'color-mix(in srgb, var(--accent) 8%, transparent)'; li.style.transform = 'translateX(2px)'; };
+      li.onmouseleave = () => { li.style.background = 'transparent'; li.style.transform = 'translateX(0)'; };
+      li.onclick = () => handleWelcomeAction(li.dataset.action, li.dataset.template);
+    });
+  }
+  const brand = document.querySelector('.brand');
+  if (brand) {
+    brand.style.cursor = 'pointer';
+    brand.title = '回到顶部';
+    brand.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const ribbon = document.querySelector('.ribbon');
+  if (ribbon) {
+    ribbon.style.cursor = 'pointer';
+    ribbon.title = '点击切换：手动选模型 / 智能路由';
+    ribbon.onclick = () => {
+      const t = $('#routerToggle'); if (!t) return;
+      t.checked = !t.checked; t.dispatchEvent(new Event('change'));
+      const modeLabel = state.smartRouter
+        ? (state.routerMode === 'ai' ? '🤖 AI路由' : '🔤 关键词')
+        : '✋ 手动模式';
+      toast(state.smartRouter ? `${modeLabel} 已开启` : '✋ 已切换为手动模式');
+    };
+  }
+}
+
+function handleWelcomeAction(action, template) {
+  const input = $('#composerInput');
+  if (!input) return;
+  switch(action) {
+    case 'upload-focus':
+      document.getElementById('fileInput')?.click();
+      break;
+    case 'prompt-template':
+      if (template) input.value = template + ' ';
+      input.focus(); autoGrow(input);
+      scrollToBottom();
+      break;
+    case 'focus-input':
+      input.focus(); autoGrow(input);
+      scrollToBottom();
+      break;
+    case 'export':
+      exportSession();
+      break;
+  }
+}
+
+function updateRouterModeUI() {
+  const label = $('#routerModeLabel');
+  if (!label) return;
+  if (state.routerMode === 'ai') {
+    label.innerHTML = '🤖 AI路由';
+    label.title = '点击切换为关键词匹配路由';
+  } else {
+    label.innerHTML = '🔤 关键词';
+    label.title = '点击切换为AI模型路由';
+  }
+}
+
+/* ---------- init() 入口 ---------- */
+function init() {
+  bindThemeToggle();
+  loadPrefs();
+  updateRouterModeUI();
+  renderModelList();
+  renderMessages();
+  bindWelcomeInteractions();
+  setRibbon('OCR 就绪', state.smartRouter
+    ? (state.routerMode === 'ai' ? '🤖 AI智能路由已启用' : '🔤 关键词匹配路由已启用')
+    : '已选手动模型');
+
+  const rt = $('#routerToggle');
+  if (rt) {
+    rt.checked = state.smartRouter;
+    rt.onchange = e => {
+      state.smartRouter = e.target.checked;
+      if (state.smartRouter) { state.selectedModel = null; renderModelList(); }
+      savePrefs();
+      setRibbon(state.smartRouter
+        ? (state.routerMode === 'ai' ? '🤖 AI智能路由已启用' : '🔤 关键词匹配路由已启用')
+        : '智能路由已关闭',
+        state.smartRouter
+        ? (state.routerMode === 'ai' ? 'AI模型自动匹配' : '关键词规则匹配')
+        : '请手动选择模型');
+    };
+  }
+
+  const rml = $('#routerModeLabel');
+  if (rml) {
+    rml.style.cursor = 'pointer';
+    rml.onclick = e => {
+      e.preventDefault();
+      if (!state.smartRouter) {
+        toast('请先开启智能路由');
+        return;
+      }
+      state.routerMode = state.routerMode === 'ai' ? 'keyword' : 'ai';
+      updateRouterModeUI();
+      savePrefs();
+      setRibbon(
+        state.routerMode === 'ai' ? '🤖 AI路由已启用' : '🔤 关键词匹配已启用',
+        state.routerMode === 'ai' ? 'glm-4.7-flash 智能判断意图' : '正则规则匹配意图'
+      );
+      toast(state.routerMode === 'ai' ? '已切换为 🤖 AI模型路由' : '已切换为 🔤 关键词匹配');
+    };
+  }
+
+  const uz = $('#uploadZone'), fi = $('#fileInput');
+  if (uz) {
+    uz.onclick = () => fi?.click();
+    uz.ondragover = e => { e.preventDefault(); uz.classList.add('dz-on'); };
+    uz.ondragleave = () => uz.classList.remove('dz-on');
+    uz.ondrop = e => { e.preventDefault(); uz.classList.remove('dz-on'); handleFiles(e.dataTransfer.files); };
+  }
+  if (fi) fi.onchange = e => handleFiles(e.target.files);
+
+  document.ondragover = e => e.preventDefault();
+  document.ondrop = e => {
+    e.preventDefault();
+    if (e.target.closest('#uploadZone')) return;
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  };
+
+  const cfi = $('#composerFileInput');
+  const cfb = $('#composerFileBtn');
+  if (cfb) cfb.onclick = () => cfi?.click();
+  if (cfi) cfi.onchange = e => handleFiles(e.target.files);
+
+  $$('.example-card').forEach(c => {
+    c.onclick = () => {
+      const input = $('#composerInput');
+      if (!input) return;
+      input.value = c.dataset.prompt + ' ';
+      if (c.dataset.requiresImage === 'true' && !state.pendingImages.length) {
+        document.getElementById('fileInput')?.click();
+        toast('请先上传图片，然后点击发送');
+      }
+      input.focus();
+      autoGrow(input);
+      scrollToBottom();
+    };
+  });
+
+  const exBtn = $('#exportBtn');
+  if (exBtn) exBtn.onclick = exportSession;
+  const imBtn = $('#importBtn');
+  if (imBtn) imBtn.onclick = () => $('#importFileInput')?.click();
+  const importFi = $('#importFileInput');
+  if (importFi) importFi.onchange = e => { const f=e.target.files[0]; if (f) importSession(f); e.target.value=''; };
+  const caBtn = $('#copyAllBtn');
+  if (caBtn) caBtn.onclick = copyAllAnswers;
+  const clBtn = $('#clearBtn');
+  if (clBtn) clBtn.onclick = clearAllMessages;
+  const ncBtn = $('#newChatBtn');
+  if (ncBtn) ncBtn.onclick = newConversation;
+
+  $$('.key-input').forEach(inp => inp.onchange = savePrefs);
+
+  const ta = $('#composerInput');
+  if (ta) {
+    ta.oninput = () => autoGrow(ta);
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    });
+    autoGrow(ta);
+  }
+  const sb = $('#sendBtn');
+  if (sb) sb.onclick = send;
+
+  const heroBtn = document.querySelector('button[data-action="upload-focus"]');
+  if (heroBtn) heroBtn.onclick = () => document.getElementById('fileInput')?.click();
+}
+
+document.addEventListener('DOMContentLoaded', init);

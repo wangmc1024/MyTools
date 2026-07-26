@@ -1,97 +1,204 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatOCR · 对话式多模态工作台</title>
-  <meta name="description" content="对话式 OCR 多模态工作台：智能路由分发 OCR 识别、内容问答、图像/视频生成与联网搜索。" />
-
-  <!-- Fonts: Spectral (display serif) + Inter (UI grotesque) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
-  <!-- markdown -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-  <link rel="stylesheet" href="assets/css/style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChatOCR Pro · 智能文字识别</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-  <!-- Portal navbar (repo convention) -->
-  <div id="portalNavbar">
-    <a href="../../index.html">← MyTools</a>
-    <span>|</span>
-    <span class="ptitle">ChatOCR</span>
-    <div style="flex:1"></div>
-    <button id="portalThemeToggle" title="切换主题"><span id="portalThemeIcon">☀️</span></button>
-  </div>
 
-  <div class="app">
-    <!-- Hero — the thesis: one input, system decides the engine -->
-    <section class="hero">
-      <div class="hero-mark">OCR · 创意工作室</div>
-      <h1>今天想<em>读</em>点什么，还是<em>做</em>点什么？</h1>
-      <p class="hero-sub">上传图片我来识别文字，或直接说你的需求 —— 系统会自动路由到最合适的模型。</p>
+<!-- =================== TOP NAVBAR =================== -->
+<header id="portalNavbar">
+  <div class="nav-inner">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" class="brand-mark" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 2.2c.6 0 1.1.3 1.4.8l1.5 2.6 2.9.4c.9.1 1.2 1.2.6 1.8l-2.1 2 .5 2.9c.1.9-.8 1.7-1.7 1.2L12 12.9l-2.6 1c-.9.3-1.8-.3-1.7-1.2l.5-2.9-2.1-2c-.6-.6-.3-1.7.6-1.8l2.9-.4L10.6 3c.3-.5.8-.8 1.4-.8Z"/></svg>
+      <span class="brand-title">ChatOCR<em>Pro</em></span>
+      <span class="brand-pill">OCR · 多模态</span>
+    </div>
+    <nav class="nav-actions">
+      <label class="toggle-pill" title="智能路由 (按意图自动匹配 OCR / 对话 / 画图 等模型)">
+        <span id="routerModeLabel" title="点击切换路由模式：AI路由 / 关键词匹配">🪄 AI路由</span>
+        <input type="checkbox" id="routerToggle" checked />
+        <span class="tp-track"><span class="tp-thumb"></span></span>
+      </label>
+      <button id="portalThemeToggle" title="切换主题" class="icon-btn ghost">
+        <span id="portalThemeIcon">☀️</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<!-- =================== APP SHELL =================== -->
+<main class="shell">
+
+  <!-- 左侧：模型列表 -->
+  <aside class="rail" id="leftRail">
+    <section class="panel">
+      <div class="panel-hd">
+        <h3 class="panel-title">模型中心</h3>
+        <span class="panel-sub">OCR 模型优先展示</span>
+      </div>
+      <div id="modelList"></div>
     </section>
 
+    <!-- 快速上传区 (聚焦OCR核心) -->
+    <section class="panel">
+      <div class="panel-hd">
+        <h3 class="panel-title">📷 上传识别</h3>
+        <span class="panel-sub">拖拽 / 点击选择图片或 PDF</span>
+      </div>
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-inner">
+          <svg viewBox="0 0 24 24" class="uz-icon" width="36" height="36" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 .7.3l4 4a1 1 0 0 1-1.4 1.4L13 6.4V16a1 1 0 1 1-2 0V6.4L8.7 8.7a1 1 0 0 1-1.4-1.4l4-4A1 1 0 0 1 12 3Zm-7 13a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"/></svg>
+          <p class="uz-title"><strong>拖拽图片或 PDF 到此处</strong></p>
+          <p class="uz-sub">支持 <b>PNG / JPG / WEBP / PDF</b>，单文件 ≤ 20MB</p>
+        </div>
+        <input type="file" id="fileInput" class="hidden" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" multiple />
+      </div>
+      <div id="filePreviewWrap"></div>
+    </section>
+
+    <!-- API Keys -->
+    <section class="panel">
+      <div class="panel-hd"><h3 class="panel-title">🔑 API Keys</h3><span class="panel-sub">自动保存到本地</span></div>
+      <div class="keys-grid">
+        <label class="key">
+          <span>硅基流动 <em>SiliconFlow</em></span>
+          <input type="password" id="siliconflowKey" class="key-input" placeholder="sk-..." value="sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt" autocomplete="off" spellcheck="false" />
+        </label>
+        <label class="key">
+          <span>智谱 AI <em>ZhiPu</em></span>
+          <input type="password" id="zhipuKey" class="key-input" placeholder="..." value="19344c09a7c047a69ae0ee36cd75c4f3.wOrnR0cm2GL2kiCD" autocomplete="off" spellcheck="false" />
+        </label>
+        <label class="key">
+          <span>Agnes AI <em>图像/视频</em></span>
+          <input type="password" id="agnesKey" class="key-input" placeholder="sk-..." value="sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG" autocomplete="off" spellcheck="false" />
+        </label>
+      </div>
+    </section>
+  </aside>
+
+  <!-- 中间：对话区 -->
+  <section class="center">
+    <!-- Ribbon 状态栏 -->
+    <div class="ribbon">
+      <div class="ribbon-inner" id="ribbon">
+        <span class="ribbon-dot"></span>
+        <span id="ribbonChips"><span class="rchip"><span class="rdot"></span>初始化中…</span></span>
+        <span id="ribbonProgress"></span>
+      </div>
+    </div>
+
+    <div class="stream-wrapper" id="streamWrapper">
+      <div class="stream" id="stream">
+
+        <!-- Hero 引导（聚焦OCR场景） -->
+        <section class="hero" id="hero">
+          <div class="hero-inner">
+            <h1 class="hero-title">识别 · 理解 · 回答</h1>
+            <p class="hero-subtitle">上传图片、截图、PDF、票据、手写稿，自动选择最优 OCR 模型。</p>
+            <div class="hero-actions">
+              <button class="btn primary" data-action="upload-focus">📷 开始识别</button>
+            </div>
+            <div class="hero-examples">
+              <div class="example-card" data-prompt="请识别这张图片中的所有文字，保留段落和换行" data-requires-image="true">
+                <div class="ec-head">📄 文档识别</div>
+                <div class="ec-body">整页文字 · 保留结构</div>
+              </div>
+              <div class="example-card" data-prompt="识别表格并输出为 Markdown 表格格式" data-requires-image="true">
+                <div class="ec-head">📊 表格提取</div>
+                <div class="ec-body">结构化 · 可复制</div>
+              </div>
+              <div class="example-card" data-prompt="识别所有数学公式，输出 LaTeX 格式" data-requires-image="true">
+                <div class="ec-head">🧮 公式识别</div>
+                <div class="ec-body">LaTeX 输出</div>
+              </div>
+              <div class="example-card" data-prompt="识别票据内容，提取关键信息：日期、金额、开票方、项目" data-requires-image="true">
+                <div class="ec-head">🧾 票据解析</div>
+                <div class="ec-body">发票 / 小票</div>
+              </div>
+              <div class="example-card" data-prompt="识别手写文字，并整理为打印体格式" data-requires-image="true">
+                <div class="ec-head">✍️ 手写识别</div>
+                <div class="ec-body">中文 / 英文</div>
+              </div>
+              <div class="example-card" data-prompt="总结并翻译这段文字为英文，保留原文格式" data-requires-image="true">
+                <div class="ec-head">🌐 翻译总结</div>
+                <div class="ec-body">OCR + 翻译</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="msg ai" id="welcomeMsg">
+          <div class="avatar">🤖</div>
+          <div class="bubble">
+            <div class="mdx">
+              <p><strong>欢迎使用 ChatOCR Pro！</strong></p>
+              <p>我可以帮你（<em>点击下方任意一项立即开始</em>）：</p>
+              <ul>
+                <li data-action="upload-focus">🔍 <b>识别图片/PDF</b>：拖拽或点左上上传区</li>
+                <li data-action="prompt-template" data-template="识别所有表格并输出 Markdown 表格">🧮 <b>表格/公式/手写</b>：选择示例卡或描述需求</li>
+                <li data-action="focus-input">💬 <b>上下文问答</b>：识别后可继续追问细节</li>
+                <li data-action="export">📋 <b>复制/导出</b>：每条回答一键复制，整体可导出JSON</li>
+              </ul>
+              <p><em>默认启用智能路由：有图 → DeepSeek-OCR，问答 → R1-8B。</em></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Composer -->
-    <div class="composer-wrap">
-      <div id="attachRow" class="attach-row"></div>
-      <div id="composer" class="composer">
-        <textarea id="composerInput" rows="1" placeholder="上传图片识别文字，或说「画一张…」「做个…视频」「今天A股多少点」"></textarea>
+    <div class="composer-shell">
+      <div class="attach-chips" id="attachChips"></div>
+      <div class="composer">
+        <input type="file" id="composerFileInput" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" hidden multiple />
+        <textarea id="composerInput" rows="1" placeholder="发送图片/PDF 开始 OCR，或输入问题… (Enter 发送，Shift+Enter 换行)"></textarea>
         <div class="composer-actions">
-          <button id="fileBtn" class="icon-btn" title="上传图片/PDF" aria-label="上传文件">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-          </button>
-          <button id="sendBtn" class="send-btn" title="发送" aria-label="发送">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a.993.993 0 00-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
-          </button>
+          <div class="ca-left">
+            <button id="composerFileBtn" class="icon-btn ocr-btn" title="上传图片/PDF">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2ZM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5Z"/></svg>
+            </button>
+          </div>
+          <div class="ca-right">
+            <button class="session-btn accent" id="newChatBtn" title="开启新对话">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z"/></svg>
+            </button>
+            <button class="session-btn" id="importBtn" title="导入JSON会话文件">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v7.6l2.3-2.3a1 1 0 0 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L11 11.6V4a1 1 0 0 1 1-1Zm-7 15h14v-2H5v2Z"/></svg>
+            </button>
+            <button class="session-btn" id="exportBtn" title="导出当前会话">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 .7.3l4 4a1 1 0 1 1-1.4 1.4L13 6.4V17a1 1 0 1 1-2 0V6.4L8.7 8.7a1 1 0 0 1-1.4-1.4l4-4A1 1 0 0 1 12 3Zm-7 13a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"/></svg>
+            </button>
+            <button class="session-btn" id="copyAllBtn" title="复制全部回复">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></svg>
+            </button>
+            <button class="session-btn danger" id="clearBtn" title="清空上下文对话">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h12v2h5v2H1V4h5V2Zm3 6h2v11H9V8Zm4 0h2v11h-2V8Zm4 0h2v11h-2V8ZM3 22V6h18l-1 16H3Z"/></svg>
+            </button>
+            <input type="file" id="importFileInput" class="hidden" accept=".json,application/json" />
+            <button id="sendBtn" class="send-btn" title="发送">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
         </div>
       </div>
-      <input type="file" id="fileInput" class="hidden" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf" style="display:none">
-
-      <!-- Example intents -->
-      <div id="intents" class="intents">
-        <button class="intent" data-prompt="">📎 上传图片后识别（无需输入）</button>
-        <button class="intent" data-prompt="概括一下识别到的内容">💬 概括识别内容</button>
-        <button class="intent" data-prompt="画一张赛博朋克城市，霓虹雨夜">🎨 画赛博朋克城市</button>
-        <button class="intent" data-prompt="做一个5秒的雨滴落在水面的视频，24fps">🎬 做雨滴视频</button>
-        <button class="intent" data-prompt="今天A股大盘多少点？">🔍 联网查行情</button>
-      </div>
     </div>
 
-    <!-- SIGNATURE: routing ribbon -->
-    <div id="ribbon" class="ribbon idle" role="status" aria-live="polite">
-      <span class="ribbon-label">路由</span>
-      <span class="ribbon-chips"></span>
-      <span class="ribbon-progress"></span>
-    </div>
+  </section>
+</main>
 
-    <!-- Control rail -->
-    <div class="rail">
-      <div class="rail-group">
-        <span class="rail-label">格式</span>
-        <button class="seg format-seg" data-format="markdown">Markdown</button>
-        <button class="seg format-seg" data-format="plain">纯文本</button>
-        <button class="seg format-seg" data-format="table">表格</button>
-        <button class="seg format-seg" data-format="describe">图解</button>
-      </div>
-      <div class="rail-group">
-        <span class="rail-label">OCR 模型</span>
-        <select id="ocrModelSel" class="seg"></select>
-      </div>
-      <div class="rail-spacer"></div>
-      <button id="galleryLink" class="rail-link" onclick="location.href='./gallery.html'">🖼️ 画廊</button>
-      <button id="settingsBtn" class="rail-link">⚙️ 设置</button>
-      <button id="exportBtn" class="rail-link">⬇️ 导出</button>
-      <button id="clearBtn" class="rail-link">🗑️ 清空</button>
-    </div>
+<div id="toast">已复制</div>
+<div id="lightboxWrap"></div>
+<div id="modalMount"></div>
 
-    <!-- Message stream -->
-    <div id="stream" class="stream"></div>
-  </div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/main.js"></script>
 
-  <!-- toast container handled by shared tools.js if present -->
-  <script src="../../assets/js/tools.js"></script>
-  <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

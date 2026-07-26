@@ -1140,6 +1140,35 @@ function isValidTranslation(text) {
   return true;
 }
 
+function fetchWithTimeout(url, options, timeout) {
+  const controller = new AbortController();
+  const timer = setTimeout(function() { controller.abort(); }, timeout);
+  return fetch(url, Object.assign({}, options, { signal: controller.signal })).finally(function() {
+    clearTimeout(timer);
+  });
+}
+
+function saveToLS(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function lookupCache(cache, key, lsKey) {
+  if (cache[key]) return cache[key];
+  try {
+    const stored = localStorage.getItem(lsKey);
+    if (stored) {
+      cache[key] = stored;
+      return stored;
+    }
+  } catch(e) { /* ignore */ }
+  return null;
+}
+
 // ============================================================
 //  THEME
 // ============================================================
@@ -1684,10 +1713,50 @@ document.addEventListener('mousemove', (e) => {
 });
 
 // ============================================================
-//  EDGE-TTS CLOUD ENGINE (via TT3301/Edge-TTS API)
-//  https://github.com/TT3301/Edge-TTS
+//  EDGE-TTS CLOUD ENGINE (via Edge-TTS API)
+//  Fallback chain: wangmc worker → wangwangit → system TTS
 // ============================================================
-const TTS_API_URL = 'https://tts.wangwangit.com/v1/audio/speech';
+const TTS_API_URLS = [
+  'https://edge-tts-voice-magic.wangmc1024.workers.dev/v1/audio/speech',
+  'https://tts.wangwangit.com/v1/audio/speech'
+];
+let _activeTtsUrl = null; // set by probeTTSEndpoints() on init
+
+// Lightweight probe: minimal POST request, 5s timeout
+function probeTtsEndpoint(url) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: '.', voice: 'en-US-JennyNeural', speed: '1', pitch: '0', style: 'general' }),
+    signal: AbortSignal.timeout(5000)
+  }).then(function(r) {
+    return r.ok;
+  });
+}
+
+// Run on page load — probe all TTS endpoints, pick the first available
+async function probeTTSEndpoints() {
+  setEngineStatus('connecting', 'Probing TTS...');
+  for (var i = 0; i < TTS_API_URLS.length; i++) {
+    var url = TTS_API_URLS[i];
+    try {
+      var ok = await probeTtsEndpoint(url);
+      if (ok) {
+        _activeTtsUrl = url;
+        edgeTTSAvailable = true;
+        setEngineStatus('cloud', 'Cloud TTS ✓');
+        console.log('[TTS] Selected endpoint ' + (i + 1) + ': ' + url);
+        return;
+      }
+    } catch(e) {
+      console.warn('[TTS] Endpoint ' + (i + 1) + ' failed:', e.message);
+    }
+  }
+  _activeTtsUrl = TTS_API_URLS[0];
+  edgeTTSAvailable = false;
+  setEngineStatus('system', 'System TTS');
+  console.log('[TTS] All cloud endpoints failed, using System TTS');
+}
 let EDGE_TTS_VOICE = localStorage.getItem('ttsVoice') || 'en-US-JennyNeural';
 const EDGE_TTS_TIMEOUT = 15000;
 
@@ -1716,47 +1785,57 @@ async function edgeTTSSynthesize(text, opts) {
   var rate = opts.rate || speechRate;
   var timeout = opts.timeout || EDGE_TTS_TIMEOUT;
 
-  var cacheKey = voice + '|' + rate + '|' + text.trim().substring(0, 300);
+  var cacheKey = voice + '|' + rate + '|' + text.trim();
   if (ttsAudioCache.has(cacheKey)) {
     var idx = ttsCacheKeys.indexOf(cacheKey);
     if (idx > -1) { ttsCacheKeys.splice(idx, 1); ttsCacheKeys.push(cacheKey); }
     return ttsAudioCache.get(cacheKey);
   }
 
-  try {
-    var response = await fetchWithTimeout(TTS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        input: text,
-        voice: voice,
-        speed: rate,
-        pitch: '0',
-        style: 'general'
-      })
-    }, timeout);
-
-    if (!response.ok) {
-      var errText = await response.text().catch(function() { return 'HTTP ' + response.status; });
-      throw new Error('TTS API error: ' + response.status + ' ' + errText);
-    }
-
-    var blob = await response.blob();
-    if (blob.size === 0) throw new Error('TTS API returned empty audio');
-
-    var url = URL.createObjectURL(blob);
-    if (ttsCacheKeys.length >= TTS_CACHE_MAX) {
-      var oldestKey = ttsCacheKeys.shift();
-      var oldUrl = ttsAudioCache.get(oldestKey);
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
-      ttsAudioCache.delete(oldestKey);
-    }
-    ttsAudioCache.set(cacheKey, url);
-    ttsCacheKeys.push(cacheKey);
-    return url;
-  } catch(e) {
-    throw e;
+  var lastError = null;
+  // Use the probed active URL first, then fallback to other endpoints
+  var urls = _activeTtsUrl ? [_activeTtsUrl] : [];
+  for (var u = 0; u < TTS_API_URLS.length; u++) {
+    if (TTS_API_URLS[u] !== _activeTtsUrl) urls.push(TTS_API_URLS[u]);
   }
+  for (var u = 0; u < urls.length; u++) {
+    try {
+      var response = await fetchWithTimeout(urls[u], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: text,
+          voice: voice,
+          speed: rate,
+          pitch: '0',
+          style: 'general'
+        })
+      }, timeout);
+
+      if (!response.ok) {
+        var errText = await response.text().catch(function() { return 'HTTP ' + response.status; });
+        throw new Error('TTS API error: ' + response.status + ' ' + errText);
+      }
+
+      var blob = await response.blob();
+      if (blob.size === 0) throw new Error('TTS API returned empty audio');
+
+      var url = URL.createObjectURL(blob);
+      if (ttsCacheKeys.length >= TTS_CACHE_MAX) {
+        var oldestKey = ttsCacheKeys.shift();
+        var oldUrl = ttsAudioCache.get(oldestKey);
+        if (oldUrl) URL.revokeObjectURL(oldUrl);
+        ttsAudioCache.delete(oldestKey);
+      }
+      ttsAudioCache.set(cacheKey, url);
+      ttsCacheKeys.push(cacheKey);
+      return url;
+    } catch(e) {
+      lastError = e;
+      console.log('TTS URL ' + (u + 1) + ' failed:', e.message);
+    }
+  }
+  throw lastError || new Error('All TTS APIs failed');
 }
 
 // --- Engine status indicator ---
@@ -1767,24 +1846,38 @@ function setEngineStatus(engine, label) {
   lbl.textContent = label;
 }
 
+var _ttsDetectPending = false;
+
 async function detectEdgeTTS(updateBadge) {
-  if (edgeTTSAvailable !== null) return edgeTTSAvailable;
-  if (!navigator.onLine) {
-    edgeTTSAvailable = false;
-  } else {
-    try {
-      await edgeTTSSynthesize('Hello.', { timeout: 8000 });
-      edgeTTSAvailable = true;
-    } catch(e) {
-      edgeTTSAvailable = false;
-    }
+  // Already probed on init; just return cached result
+  if (edgeTTSAvailable !== null) {
+    if (updateBadge) setEngineStatus(edgeTTSAvailable ? 'cloud' : 'system', edgeTTSAvailable ? 'Cloud TTS' : 'System TTS');
+    return edgeTTSAvailable;
   }
-  if (updateBadge) setEngineStatus(edgeTTSAvailable ? 'cloud' : 'system', edgeTTSAvailable ? 'Cloud TTS' : 'System TTS');
-  return edgeTTSAvailable;
+  // Guard against parallel calls — only one detection at a time
+  if (_ttsDetectPending) return null;
+  _ttsDetectPending = true;
+  try {
+    // Fallback: probe hasn't finished yet, run a quick single check
+    if (!navigator.onLine) {
+      edgeTTSAvailable = false;
+    } else {
+      try {
+        await edgeTTSSynthesize('Hello.', { timeout: 8000 });
+        edgeTTSAvailable = true;
+      } catch(e) {
+        edgeTTSAvailable = false;
+      }
+    }
+    if (updateBadge) setEngineStatus(edgeTTSAvailable ? 'cloud' : 'system', edgeTTSAvailable ? 'Cloud TTS' : 'System TTS');
+    return edgeTTSAvailable;
+  } finally {
+    _ttsDetectPending = false;
+  }
 }
 
-// Lazy-detect on first use instead of preloading on load
-setEngineStatus('connecting', 'Click speaker to detect...');
+// Start probing on page load (async, non-blocking)
+probeTTSEndpoints();
 
 // ============================================================
 //  SYSTEM TTS (Fallback Engine)

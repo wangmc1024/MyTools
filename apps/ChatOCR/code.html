@@ -24,6 +24,14 @@
         .scrollbar::-webkit-scrollbar { width:6px;height:6px; }
         .scrollbar::-webkit-scrollbar-thumb { background:#444; border-radius:4px; }
         .key-text { word-break: break-all; font-family: Consolas, monospace; }
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; padding: 10px 24px; border-radius: 8px;
+            background: #22c55e; color: #fff; font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0; transition: opacity 0.3s, top 0.3s; pointer-events: none;
+        }
+        #toast.show { opacity: 1; top: 28px; }
     </style>
 </head>
 <body class="bg-darkbg text-gray-200 min-h-screen p-4 md:p-8">
@@ -37,52 +45,65 @@
 
     <div id="listWrap" class="space-y-4"></div>
 </div>
+<div id="toast">✅ 已复制到剪贴板</div>
 
 <script>
-// 固定预设数据
+// 固定预设数据 —— 包含模型特点及适用场景
 const dataList = [
     {
-        platform: "硅基流动",
+        platform: "硅基流动 — OCR 与文档理解",
         apiUrl: "https://api.siliconflow.cn/v1/chat/completions",
         apiKey: "sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt",
         models: [
-            "THUDM/GLM-Z1-9B-0414",
-            "deepseek-ai/DeepSeek-OCR",
-            "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
-            "PaddlePaddle/PaddleOCR-VL-1.5"
+            { name:"deepseek-ai/DeepSeek-OCR",            desc:"OCR专精 · 3B参数 · 文档/表格/公式/手写/PDF识别 · 10倍视觉压缩率" },
+            { name:"deepseek-ai/DeepSeek-R1-0528-Qwen3-8B", desc:"推理达人 · 8B · 思维链数学推理 · 文档问答/总结/分析 · AIME高分" },
+            { name:"PaddlePaddle/PaddleOCR-VL-1.5",       desc:"百度飞桨 · 0.9B超轻量 · 中文手写/票据/印章 · OmniDocBench 94%+" },
+            { name:"tencent/Hunyuan-MT-7B",               desc:"腾讯混元翻译 · 7B · 33语种互译 · 5种民汉方言 · 30项翻译第一" },
+            { name:"THUDM/GLM-Z1-9B-0414",                desc:"智谱推理 · 9B · 推理速度比R1快8倍 · MIT开源许可" },
         ]
     },
     {
-        platform: "ChatGLM 智谱开放平台",
-        apiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-        apiKey: "19344c09a7c047a69ae0ee36cd75c4f3.wOrnR0cm2GL2kiCD",
-        models: ["glm-4.7-flash"]
+        platform: "硅基流动 — 语音识别 (ASR)",
+        apiUrl: "https://api.siliconflow.cn/v1/audio/transcriptions",
+        apiKey: "sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt",
+        models: [
+            { name:"TeleAI/TeleSpeechASR",       desc:"电信AI · 语音转文字 · 中文普通话/多方言" },
+            { name:"FunAudioLLM/SenseVoiceSmall", desc:"阿里 · 多语言语音识别 · 情感/事件检测" },
+        ]
     },
     {
-        platform: "Agnes AI 对话",
+        platform: "智谱 AI — 对话与视觉",
+        apiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        apiKey: "19344c09a7c047a69ae0ee36cd75c4f3.wOrnR0cm2GL2kiCD",
+        models: [
+            { name:"glm-4.7-flash",   desc:"✨ 免费 · MoE(30B/3B激活) · 智能路由/联网搜索/轻量编码 · 适合中低复杂度任务" },
+        ]
+    },
+    {
+        platform: "Agnes AI — 对话与工具调用",
         apiUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
         apiKey: "sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG",
         models: [
-            "agnes-2.0-flash"
+            { name:"agnes-2.0-flash", desc:"Flash快速 · 低延迟 · 工具调用/函数 · 支持路由" },
         ]
     },
     {
-        platform: "Agnes AI 图像生成",
+        platform: "Agnes AI — 图像生成",
         apiUrl: "https://apihub.agnes-ai.com/v1/images/generations",
         apiKey: "sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG",
         models: [
-            "agnes-image-2.1-flash",
-            "agnes-image-2.0-flash"
+            { name:"agnes-image-2.1-flash", desc:"文生图 · 高密度高质量 · 1024x1024 · 细节丰富" },
+            { name:"agnes-image-2.0-flash", desc:"文生图 · 快速出图 · 低延迟 · 适合快速原型" },
         ]
     },
     {
-        platform: "Agnes AI 视频生成",
+        platform: "Agnes AI — 视频生成",
         apiUrl: "POST https://apihub.agnes-ai.com/v1/videos",
         apiKey: "sk-4kbOHFeka595sDHrStt0641WniyyxMrYCg4fm1bXXSnxJcqG",
         models: [
-            "agnes-video-v2.0",
-            "查询任务 GET https://apihub.agnes-ai.com/agnesapi?video_id=<VIDEO_ID>"
-        ]
+            { name:"agnes-video-v2.0", desc:"视频生成 · 异步任务 · 提交后轮询获取结果" },
+        ],
+        extra: "查询任务: GET https://apihub.agnes-ai.com/agnesapi?video_id=<VIDEO_ID>"
     }
 ];
 
@@ -90,7 +111,6 @@ const dataList = [
 async function copyText(txt) {
     try {
         await navigator.clipboard.writeText(txt);
-        alert("✅ 复制成功");
     } catch (e) {
         const ta = document.createElement("textarea");
         ta.value = txt;
@@ -98,9 +118,13 @@ async function copyText(txt) {
         ta.select();
         document.execCommand("copy");
         ta.remove();
-        alert("✅ 复制成功");
     }
+    const toast = document.getElementById("toast");
+    toast.classList.add("show");
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => toast.classList.remove("show"), 1800);
 }
+let copyTimer;
 
 // 切换密钥显示隐藏
 function toggleKey(btn) {
@@ -122,11 +146,17 @@ function renderList() {
     const wrap = document.getElementById("listWrap");
     let html = "";
     dataList.forEach(item => {
-        const modelHtml = item.models.map(m => `
-            <div class="inline-block bg-gray-800 px-2 py-1 rounded mr-2 mb-2 text-sm cursor-pointer hover:bg-gray-700" onclick="copyText('${m}')" title="点击复制模型名/接口地址">
-                ${m} <i class="fa fa-copy text-gray-400 text-xs"></i>
+        const modelHtml = item.models.map(m => {
+            const name = typeof m === 'string' ? m : m.name;
+            const desc = typeof m === 'string' ? '' : m.desc;
+            return `
+            <div class="inline-block bg-gray-800 px-2.5 py-1.5 rounded-lg mr-2 mb-2 text-sm cursor-pointer hover:bg-gray-700 hover:border-gray-500 border border-transparent transition-all group" onclick="copyText('${name}')" title="${desc}">
+                <span class="text-white font-medium">${name}</span>
+                ${desc ? `<span class="block text-gray-400 text-xs mt-0.5 max-w-xs">${desc}</span>` : ''}
+                <i class="fa fa-copy text-gray-500 text-xs ml-1 group-hover:text-primary"></i>
             </div>
-        `).join("");
+            `;
+        }).join("");
 
         html += `
         <div class="bg-cardbg rounded-xl p-5 border border-gray-700">
@@ -152,9 +182,10 @@ function renderList() {
             </div>
 
             <div>
-                <div class="text-sm text-gray-400 mb-2">可用模型（点击复制名称）</div>
+                <div class="text-sm text-gray-400 mb-2">可用模型（点击复制名称，悬停查看描述）</div>
                 <div class="flex flex-wrap">${modelHtml}</div>
             </div>
+            ${item.extra ? `<div class="mt-3 text-sm text-gray-500 bg-gray-800 p-2 rounded key-text">${item.extra}</div>` : ''}
         </div>
         `;
     });
