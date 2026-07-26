@@ -23,7 +23,7 @@ async function probeTTSEndpoint(url, timeoutMs = 5000) {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ input: '.', voice: 'en-US-JennyNeural', speed: '1', pitch: '0', style: 'general' }),
+            body: JSON.stringify({ input: '.', voice: 'en-US-JennyNeural', speed: 1, pitch: '0', style: 'general' }),
             signal: controller.signal
         });
         return response.ok;
@@ -724,7 +724,7 @@ document.getElementById('ttsForm').addEventListener('submit', async function(e) 
     const speed = document.getElementById('speed').value;
     const pitch = document.getElementById('pitch').value;
     const style = document.getElementById('style').value;
-    const volume = '0';
+    const volume = 0;
 
     const generateBtn = document.getElementById('generateBtn');
     const resultContainer = document.getElementById('result');

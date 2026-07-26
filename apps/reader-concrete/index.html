@@ -1727,7 +1727,7 @@ function probeTtsEndpoint(url) {
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: '.', voice: 'en-US-JennyNeural', speed: '1', pitch: '0', style: 'general' }),
+    body: JSON.stringify({ input: '.', voice: 'en-US-JennyNeural', speed: 1, pitch: '0', style: 'general' }),
     signal: AbortSignal.timeout(5000)
   }).then(function(r) {
     return r.ok;
