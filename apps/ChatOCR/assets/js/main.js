@@ -44,7 +44,49 @@ const state = {
   routerMode: 'ai',
   pendingImages: [],
   isGenerating: false,
+  currentTask: null,
+  abortController: null,
 };
+
+/* ---------- 任务状态管理 ---------- */
+function setTaskStatus(taskName, detail, progress) {
+  state.currentTask = { name: taskName, detail, progress };
+  const ribbon = document.querySelector('.ribbon');
+  if (ribbon) {
+    ribbon.classList.add('active');
+    ribbon.classList.remove('idle');
+  }
+  const r = $('#ribbonChips');
+  const p = $('#ribbonProgress');
+  if (r) {
+    const spinner = '<span class="spinner"></span>';
+    r.innerHTML = `<span class="rchip active-task">${spinner}${esc(taskName)}</span>`
+      + (detail ? `<span class="rchip secondary">${esc(detail)}</span>` : '');
+  }
+  if (p && progress != null) {
+    p.textContent = progress + '%';
+  } else if (p) {
+    p.textContent = '';
+  }
+}
+function clearTaskStatus() {
+  state.currentTask = null;
+  const ribbon = document.querySelector('.ribbon');
+  if (ribbon) {
+    ribbon.classList.remove('active');
+    ribbon.classList.add('idle');
+  }
+  setRibbon('OCR 就绪', state.smartRouter
+    ? (state.routerMode === 'ai' ? '🤖 AI智能路由已启用' : '🔤 关键词匹配路由已启用')
+    : '已选手动模型');
+}
+function setRibbon(chips, status, icon) {
+  if (state.currentTask) return;
+  const r = $('#ribbonChips'); const p = $('#ribbonProgress'); if (!r) return;
+  r.innerHTML = `<span class="rchip"><span class="rdot"></span>${icon || ''}${esc(status||'待机中')}</span>`
+    + (chips ? `<span class="rchip secondary">${esc(chips)}</span>` : '');
+  if (p) p.textContent = '';
+}
 
 /* ---------- API Key 读取 ---------- */
 function apiKey(providerId) {
@@ -95,36 +137,26 @@ function renderModelList() {
         state.smartRouter = true;
         const rt = $('#routerToggle');
         if (rt) rt.checked = true;
-        savePrefs();
         renderModelList();
         setRibbon('智能路由已启用', '按意图自动匹配模型');
         toast('已切换回智能路由模式');
+        savePrefs();
       } else {
         state.selectedModel = c.dataset.id;
         state.smartRouter = false;
         const rt2 = $('#routerToggle');
         if (rt2) rt2.checked = false;
-        savePrefs();
         renderModelList();
         const found = findModel(state.selectedModel);
         setRibbon(`手动 · ${esc(found?.model.label||'OCR模型')}`, '已选择模型');
         toast(`已选择: ${esc(found?.model.label||'模型')}`);
+        savePrefs();
       }
     };
   });
 }
 
-/* ---------- Ribbon 状态栏 ---------- */
-function setRibbon(chips, status, icon) {
-  const r = $('#ribbonChips'); const p = $('#ribbonProgress'); if (!r) return;
-  r.innerHTML = `<span class="rchip"><span class="rdot"></span>${icon || ''}${esc(status||'待机中')}</span>`
-    + (chips ? `<span class="rchip secondary">${esc(chips)}</span>` : '');
-  if (p) p.textContent = '';
-}
-function setRibbonProgress(pct, text) {
-  const p = $('#ribbonProgress'); if (!p) return;
-  p.textContent = (pct != null ? pct + '% ' : '') + (text||'');
-}
+
 
 /* ---------- 路由方案1：关键词匹配（保留） ---------- */
 function routeIntentKeyword(text, hasImage) {
@@ -357,9 +389,35 @@ window.openLightbox = function(src) {
   w.onclick = () => { w.innerHTML=''; w.onclick=null; w.classList.remove('active'); };
 };
 
+/* ---------- 停止生成 ---------- */
+function stopGeneration() {
+  if (state.abortController) {
+    state.abortController.abort();
+    state.abortController = null;
+  }
+  state.isGenerating = false;
+  clearTaskStatus();
+  const sb = $('#sendBtn');
+  if (sb) {
+    sb.disabled = false;
+    sb.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+    sb.classList.remove('stop-btn');
+  }
+  const thinking = state.messages.find(m => m._thinking);
+  if (thinking) {
+    thinking._thinking = false;
+    thinking.content = thinking.content ? thinking.content + '\n\n*[已停止]*' : '*[已停止]*';
+    renderMessages();
+  }
+  setRibbon('已停止', '用户手动停止');
+}
+
 /* ---------- 发送主流程 ---------- */
 async function send() {
-  if (state.isGenerating) { toast('请等待当前任务完成'); return; }
+  if (state.isGenerating) {
+    stopGeneration();
+    return;
+  }
   const inputEl = $('#composerInput');
   if (!inputEl) return;
   const txt = inputEl.value.trim();
@@ -368,20 +426,19 @@ async function send() {
 
   state.isGenerating = true;
   const sb = $('#sendBtn');
-  if (sb) sb.disabled = true;
+  if (sb) {
+    sb.disabled = false;
+    sb.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>';
+    sb.classList.add('stop-btn');
+  }
 
+  setTaskStatus('🧠 分析意图', state.smartRouter ? 'AI智能路由分析中…' : '使用已选模型');
   const intent = await routeIntent(txt, hasImg);
   let modelId = state.smartRouter
     ? resolveModelFor(intent.tool)
     : (state.selectedModel || resolveModelFor(intent.tool));
   const found = findModel(modelId);
-  if (!found) { toast('未找到模型'); state.isGenerating = false; const sb0 = $('#sendBtn'); if (sb0) sb0.disabled = false; return; }
-
-  if (state.selectedModel) setRibbon(`手动 · ${found.model.label}`, `由 ${found.provider.label}`);
-  else {
-    const methodTag = intent.method === 'ai' ? '🤖 AI路由' : '🔤 关键词';
-    setRibbon(`${methodTag} → ${intent.tool}`, `${found.model.label} · ${intent.reason}`);
-  }
+  if (!found) { toast('未找到模型'); state.isGenerating = false; clearTaskStatus(); const sb0 = $('#sendBtn'); if (sb0) sb0.disabled = false; return; }
 
   const attachments = state.pendingImages.slice();
   const userMsg = {
@@ -392,7 +449,7 @@ async function send() {
   state.messages.push(userMsg);
   state.pendingImages = []; renderAttachChips(); renderFilePreview();
   inputEl.value = ''; inputEl.style.height='auto';
-  renderMessages();
+  requestAnimationFrame(() => renderMessages());
 
   try {
     if (intent.tool === 'generate_image') {
@@ -400,10 +457,11 @@ async function send() {
     } else if (intent.tool === 'generate_video') {
       await runVideoGen(userMsg, modelId);
     } else {
-      await runChat(userMsg, modelId, intent, attachments);
+      await runChat(userMsg, modelId, intent);
     }
   } catch (e) {
     console.error('send error:', e);
+    clearTaskStatus();
     const errMsg = e.message || String(e);
     if (!state.messages.some(m => m._thinking)) {
       appendAI(`❌ 请求出错：${errMsg}`, modelId, intent.tool);
@@ -415,31 +473,49 @@ async function send() {
     setRibbon('请求失败', 'Error');
   }
   state.isGenerating = false;
+  state.abortController = null;
   const sb2 = $('#sendBtn');
-  if (sb2) sb2.disabled = false;
+  if (sb2) {
+    sb2.disabled = false;
+    sb2.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+    sb2.classList.remove('stop-btn');
+  }
 }
 
 /* ---------- 聊天/多模态（SSE 流式）---------- */
-async function runChat(userMsg, modelId, intent, attachments) {
+async function runChat(userMsg, modelId, intent) {
   const { provider, model } = findModel(modelId);
   const key = apiKey(provider.id);
   if (!key) {
     toast(`${provider.label} Key 未填写，请在左侧 API Keys 中填写`);
     throw new Error(`Missing API Key: ${provider.label}`);
   }
-  setRibbonProgress(null, '⏳ 连接中…');
 
-  const needVision = (attachments.length > 0) || (model.caps||[]).some(c=>['ocr','vision'].includes(c));
-  const msgs = buildChatMessages(needVision, attachments);
+  const isOCR = intent.tool === 'ocr_recognize';
+  const isOcrModel = modelId.includes('OCR') || modelId.includes('PaddleOCR');
+  const isReasoning = (model.caps||[]).some(c => c === 'reasoning');
+  const taskName = isOCR ? '🔍 OCR文字识别' : '💬 AI对话生成';
+  setTaskStatus(taskName, `${provider.label} · ${model.label}`);
 
-  const hasStream = provider.id !== 'zhipu';
+  const hasAttachment = (userMsg.attachments?.length > 0);
+  const needVision = hasAttachment || (model.caps||[]).some(c=>['ocr','vision'].includes(c));
+  const msgs = buildChatMessages(needVision, isOcrModel);
+
+  const hasStream = true;
+  const modelParams = model.params || {};
   const body = {
     model: modelId,
     messages: msgs,
     stream: hasStream,
-    temperature: /PaddleOCR|DeepSeek-OCR|Hunyuan/.test(modelId) ? 0 : 0.2,
-    max_tokens: 4096,
+    temperature: modelParams.temperature ?? (isOCR ? 0 : 0.2),
+    max_tokens: modelParams.max_tokens ?? (isOCR ? 16384 : 4096),
   };
+
+  if (modelParams.top_p != null) body.top_p = modelParams.top_p;
+
+  if (isReasoning && modelParams.thinking_budget != null) {
+    body.thinking_budget = modelParams.thinking_budget;
+  }
 
   const aiId = 'a'+Date.now();
   const aiMsg = { id:aiId, role:'ai', content:'', ts:Date.now(), model:modelId, intent:intent.tool, provider:provider.id, _thinking:true };
@@ -447,14 +523,29 @@ async function runChat(userMsg, modelId, intent, attachments) {
   renderMessages();
   scrollToBottom(0);
 
-  const resp = await fetch(provider.baseUrl + provider.endpoints.chat, {
-    method:'POST',
-    headers: {
-      'Content-Type':'application/json',
-      'Authorization': `Bearer ${key}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  state.abortController = controller;
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+  let resp;
+  try {
+    resp = await fetch(provider.baseUrl + provider.endpoints.chat, {
+      method:'POST',
+      headers: {
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    state.abortController = null;
+    if (e.name === 'AbortError') throw new Error('请求超时（120秒），请重试');
+    throw new Error(`网络错误：${e.message}`);
+  }
+  clearTimeout(timeoutId);
+  state.abortController = null;
 
   if (!resp.ok) {
     const errText = await resp.text().catch(()=>'');
@@ -469,13 +560,18 @@ async function runChat(userMsg, modelId, intent, attachments) {
     aiMsg._thinking = false;
     aiMsg.content = c;
     renderMessages();
-    setRibbon('完成', `模型 ${model.label}`);
+    setRibbon(c.length+' 字', `${provider.label} · ${model.label} · 完成 ✅`);
+    clearTaskStatus();
     savePrefs();
     return;
   }
 
   const reader = resp.body.getReader(); const dec = new TextDecoder('utf-8');
-  let buf='', full='', first=true;
+  let buf='', full='', first=true, chunkCount=0;
+  const msgEl = document.querySelector(`.msg[data-msg-id="${aiId}"]`);
+  const mdxEl = msgEl?.querySelector('.mdx');
+  if (msgEl) msgEl.classList.add('streaming');
+
   while (true) {
     const {done, value} = await reader.read();
     if (done) break;
@@ -490,38 +586,86 @@ async function runChat(userMsg, modelId, intent, attachments) {
         const c = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
         if (!c) continue;
         full += c;
-        if (first) { aiMsg._thinking = false; setRibbonProgress(null, '输出中…'); first=false; }
+        chunkCount++;
+        if (first) {
+          aiMsg._thinking = false;
+          if (mdxEl) mdxEl.innerHTML = '';
+          setTaskStatus(taskName, `${provider.label} · ${model.label} · 输出中…`);
+          first = false;
+        }
         aiMsg.content = full;
-        patchAI(aiId, full);
+        if (mdxEl && chunkCount % 3 === 0) {
+          mdxEl.innerHTML = renderMarkdown(full);
+        }
         scrollToBottom(0);
       } catch {}
     }
   }
   aiMsg._thinking = false;
-  setRibbonProgress(null, '');
+  if (msgEl) msgEl.classList.remove('streaming');
+  if (mdxEl) mdxEl.innerHTML = renderMarkdown(full);
+  clearTaskStatus();
   setRibbon(full.length+' 字', `${provider.label} · ${model.label} · 完成 ✅`);
   savePrefs();
 }
 
-function buildChatMessages(needVision, currentAttachments) {
+function buildChatMessages(needVision, isOcrModel) {
   const recent = state.messages.filter(m => m.role !== 'tool').slice(-12);
   const msgs = [];
-  msgs.push({ role:'system', content:
-    '你是 ChatOCR Pro 助手，擅长：\n' +
-    '1. 识别图片/PDF中的文字、表格、公式、手写；\n' +
-    '2. 对识别结果问答、翻译、整理；\n' +
-    '3. 对话简洁专业，保留原文结构。' });
-  for (const m of recent) {
-    const msgAtts = m.attachments || [];
+
+  if (isOcrModel && needVision) {
+    msgs.push({ role:'system', content: '你是一个OCR文字识别助手。请准确识别图片中的所有文字内容，保留原文格式。' });
+
+    const lastUser = recent.filter(m => m.role === 'user').slice(-1);
+    for (const m of lastUser) {
+      const msgAtts = m.attachments || [];
+      if (msgAtts.length > 0) {
+        const parts = [{ type:'text', text: m.content||'请识别图片中的文字' }];
+        for (const a of msgAtts) {
+          if (a.mime?.startsWith('image/'))
+            parts.push({ type:'image_url', image_url: { url: a.dataUrl, detail: 'high' } });
+        }
+        msgs.push({ role:'user', content: parts });
+      } else {
+        msgs.push({ role:'user', content: m.content || '请识别图片中的文字' });
+      }
+    }
+    return msgs;
+  }
+
+  const isOCR = needVision && recent.some(m => (m.attachments||[]).length > 0);
+  msgs.push({ role:'system', content: isOCR
+    ? '你是专业的OCR文字识别助手。请准确识别图片/PDF中的所有文字内容。\n'
+      + '规则：\n'
+      + '1. 保留原文的段落结构、换行和缩进\n'
+      + '2. 表格内容输出为Markdown表格格式\n'
+      + '3. 数学公式输出为LaTeX格式（用$$包裹）\n'
+      + '4. 不要添加任何解释、评论或开头语\n'
+      + '5. 只输出识别到的文字内容，保持原文语言'
+    : '你是 ChatOCR Pro 助手，擅长：\n'
+      + '1. 识别图片/PDF中的文字、表格、公式、手写；\n'
+      + '2. 对识别结果问答、翻译、整理；\n'
+      + '3. 对话简洁专业，保留原文结构。' });
+
+  for (let i = 0; i < recent.length; i++) {
+    const m = recent[i];
+    const isLast = i === recent.length - 1;
+    const msgAtts = (isLast ? m.attachments : null) || [];
+
     if (needVision && msgAtts.length > 0) {
       const parts = [{ type:'text', text: m.content||'请识别图片中的文字' }];
       for (const a of msgAtts) {
         if (a.mime?.startsWith('image/'))
-          parts.push({ type:'image_url', image_url:{ url: a.dataUrl } });
+          parts.push({ type:'image_url', image_url: { url: a.dataUrl, detail: 'high' } });
       }
       msgs.push({ role:'user', content: parts });
     } else {
-      msgs.push({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content||'' });
+      const textContent = m.content || '';
+      if (m.role === 'user' && m.attachments?.length > 0 && !isLast) {
+        msgs.push({ role:'user', content: textContent + '\n[已上传图片]' });
+      } else {
+        msgs.push({ role: m.role === 'ai' ? 'assistant' : 'user', content: textContent });
+      }
     }
   }
   return msgs;
@@ -530,10 +674,12 @@ function buildChatMessages(needVision, currentAttachments) {
 function patchAI(msgId, content) {
   const m = state.messages.find(x => x.id === msgId); if (!m) return;
   m.content = content;
-  const oldWrap = document.querySelector(`.msg[data-msg-id="${msgId}"]`);
-  const parent = oldWrap?.parentNode; if (!parent) return;
-  const fresh = buildMsgEl(m);
-  parent.replaceChild(fresh, oldWrap);
+  const el = document.querySelector(`.msg[data-msg-id="${msgId}"]`);
+  if (!el) return;
+  const mdx = el.querySelector('.mdx');
+  if (mdx) {
+    mdx.innerHTML = renderMarkdown(content);
+  }
   scrollToBottom(0);
 }
 
@@ -547,7 +693,7 @@ async function runImageGen(userMsg, modelId) {
   const found = findModel(modelId); if (!found) throw new Error('模型未找到');
   const key = apiKey(found.provider.id);
   if (!key) { toast(`${found.provider.label} Key 未填写`); throw new Error('Missing API Key'); }
-  setRibbon('🎨 生成图像', `${found.provider.label} · ${found.model.label}`, '⏳ ');
+  setTaskStatus('🎨 图像生成', `${found.provider.label} · ${found.model.label}`);
   const resp = await fetch(found.provider.baseUrl + found.provider.endpoints.images, {
     method:'POST',
     headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${key}` },
@@ -562,6 +708,7 @@ async function runImageGen(userMsg, modelId) {
     ? 'data:image/png;base64,'+d.data[0].b64_json : '';
   if (!url) throw new Error('无图像返回');
   appendAI(`\n![生成图像](${url})\n\n> ${esc(userMsg.content)}`, modelId, 'generate_image');
+  clearTaskStatus();
   setRibbon('完成', '图像生成 ✅');
 }
 
@@ -570,7 +717,7 @@ async function runVideoGen(userMsg, modelId) {
   const found = findModel(modelId); if (!found) throw new Error('模型未找到');
   const key = apiKey(found.provider.id);
   if (!key) { toast(`${found.provider.label} Key 未填写`); throw new Error('Missing API Key'); }
-  setRibbon('🎬 生成视频', `${found.provider.label} · 提交任务中…`, '⏳ ');
+  setTaskStatus('🎬 视频生成', `${found.provider.label} · 提交任务中…`);
   const resp = await fetch(found.provider.baseUrl + found.provider.endpoints.videos, {
     method:'POST',
     headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${key}` },
@@ -583,6 +730,7 @@ async function runVideoGen(userMsg, modelId) {
   const d = await resp.json();
   const taskId = d.id || d.taskId;
   appendAI(`视频任务已提交，ID: \`${taskId}\`\n\n可稍后到 Agnes 平台查看结果。`, modelId, 'generate_video');
+  clearTaskStatus();
   setRibbon('已提交', `视频任务 ${taskId}`);
 }
 
@@ -639,9 +787,11 @@ function clearAllMessages() {
   if (!state.messages.length) return;
   confirmAsync('确认清空上下文对话？之前的对话记录将被清除，但模型选择与 Key 配置保留。', () => {
     state.messages = []; state.pendingImages = [];
+    state.currentTask = null;
+    state.abortController = null;
     renderAttachChips(); renderFilePreview();
     savePrefs(); renderMessages();
-    setRibbon('待机中', state.routerMode === 'ai' ? '🤖 AI路由就绪' : '🔤 关键词匹配就绪');
+    clearTaskStatus();
     toast('已清空上下文');
   });
 }
@@ -650,9 +800,12 @@ function newConversation() {
     state.messages = []; state.pendingImages = [];
     state.selectedModel = null;
     state.smartRouter = true;
+    state.currentTask = null;
+    state.abortController = null;
     const rt = $('#routerToggle'); if (rt) rt.checked = true;
     renderAttachChips(); renderFilePreview();
     renderModelList(); renderMessages(); savePrefs();
+    clearTaskStatus();
     setRibbon('新对话', '🪄 智能路由已启用');
     toast('🆕 已开启新对话');
   };
@@ -670,15 +823,17 @@ function copyAllAnswers() {
 
 /* ---------- 偏好 ---------- */
 function savePrefs() {
-  localStorage.setItem('ocr:msgs', JSON.stringify(state.messages));
-  localStorage.setItem('ocr:prefs', JSON.stringify({
-    smartRouter: state.smartRouter, selectedModel: state.selectedModel,
-    routerMode: state.routerMode,
-  }));
-  Object.values(PROVIDERS).forEach(p => {
-    const v = document.getElementById(p.keyEl)?.value || '';
-    localStorage.setItem('key:'+p.id, v);
-  });
+  setTimeout(() => {
+    localStorage.setItem('ocr:msgs', JSON.stringify(state.messages));
+    localStorage.setItem('ocr:prefs', JSON.stringify({
+      smartRouter: state.smartRouter, selectedModel: state.selectedModel,
+      routerMode: state.routerMode,
+    }));
+    Object.values(PROVIDERS).forEach(p => {
+      const v = document.getElementById(p.keyEl)?.value || '';
+      localStorage.setItem('key:'+p.id, v);
+    });
+  }, 0);
 }
 function loadPrefs() {
   try { state.messages = JSON.parse(localStorage.getItem('ocr:msgs')||'[]'); } catch { state.messages = []; }
@@ -696,8 +851,11 @@ function loadPrefs() {
 /* ---------- 自动增长 Textarea ---------- */
 function autoGrow(ta) {
   if (!ta) return;
+  if (ta._userResized) return;
   ta.style.height = 'auto';
-  ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+  const newH = Math.min(ta.scrollHeight, 320);
+  ta.style.height = newH + 'px';
+  ta._lastAutoHeight = newH;
 }
 
 /* ---------- 欢迎消息 & Hero 互动绑定 ---------- */
@@ -778,9 +936,7 @@ function init() {
   renderModelList();
   renderMessages();
   bindWelcomeInteractions();
-  setRibbon('OCR 就绪', state.smartRouter
-    ? (state.routerMode === 'ai' ? '🤖 AI智能路由已启用' : '🔤 关键词匹配路由已启用')
-    : '已选手动模型');
+  clearTaskStatus();
 
   const rt = $('#routerToggle');
   if (rt) {
@@ -789,12 +945,14 @@ function init() {
       state.smartRouter = e.target.checked;
       if (state.smartRouter) { state.selectedModel = null; renderModelList(); }
       savePrefs();
-      setRibbon(state.smartRouter
-        ? (state.routerMode === 'ai' ? '🤖 AI智能路由已启用' : '🔤 关键词匹配路由已启用')
-        : '智能路由已关闭',
-        state.smartRouter
-        ? (state.routerMode === 'ai' ? 'AI模型自动匹配' : '关键词规则匹配')
-        : '请手动选择模型');
+      if (!state.currentTask) {
+        setRibbon(state.smartRouter
+          ? (state.routerMode === 'ai' ? '🤖 AI智能路由已启用' : '🔤 关键词匹配路由已启用')
+          : '智能路由已关闭',
+          state.smartRouter
+          ? (state.routerMode === 'ai' ? 'AI模型自动匹配' : '关键词规则匹配')
+          : '请手动选择模型');
+      }
     };
   }
 
@@ -872,7 +1030,14 @@ function init() {
   const ta = $('#composerInput');
   if (ta) {
     ta.oninput = () => autoGrow(ta);
+    document.addEventListener('mouseup', () => {
+      const h = parseInt(ta.style.height);
+      if (h && ta._lastAutoHeight != null && Math.abs(h - ta._lastAutoHeight) > 5) {
+        ta._userResized = true;
+      }
+    });
     ta.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && state.isGenerating) { e.preventDefault(); stopGeneration(); return; }
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
     autoGrow(ta);

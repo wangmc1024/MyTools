@@ -773,6 +773,42 @@ body {
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 
+/* ---------- Spinner (任务执行中) ---------- */
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- 活跃任务 Chip ---------- */
+.rchip.active-task {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+  animation: taskPulse 2s ease-in-out infinite;
+}
+@keyframes taskPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { box-shadow: 0 0 0 4px transparent; }
+}
+
+/* ---------- 流式输出光标 ---------- */
+.streaming .mdx::after {
+  content: '▊';
+  display: inline;
+  animation: blink 0.8s step-end infinite;
+  color: var(--accent);
+  font-weight: 700;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
 /* ---------- Stream 对话容器 ---------- */
 .stream-wrapper {
   flex: 1 1 0%;
@@ -1020,11 +1056,17 @@ body {
 }
 .composer textarea {
   width: 100%;
-  border: none; outline: none; resize: none; background: transparent;
+  border: none; outline: none; resize: vertical; background: transparent;
   color: var(--text);
   font-family: inherit; font-size: 13.5px; line-height: 1.5;
-  padding: 4px 0 5px; min-height: 22px;
+  padding: 4px 0 5px; min-height: 40px; max-height: 320px;
   display: block;
+}
+.composer textarea::-webkit-resizer {
+  border-width: 0 0 10px 10px;
+  border-style: solid;
+  border-color: transparent transparent var(--text-faint) transparent;
+  border-radius: 0 0 8px 0;
 }
 .composer textarea::placeholder { color: var(--text-faint); }
 .composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -1080,6 +1122,15 @@ body {
 .send-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .send-btn:active { transform: scale(0.96); }
 .send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+.send-btn.stop-btn {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent);
+  animation: stopPulse 1.5s ease-in-out infinite;
+}
+@keyframes stopPulse {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 8%, transparent); }
+}
 
 /* ---------- Toggle Pill ---------- */
 .toggle-pill {
