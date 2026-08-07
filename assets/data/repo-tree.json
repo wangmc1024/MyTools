@@ -39,6 +39,33 @@
             "name": "index.html",
             "type": "file",
             "path": "apps/article-reader/index.html"
+          },
+          {
+            "name": "scripts",
+            "type": "dir",
+            "children": [
+              {
+                "name": "tooltip.js",
+                "type": "file",
+                "path": "apps/article-reader/scripts/tooltip.js"
+              },
+              {
+                "name": "word-dict.js",
+                "type": "file",
+                "path": "apps/article-reader/scripts/word-dict.js"
+              }
+            ]
+          },
+          {
+            "name": "styles",
+            "type": "dir",
+            "children": [
+              {
+                "name": "word-dict.css",
+                "type": "file",
+                "path": "apps/article-reader/styles/word-dict.css"
+              }
+            ]
           }
         ]
       },
@@ -136,6 +163,78 @@
             "name": "index.html",
             "type": "file",
             "path": "apps/reader-concrete/index.html"
+          },
+          {
+            "name": "scripts",
+            "type": "dir",
+            "children": [
+              {
+                "name": "data.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/data.js"
+              },
+              {
+                "name": "import.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/import.js"
+              },
+              {
+                "name": "init.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/init.js"
+              },
+              {
+                "name": "main.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/main.js"
+              },
+              {
+                "name": "render.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/render.js"
+              },
+              {
+                "name": "tooltip.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/tooltip.js"
+              },
+              {
+                "name": "translation.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/translation.js"
+              },
+              {
+                "name": "tts.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/tts.js"
+              },
+              {
+                "name": "utils.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/utils.js"
+              },
+              {
+                "name": "word-dict.js",
+                "type": "file",
+                "path": "apps/reader-concrete/scripts/word-dict.js"
+              }
+            ]
+          },
+          {
+            "name": "styles",
+            "type": "dir",
+            "children": [
+              {
+                "name": "main.css",
+                "type": "file",
+                "path": "apps/reader-concrete/styles/main.css"
+              },
+              {
+                "name": "word-dict.css",
+                "type": "file",
+                "path": "apps/reader-concrete/styles/word-dict.css"
+              }
+            ]
           }
         ]
       },

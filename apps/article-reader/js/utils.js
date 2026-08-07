@@ -16,6 +16,14 @@ function escapeHtml(str) {
 }
 
 function escapeAttr(str) {
+
+function fetchWithTimeout(url, options, timeout) {
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeout);
+  return fetch(url, Object.assign({}, options, { signal: controller.signal })).finally(function() {
+    clearTimeout(timer);
+  });
+}
   return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 

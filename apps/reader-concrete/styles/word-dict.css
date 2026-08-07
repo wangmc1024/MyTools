@@ -1,0 +1,160 @@
+/* ============================================================
+   WORD DICTIONARY TOOLTIP STYLES
+   ============================================================ */
+
+/* Dictionary result container */
+.dict-word {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 6px;
+  color: var(--accent-light);
+}
+
+.dict-phonetics {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.dict-phonetic {
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.dict-phonetic.us::before {
+  content: 'US ';
+  font-size: 12px;
+}
+
+.dict-phonetic.uk::before {
+  content: 'UK ';
+  font-size: 12px;
+}
+
+.dict-meanings {
+  margin-bottom: 8px;
+}
+
+.dict-meaning {
+  margin-bottom: 6px;
+  padding-left: 4px;
+  animation: dictFadeIn 0.3s ease;
+}
+
+@keyframes dictFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dict-pos {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  text-transform: uppercase;
+}
+
+.dict-def {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.dict-example {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 2px;
+  padding-left: 4px;
+  border-left: 2px solid var(--border);
+}
+
+/* Chinese translation */
+.dict-trans {
+  display: block;
+  font-size: 13px;
+  color: var(--accent-light);
+  font-weight: 500;
+  margin-top: 1px;
+  line-height: 1.4;
+}
+
+/* Example translation */
+.dict-example-trans {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 1px;
+  padding-left: 6px;
+  border-left: 2px solid var(--accent, #4a90d9);
+  opacity: 0.85;
+}
+
+.dict-audio {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dict-source {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* Loading state */
+.tooltip-loading {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* ============================================================
+   POINTER-EVENTS FIX: prevent tooltip from capturing mouse
+   so audio buttons remain clickable after mouse release
+   ============================================================ */
+
+/* The tooltip container — block pointer events so mouse goes through to word elements */
+#wordTooltip {
+  pointer-events: none;
+}
+
+/* Override for interactive elements inside tooltip — make buttons clickable */
+#wordTooltip .dict-audio-btn {
+  pointer-events: auto;
+}
+
+/* Audio play button */
+.dict-audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  /* Ensure pointer events are always enabled on buttons */
+  pointer-events: auto;
+}
+
+.dict-audio-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
