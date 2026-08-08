@@ -58,39 +58,42 @@ document.addEventListener('mouseover', function(e) {
 });
 
 /**
- * Progressive fetch: show first result immediately, then merge others.
+ * Progressive fetch: launch all APIs in parallel, update UI each time any API returns.
+ * Priority: Baidu translation appears first (slowest? no — Baidu is fast!), then
+ * dictionary data (phonetics, audio, definitions) fills in when ready.
  */
 function startProgressiveFetch(word) {
-  var fetchHandle = { aborted: false };
+  var fetchHandle = { aborted: false, controller: new AbortController() };
   pendingProgressiveFetch = fetchHandle;
 
-  // Launch all 4 API calls in parallel using fetchWordDictionary
-  // (which now does parallel + merge internally)
-  fetchWordDictionary(word).then(function(result) {
+  // Show initial loading state
+  tooltipTranslation.innerHTML = '<span class="tooltip-loading">加载中...</span>';
+
+  // Use the progressive version that calls back on each response
+  fetchWordDictionaryProgressive(
+    word,
+    function(result) {
+      if (fetchHandle.aborted || currentHoveredWord !== word) return;
+      if (result) {
+        tooltipTranslation.innerHTML = formatWordDictionaryHTML(result);
+      }
+    },
+    fetchHandle.controller.signal
+  ).catch(function(e) {
     if (fetchHandle.aborted || currentHoveredWord !== word) return;
-    if (result) {
-      tooltipTranslation.innerHTML = formatWordDictionaryHTML(result);
-    } else {
-      // Fallback: try translateWord if all APIs failed
-      translateWord(word).then(function(trans) {
-        if (!fetchHandle.aborted && currentHoveredWord === word) {
-          tooltipTranslation.innerHTML =
-            '<div class="dict-word">' + escapeHtml(word) + '</div>' +
-            '<div class="dict-def">' + escapeHtml(trans) + '</div>';
-        }
-      }).catch(function() {
-        if (!fetchHandle.aborted && currentHoveredWord === word) {
-          tooltipTranslation.innerHTML = '<span class="tooltip-loading">暂无释义</span>';
-        }
-      });
-    }
-    pendingProgressiveFetch = null;
-  }).catch(function(e) {
     console.log('Progressive fetch error:', e.message);
-    if (!fetchHandle.aborted && currentHoveredWord === word) {
-      tooltipTranslation.innerHTML = '<span class="tooltip-loading">暂无释义</span>';
-    }
-    pendingProgressiveFetch = null;
+    // Fallback: try translateWord if all APIs failed
+    translateWord(word).then(function(trans) {
+      if (!fetchHandle.aborted && currentHoveredWord === word) {
+        tooltipTranslation.innerHTML =
+          '<div class="dict-word">' + escapeHtml(word) + '</div>' +
+          '<div class="dict-def">' + escapeHtml(trans) + '</div>';
+      }
+    }).catch(function() {
+      if (!fetchHandle.aborted && currentHoveredWord === word) {
+        tooltipTranslation.innerHTML = '<span class="tooltip-loading">暂无释义</span>';
+      }
+    });
   });
 }
 
