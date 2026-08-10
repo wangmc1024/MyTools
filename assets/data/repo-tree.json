@@ -1,12 +1,12 @@
 [
   {
-    "name": ".claude",
+    "name": ".git-hooks",
     "type": "dir",
     "children": [
       {
-        "name": "settings.local.json",
+        "name": "pre-commit.sh",
         "type": "file",
-        "path": ".claude/settings.local.json"
+        "path": ".git-hooks/pre-commit.sh"
       }
     ]
   },
@@ -28,73 +28,25 @@
     ]
   },
   {
-    "name": "apps",
+    "name": ".gitignore",
+    "type": "file",
+    "path": ".gitignore"
+  },
+  {
+    "name": ".vscode",
     "type": "dir",
     "children": [
       {
-        "name": "article-reader",
-        "type": "dir",
-        "children": [
-          {
-            "name": "index.html",
-            "type": "file",
-            "path": "apps/article-reader/index.html"
-          },
-          {
-            "name": "scripts",
-            "type": "dir",
-            "children": [
-              {
-                "name": "tooltip.js",
-                "type": "file",
-                "path": "apps/article-reader/scripts/tooltip.js"
-              },
-              {
-                "name": "word-dict.js",
-                "type": "file",
-                "path": "apps/article-reader/scripts/word-dict.js"
-              }
-            ]
-          },
-          {
-            "name": "styles",
-            "type": "dir",
-            "children": [
-              {
-                "name": "word-dict.css",
-                "type": "file",
-                "path": "apps/article-reader/styles/word-dict.css"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "Talk2GeoGebra",
-        "type": "dir",
-        "children": [
-          {
-            "name": "app.js",
-            "type": "file",
-            "path": "apps/Talk2GeoGebra/app.js"
-          },
-          {
-            "name": "ggb-api.js",
-            "type": "file",
-            "path": "apps/Talk2GeoGebra/ggb-api.js"
-          },
-          {
-            "name": "index.html",
-            "type": "file",
-            "path": "apps/Talk2GeoGebra/index.html"
-          },
-          {
-            "name": "style.css",
-            "type": "file",
-            "path": "apps/Talk2GeoGebra/style.css"
-          }
-        ]
-      },
+        "name": "settings.json",
+        "type": "file",
+        "path": ".vscode/settings.json"
+      }
+    ]
+  },
+  {
+    "name": "apps",
+    "type": "dir",
+    "children": [
       {
         "name": "ChatOCR",
         "type": "dir",
@@ -145,6 +97,146 @@
         ]
       },
       {
+        "name": "Talk2GeoGebra",
+        "type": "dir",
+        "children": [
+          {
+            "name": "app.js",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/app.js"
+          },
+          {
+            "name": "ggb-api.js",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/ggb-api.js"
+          },
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/index.html"
+          },
+          {
+            "name": "style.css",
+            "type": "file",
+            "path": "apps/Talk2GeoGebra/style.css"
+          }
+        ]
+      },
+      {
+        "name": "article-reader",
+        "type": "dir",
+        "children": [
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/article-reader/index.html"
+          },
+          {
+            "name": "js",
+            "type": "dir",
+            "children": [
+              {
+                "name": "config.js",
+                "type": "file",
+                "path": "apps/article-reader/js/config.js"
+              },
+              {
+                "name": "db.js",
+                "type": "file",
+                "path": "apps/article-reader/js/db.js"
+              },
+              {
+                "name": "import.js",
+                "type": "file",
+                "path": "apps/article-reader/js/import.js"
+              },
+              {
+                "name": "init.js",
+                "type": "file",
+                "path": "apps/article-reader/js/init.js"
+              },
+              {
+                "name": "parser.js",
+                "type": "file",
+                "path": "apps/article-reader/js/parser.js"
+              },
+              {
+                "name": "renderer.js",
+                "type": "file",
+                "path": "apps/article-reader/js/renderer.js"
+              },
+              {
+                "name": "scroll.js",
+                "type": "file",
+                "path": "apps/article-reader/js/scroll.js"
+              },
+              {
+                "name": "state.js",
+                "type": "file",
+                "path": "apps/article-reader/js/state.js"
+              },
+              {
+                "name": "theme.js",
+                "type": "file",
+                "path": "apps/article-reader/js/theme.js"
+              },
+              {
+                "name": "translation.js",
+                "type": "file",
+                "path": "apps/article-reader/js/translation.js"
+              },
+              {
+                "name": "tts.js",
+                "type": "file",
+                "path": "apps/article-reader/js/tts.js"
+              },
+              {
+                "name": "utils.js",
+                "type": "file",
+                "path": "apps/article-reader/js/utils.js"
+              },
+              {
+                "name": "voices.js",
+                "type": "file",
+                "path": "apps/article-reader/js/voices.js"
+              },
+              {
+                "name": "word-tooltip.js",
+                "type": "file",
+                "path": "apps/article-reader/js/word-tooltip.js"
+              }
+            ]
+          },
+          {
+            "name": "scripts",
+            "type": "dir",
+            "children": [
+              {
+                "name": "tooltip.js",
+                "type": "file",
+                "path": "apps/article-reader/scripts/tooltip.js"
+              },
+              {
+                "name": "word-dict.js",
+                "type": "file",
+                "path": "apps/article-reader/scripts/word-dict.js"
+              }
+            ]
+          },
+          {
+            "name": "styles",
+            "type": "dir",
+            "children": [
+              {
+                "name": "word-dict.css",
+                "type": "file",
+                "path": "apps/article-reader/styles/word-dict.css"
+              }
+            ]
+          }
+        ]
+      },
+      {
         "name": "py-ide",
         "type": "dir",
         "children": [
@@ -152,6 +244,33 @@
             "name": "index.html",
             "type": "file",
             "path": "apps/py-ide/index.html"
+          },
+          {
+            "name": "js",
+            "type": "dir",
+            "children": [
+              {
+                "name": "pyide-app.js",
+                "type": "file",
+                "path": "apps/py-ide/js/pyide-app.js"
+              },
+              {
+                "name": "pyodide-core.js",
+                "type": "file",
+                "path": "apps/py-ide/js/pyodide-core.js"
+              }
+            ]
+          },
+          {
+            "name": "tests",
+            "type": "dir",
+            "children": [
+              {
+                "name": "verify_pyodide_314.py",
+                "type": "file",
+                "path": "apps/py-ide/tests/verify_pyodide_314.py"
+              }
+            ]
           }
         ]
       },
@@ -243,6 +362,44 @@
         "type": "dir",
         "children": [
           {
+            "name": "assets",
+            "type": "dir",
+            "children": [
+              {
+                "name": "css",
+                "type": "dir",
+                "children": [
+                  {
+                    "name": "style.css",
+                    "type": "file",
+                    "path": "apps/voice-craft/assets/css/style.css"
+                  }
+                ]
+              },
+              {
+                "name": "js",
+                "type": "dir",
+                "children": [
+                  {
+                    "name": "cloudflare-worker-stt.js",
+                    "type": "file",
+                    "path": "apps/voice-craft/assets/js/cloudflare-worker-stt.js"
+                  },
+                  {
+                    "name": "main.js",
+                    "type": "file",
+                    "path": "apps/voice-craft/assets/js/main.js"
+                  },
+                  {
+                    "name": "portal.js",
+                    "type": "file",
+                    "path": "apps/voice-craft/assets/js/portal.js"
+                  }
+                ]
+              }
+            ]
+          },
+          {
             "name": "index.html",
             "type": "file",
             "path": "apps/voice-craft/index.html"
@@ -263,6 +420,22 @@
             "name": "style.css",
             "type": "file",
             "path": "assets/css/style.css"
+          }
+        ]
+      },
+      {
+        "name": "data",
+        "type": "dir",
+        "children": [
+          {
+            "name": "repo-tree.json",
+            "type": "file",
+            "path": "assets/data/repo-tree.json"
+          },
+          {
+            "name": "tools.json",
+            "type": "file",
+            "path": "assets/data/tools.json"
           }
         ]
       },
@@ -288,22 +461,6 @@
         ]
       },
       {
-        "name": "data",
-        "type": "dir",
-        "children": [
-          {
-            "name": "repo-tree.json",
-            "type": "file",
-            "path": "assets/data/repo-tree.json"
-          },
-          {
-            "name": "tools.json",
-            "type": "file",
-            "path": "assets/data/tools.json"
-          }
-        ]
-      },
-      {
         "name": "js",
         "type": "dir",
         "children": [
@@ -318,6 +475,22 @@
             "path": "assets/js/tools.js"
           }
         ]
+      }
+    ]
+  },
+  {
+    "name": "prompts",
+    "type": "dir",
+    "children": [
+      {
+        "name": "mermaid.txt",
+        "type": "file",
+        "path": "prompts/mermaid.txt"
+      },
+      {
+        "name": "novel.txt",
+        "type": "file",
+        "path": "prompts/novel.txt"
       }
     ]
   },
