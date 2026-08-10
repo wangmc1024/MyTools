@@ -872,3 +872,201 @@ body {
     color: var(--primary-color);
     background: rgba(37, 99, 235, 0.04);
 }
+
+/* ============================================================
+   录音功能样式
+   ============================================================ */
+
+.audio-record-zone {
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 32px 24px;
+    text-align: center;
+    background: linear-gradient(135deg, var(--background-color) 0%, rgba(248, 250, 252, 0.9) 100%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.audio-record-zone:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);
+}
+
+.record-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.record-icon {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 50%;
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.record-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.record-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+    padding: 8px 16px;
+    background: rgba(100, 116, 139, 0.1);
+    border-radius: var(--radius-sm);
+    max-width: 80%;
+    line-height: 1.5;
+}
+
+.record-controls {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.btn-record {
+    padding: 14px 28px;
+    border: none;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 140px;
+}
+
+.btn-record:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-record:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn-record.stop {
+    background: var(--error-color);
+}
+
+.btn-record.stop:hover:not(:disabled) {
+    background: #dc2626;
+}
+
+.audio-visualizer {
+    width: 100%;
+    margin: 24px 0;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    display: none;
+}
+
+.audio-visualizer.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+#audioCanvas {
+    width: 100%;
+    height: 80px;
+    background: transparent;
+}
+
+.recording-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.recording-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    padding: 8px 16px;
+    background: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.audio-preview {
+    width: 100%;
+    margin-top: 16px;
+}
+
+#recordedAudio {
+    width: 100%;
+    border-radius: var(--radius-md);
+    background: white;
+    box-shadow: var(--shadow-sm);
+}
+
+/* 录音状态动画 */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.recording .record-icon {
+    animation: pulse 1.5s infinite;
+}
+
+/* 移动端录音功能适配 */
+@media (max-width: 768px) {
+    .audio-record-zone {
+        padding: 24px 16px;
+    }
+
+    .record-icon {
+        width: 60px;
+        height: 60px;
+    }
+
+    .record-text {
+        font-size: 1.1rem;
+    }
+
+    .record-controls {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .btn-record {
+        width: 100%;
+        max-width: 220px;
+    }
+
+    .recording-time {
+        font-size: 1.2rem;
+    }
+}

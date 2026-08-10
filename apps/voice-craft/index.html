@@ -270,28 +270,90 @@
         <div class="form-container">
             <form id="transcriptionForm">
                 <div class="form-group">
-                    <label class="form-label">上传音频文件</label>
-                    <div class="audio-upload-zone" id="audioDropZone">
-                        <div class="file-drop-content">
-                            <div class="file-drop-icon">
-                                <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-                                    <path d="M14 2v6h6"/>
-                                    <path d="M12 18v-6"/>
-                                    <path d="M9 15l3-3 3 3"/>
+                    <label class="form-label">选择音频来源</label>
+                    <div class="input-method-tabs">
+                        <button type="button" class="tab-btn active" id="uploadAudioTab">
+                            <span class="tab-icon">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                                 </svg>
-                            </div>
-                            <p class="file-drop-text">拖拽音频文件到此处，或点击选择文件</p>
-                            <p class="file-drop-hint">支持mp3、wav、m4a、flac、aac、ogg、webm、amr、3gp格式，最大10MB</p>
-                        </div>
-                        <input type="file" id="audioFileInput" accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.webm,.amr,.3gp,audio/*" style="display: none;">
+                            </span>
+                            <span>上传文件</span>
+                        </button>
+                        <button type="button" class="tab-btn" id="recordAudioTab">
+                            <span class="tab-icon">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+                                </svg>
+                            </span>
+                            <span>录制音频</span>
+                        </button>
                     </div>
-                    <div class="file-info" id="audioFileInfo" style="display: none;">
-                        <div class="file-details">
-                            <span class="file-name" id="audioFileName"></span>
-                            <span class="file-size" id="audioFileSize"></span>
+
+                    <!-- 上传文件区域 -->
+                    <div id="uploadAudioArea">
+                        <div class="audio-upload-zone" id="audioDropZone">
+                            <div class="file-drop-content">
+                                <div class="file-drop-icon">
+                                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
+                                        <path d="M14 2v6h6"/>
+                                        <path d="M12 18v-6"/>
+                                        <path d="M9 15l3-3 3 3"/>
+                                    </svg>
+                                </div>
+                                <p class="file-drop-text">拖拽音频文件到此处，或点击选择文件</p>
+                                <p class="file-drop-hint">支持mp3、wav、m4a、flac、aac、ogg、webm、amr、3gp格式，最大10MB</p>
+                            </div>
+                            <input type="file" id="audioFileInput" accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.webm,.amr,.3gp,audio/*" style="display: none;">
                         </div>
-                        <button type="button" class="file-remove-btn" id="audioFileRemoveBtn">✕</button>
+                        <div class="file-info" id="audioFileInfo" style="display: none;">
+                            <div class="file-details">
+                                <span class="file-name" id="audioFileName"></span>
+                                <span class="file-size" id="audioFileSize"></span>
+                            </div>
+                            <button type="button" class="file-remove-btn" id="audioFileRemoveBtn">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- 录制音频区域 -->
+                    <div id="recordAudioArea" style="display: none;">
+                        <div class="audio-record-zone">
+                            <div class="record-info">
+                                <div class="record-icon">
+                                    <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+                                    </svg>
+                                </div>
+                                <p class="record-text">点击开始录音</p>
+                                <p class="record-hint">确保已授予麦克风权限，录音将自动保存</p>
+                            </div>
+
+                            <div class="record-controls">
+                                <button type="button" class="btn-record" id="recordStartBtn">
+                                    <span>🎙️</span>
+                                    <span>开始录音</span>
+                                </button>
+                                <button type="button" class="btn-record stop" id="recordStopBtn" disabled>
+                                    <span>⏸️</span>
+                                    <span>停止录音</span>
+                                </button>
+                            </div>
+
+                            <div class="audio-visualizer" id="audioVisualizer">
+                                <canvas id="audioCanvas" width="400" height="80"></canvas>
+                            </div>
+
+                            <div class="recording-info" id="recordingInfo" style="display: none;">
+                                <div class="recording-time">
+                                    <span>⏱️</span>
+                                    <span id="recordingTime">00:00</span>
+                                </div>
+                                <div class="audio-preview" id="audioPreviewContainer" style="display: none;">
+                                    <audio id="recordedAudio" controls></audio>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -347,7 +409,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="tokenInput">API Token配置</label>
+                    <label class="form-label" for="tokenInput">API Key配置</label>
                     <div class="token-config">
                         <div class="token-option">
                             <label class="token-label">
@@ -363,7 +425,7 @@
                         </div>
                     </div>
                     <input type="password" class="form-input" id="tokenInput"
-                           placeholder="输入您的API Token（可选）" style="display: none;">
+                           placeholder="输入您的API Key（可选）" style="display: none;">
                 </div>
 
                 <button type="submit" class="btn-primary" id="transcribeBtn">

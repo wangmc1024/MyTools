@@ -1029,12 +1029,15 @@ document.getElementById('transcriptionForm').addEventListener('submit', async fu
             formData.append('model', sttModelSelect.value);
         }
 
-        if (tokenOption === 'custom') {
-            formData.append('token', customToken);
+        // 准备请求头
+        const headers = {};
+        if (tokenOption === 'custom' && customToken.trim()) {
+            headers['Authorization'] = `Bearer ${customToken.trim()}`;
         }
 
-        const response = await requestWithTimeout(`${API_BASE_URL}/v1/audio/transcriptions`, {
+        const response = await requestWithTimeout(`https://api.siliconflow.cn/v1/audio/transcriptions`, {
             method: 'POST',
+            headers: headers,
             body: formData
         });
 
@@ -1256,3 +1259,367 @@ function initializeSTTModelSelector() {
     // 初始渲染
     updateModelHint();
 }
+
+// ============================================================
+// 录音功能实现
+// ============================================================
+
+// 录音相关的全局变量
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordingTimer = null;
+let recordingSeconds = 0;
+let audioContext = null;
+let analyser = null;
+let dataArray = null;
+let animationId = null;
+
+// 初始化录音功能
+function initializeRecording() {
+    // 初始化音频上传和录音的tab切换
+    const uploadAudioTab = document.getElementById('uploadAudioTab');
+    const recordAudioTab = document.getElementById('recordAudioTab');
+    const uploadAudioArea = document.getElementById('uploadAudioArea');
+    const recordAudioArea = document.getElementById('recordAudioArea');
+
+    if (uploadAudioTab && recordAudioTab && uploadAudioArea && recordAudioArea) {
+        // 上传文件tab点击
+        uploadAudioTab.addEventListener('click', function() {
+            this.classList.add('active');
+            recordAudioTab.classList.remove('active');
+            uploadAudioArea.style.display = 'block';
+            recordAudioArea.style.display = 'none';
+            // 停止当前录音（如果有）
+            stopRecording();
+        });
+
+        // 录音tab点击
+        recordAudioTab.addEventListener('click', function() {
+            this.classList.add('active');
+            uploadAudioTab.classList.remove('active');
+            uploadAudioArea.style.display = 'none';
+            recordAudioArea.style.display = 'block';
+        });
+    }
+
+    // 初始化录音按钮
+    const recordStartBtn = document.getElementById('recordStartBtn');
+    const recordStopBtn = document.getElementById('recordStopBtn');
+
+    if (recordStartBtn) {
+        recordStartBtn.addEventListener('click', startRecording);
+    }
+
+    if (recordStopBtn) {
+        recordStopBtn.addEventListener('click', stopRecording);
+    }
+
+    // 初始化音频可视化canvas
+    initializeAudioVisualizer();
+}
+
+// 初始化音频可视化
+function initializeAudioVisualizer() {
+    const canvas = document.getElementById('audioCanvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+}
+
+// 开始录音
+async function startRecording() {
+    try {
+        // 请求麦克风权限
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // 初始化MediaRecorder
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        // 设置录音事件监听
+        mediaRecorder.addEventListener('dataavailable', event => {
+            audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener('stop', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            // 显示录音预览
+            const recordedAudio = document.getElementById('recordedAudio');
+            const audioPreviewContainer = document.getElementById('audioPreviewContainer');
+
+            if (recordedAudio) {
+                recordedAudio.src = audioUrl;
+                recordedAudio.load();
+            }
+
+            if (audioPreviewContainer) {
+                audioPreviewContainer.style.display = 'block';
+            }
+
+            // 将录音数据保存到selectedAudioFile变量
+            selectedAudioFile = new File([audioBlob], `recording_${new Date().getTime()}.wav`, { type: 'audio/wav' });
+
+            // 更新UI显示
+            document.getElementById('audioFileName').textContent = selectedAudioFile.name;
+            document.getElementById('audioFileSize').textContent = formatFileSize(selectedAudioFile.size);
+            document.getElementById('audioFileInfo').style.display = 'flex';
+
+            // 停止音频可视化
+            stopAudioVisualization();
+        });
+
+        // 初始化音频分析器
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+
+        // 开始录音
+        mediaRecorder.start();
+        isRecording = true;
+
+        // 更新UI
+        updateRecordingUI(true);
+
+        // 开始录音计时器
+        startRecordingTimer();
+
+        // 开始音频可视化
+        startAudioVisualization();
+
+        console.log('录音已开始');
+
+    } catch (error) {
+        console.error('录音启动失败:', error);
+        alert('无法访问麦克风，请检查权限设置: ' + error.message);
+    }
+}
+
+// 停止录音
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+
+        // 停止录音计时器
+        stopRecordingTimer();
+
+        // 停止音频可视化
+        stopAudioVisualization();
+
+        // 停止所有媒体流
+        if (mediaRecorder.stream) {
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+
+        // 更新UI
+        updateRecordingUI(false);
+
+        console.log('录音已停止');
+    }
+}
+
+// 更新录音UI状态
+function updateRecordingUI(isRecording) {
+    const recordStartBtn = document.getElementById('recordStartBtn');
+    const recordStopBtn = document.getElementById('recordStopBtn');
+    const audioVisualizer = document.getElementById('audioVisualizer');
+    const recordingInfo = document.getElementById('recordingInfo');
+    const recordIcon = document.querySelector('.record-icon');
+
+    if (isRecording) {
+        // 录音中状态
+        if (recordStartBtn) recordStartBtn.disabled = true;
+        if (recordStopBtn) recordStopBtn.disabled = false;
+        if (audioVisualizer) audioVisualizer.classList.add('active');
+        if (recordingInfo) recordingInfo.style.display = 'flex';
+        if (recordIcon) recordIcon.parentElement.parentElement.classList.add('recording');
+
+        document.querySelector('.record-text').textContent = '录音进行中...';
+    } else {
+        // 停止状态
+        if (recordStartBtn) recordStartBtn.disabled = false;
+        if (recordStopBtn) recordStopBtn.disabled = true;
+        if (audioVisualizer) audioVisualizer.classList.remove('active');
+        if (recordingInfo) recordingInfo.style.display = 'flex';
+        if (recordIcon) recordIcon.parentElement.parentElement.classList.remove('recording');
+
+        document.querySelector('.record-text').textContent = '录音已完成';
+        document.querySelector('.record-hint').textContent = '录音已保存，可以开始转录';
+    }
+}
+
+// 开始录音计时器
+function startRecordingTimer() {
+    recordingSeconds = 0;
+    recordingTimer = setInterval(() => {
+        recordingSeconds++;
+        updateRecordingTime();
+    }, 1000);
+}
+
+// 停止录音计时器
+function stopRecordingTimer() {
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+}
+
+// 更新录音时间显示
+function updateRecordingTime() {
+    const minutes = Math.floor(recordingSeconds / 60);
+    const seconds = recordingSeconds % 60;
+    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    const recordingTimeEl = document.getElementById('recordingTime');
+    if (recordingTimeEl) {
+        recordingTimeEl.textContent = timeString;
+    }
+}
+
+// 开始音频可视化
+function startAudioVisualization() {
+    const canvas = document.getElementById('audioCanvas');
+    if (!canvas || !analyser || !dataArray) return;
+
+    const ctx = canvas.getContext('2d');
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+
+    function draw() {
+        if (!isRecording) return;
+
+        animationId = requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        // 清空画布
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+        // 设置可视化样式
+        const barWidth = (WIDTH / dataArray.length) * 2.5;
+        let barHeight;
+        let x = 0;
+
+        // 绘制频率柱状图
+        for (let i = 0; i < dataArray.length; i++) {
+            barHeight = dataArray[i] * (HEIGHT / 256);
+
+            // 创建渐变色
+            const gradient = ctx.createLinearGradient(0, HEIGHT - barHeight, 0, HEIGHT);
+            gradient.addColorStop(0, '#2563eb');
+            gradient.addColorStop(1, '#818cf8');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+
+            x += barWidth + 1;
+        }
+    }
+
+    draw();
+}
+
+// 停止音频可视化
+function stopAudioVisualization() {
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+
+    // 清空画布
+    const canvas = document.getElementById('audioCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+// 修改音频上传区域的显示逻辑，使其与录音功能兼容
+function updateAudioUploadArea() {
+    const audioFileInfo = document.getElementById('audioFileInfo');
+    const audioDropZone = document.getElementById('audioDropZone');
+    const uploadAudioArea = document.getElementById('uploadAudioArea');
+
+    if (selectedAudioFile && audioFileInfo && audioDropZone) {
+        // 如果选择了文件（包括录音文件），显示文件信息
+        audioFileInfo.style.display = 'flex';
+        audioDropZone.style.display = 'none';
+
+        // 更新文件信息显示
+        document.getElementById('audioFileName').textContent = selectedAudioFile.name;
+        document.getElementById('audioFileSize').textContent = formatFileSize(selectedAudioFile.size);
+    } else {
+        // 如果没有选择文件，显示上传区域
+        if (audioFileInfo) audioFileInfo.style.display = 'none';
+        if (audioDropZone) audioDropZone.style.display = 'block';
+    }
+}
+
+// 修改现有的音频上传逻辑，使其与录音功能兼容
+function handleAudioFileSelect(file) {
+    // 验证文件类型
+    const allowedTypes = [
+        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/flac', 'audio/aac',
+        'audio/ogg', 'audio/webm', 'audio/amr', 'audio/3gpp'
+    ];
+
+    const isValidType = allowedTypes.some(type =>
+        file.type.includes(type) ||
+        file.name.toLowerCase().match(/\.(mp3|wav|m4a|flac|aac|ogg|webm|amr|3gp)$/i)
+    );
+
+    if (!isValidType) {
+        alert('请选择音频格式的文件（mp3、wav、m4a、flac、aac、ogg、webm、amr、3gp）');
+        return;
+    }
+
+    // 验证文件大小（限制为10MB）
+    if (file.size > 10 * 1024 * 1024) {
+        alert('音频文件大小不能超过10MB');
+        return;
+    }
+
+    selectedAudioFile = file;
+
+    // 更新UI显示
+    updateAudioUploadArea();
+}
+
+// 修改现有的音频文件移除逻辑
+document.getElementById('audioFileRemoveBtn').addEventListener('click', function() {
+    selectedAudioFile = null;
+    const audioFileInput = document.getElementById('audioFileInput');
+    if (audioFileInput) audioFileInput.value = '';
+
+    // 隐藏录音预览
+    const audioPreviewContainer = document.getElementById('audioPreviewContainer');
+    if (audioPreviewContainer) audioPreviewContainer.style.display = 'none';
+
+    // 更新UI
+    updateAudioUploadArea();
+});
+
+// 在页面初始化时调用录音功能初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // ... 其他初始化代码 ...
+
+    // 初始化录音功能
+    initializeRecording();
+
+    // 修改现有的音频上传初始化，使其与录音功能兼容
+    if (typeof initializeAudioUpload === 'function') {
+        // 重新初始化音频上传以应用修改后的逻辑
+        initializeAudioUpload();
+    }
+});
