@@ -372,13 +372,13 @@
     (function() {
       var btn = document.getElementById('themeToggle');
       var html = document.documentElement;
-      var saved = localStorage.getItem('theme');
+      var saved = localStorage.getItem('portal-theme');
       if (saved) html.setAttribute('data-theme', saved);
       updateBtn();
       btn.addEventListener('click', function() {
         var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', next);
-        localStorage.setItem('theme', next);
+        localStorage.setItem('portal-theme', next);
         updateBtn();
       });
       function updateBtn() {

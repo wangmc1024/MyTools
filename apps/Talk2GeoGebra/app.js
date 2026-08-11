@@ -538,7 +538,9 @@ function toggleGrid() {
 
 function toggleTheme() {
   STATE.theme = STATE.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', STATE.theme);
   document.body.classList.toggle('dark-theme', STATE.theme === 'dark');
+  try { localStorage.setItem('portal-theme', STATE.theme); } catch(e) {}
   logStatus(`主题已切换为${STATE.theme === 'light' ? '浅色' : '深色'}`, 'info');
 }
 
@@ -924,7 +926,6 @@ window.addEventListener('load', () => {
   document.getElementById('zoomOutButton')?.addEventListener('click', zoomOut);
   document.getElementById('axesToggle')?.addEventListener('click', toggleAxes);
   document.getElementById('gridToggle')?.addEventListener('click', toggleGrid);
-  document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
   document.getElementById('helpToggle')?.addEventListener('click', () => {
     const helpPanel = document.getElementById('helpPanel');
     helpPanel.style.display = helpPanel.style.display === 'none' ? 'block' : 'none';

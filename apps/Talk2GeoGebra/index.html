@@ -27,7 +27,6 @@
     <div class="header">
       <h2>🎨 AI 指令 → GeoGebra 自动绘图</h2>
       <div class="header-actions">
-        <button id="themeToggle" class="btn-icon" title="切换主题">🌙</button>
         <button id="helpToggle" class="btn-icon" title="帮助">❓</button>
       </div>
     </div>
@@ -212,49 +211,18 @@
   <!-- Portal theme sync -->
   <script>
     (function() {
-      var portalNavbar = document.getElementById('portalNavbar');
       var portalBtn = document.getElementById('portalThemeToggle');
       var portalIcon = document.getElementById('portalThemeIcon');
-      function updatePortalIcon() {
-        if (portalIcon) portalIcon.textContent = STATE.theme === 'dark' ? '☾' : '☀️';
-      }
-      function syncPortalTheme(isDark) {
-        if (!portalNavbar) return;
-        if (isDark) {
-          portalNavbar.style.background = '#1a1a2e';
-          portalNavbar.style.borderColor = '#3a3a5c';
-          portalNavbar.style.color = '#b0b0b0';
-          if (portalBtn) {
-            portalBtn.style.background = '#1a1a2e';
-            portalBtn.style.borderColor = '#3a3a5c';
-            portalBtn.style.color = '#e0e0e0';
-          }
-          portalNavbar.querySelector('a').style.color = '#667eea';
-          var titleEl = portalNavbar.querySelectorAll('span')[1];
-          if (titleEl) titleEl.style.color = '#e0e0e0';
-        } else {
-          portalNavbar.style.background = '#f8f9fa';
-          portalNavbar.style.borderColor = '#d7dbdf';
-          portalNavbar.style.color = '#6c757d';
-          if (portalBtn) {
-            portalBtn.style.background = 'rgba(255,255,255,0.95)';
-            portalBtn.style.borderColor = '#d7dbdf';
-            portalBtn.style.color = '#495057';
-          }
-          portalNavbar.querySelector('a').style.color = '#b0d5df';
-          var titleEl = portalNavbar.querySelectorAll('span')[1];
-          if (titleEl) titleEl.style.color = '#2c3e50';
-        }
-      }
-      updatePortalIcon();
-      syncPortalTheme(false);
+      // Read saved theme from portal-key and apply
+      var saved = localStorage.getItem('portal-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+      STATE.theme = saved;
+      if (portalIcon) portalIcon.textContent = saved === 'dark' ? '☾' : '☀️';
+      // Wire portal button click
       if (portalBtn) {
         portalBtn.addEventListener('click', function() {
           toggleTheme();
-          setTimeout(function() {
-            updatePortalIcon();
-            syncPortalTheme(STATE.theme === 'dark');
-          }, 0);
+          if (portalIcon) portalIcon.textContent = STATE.theme === 'dark' ? '☾' : '☀️';
         });
       }
     })();

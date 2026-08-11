@@ -70,7 +70,6 @@
   -webkit-tap-highlight-color: transparent;
   min-width: 44px;
   min-height: 44px;
-  min-height: 44px;
   align-items: center;
   justify-content: center;
 }
@@ -86,19 +85,20 @@
   }
 
   #portalNavbar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .nav-links,
   .navbar-links {
     display: none;
-    width: 100%;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
     background: var(--color-bg-alt);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     padding: var(--spacing-3) var(--spacing-4);
-    gap: var(--spacing-2);
     border-bottom: 1px solid var(--color-border);
     box-shadow: var(--shadow-lg);
   }
@@ -110,7 +110,7 @@
 
   .nav-links a,
   .navbar-links a {
-    padding: var(--spacing-2) 0;
+    padding: var(--spacing-2) var(--spacing-2);
     min-height: 44px;
     display: flex;
     align-items: center;

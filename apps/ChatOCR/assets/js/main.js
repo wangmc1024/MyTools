@@ -103,9 +103,9 @@ function bindThemeToggle() {
   const apply = (th) => {
     document.documentElement.setAttribute('data-theme', th);
     if (icon) icon.textContent = th === 'dark' ? '🌙' : '☀️';
-    localStorage.setItem('theme', th);
+    localStorage.setItem('portal-theme', th);
   };
-  const saved = localStorage.getItem('theme')
+  const saved = localStorage.getItem('portal-theme')
     || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   apply(saved);
   btn.onclick = () => {

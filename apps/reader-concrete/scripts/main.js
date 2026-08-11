@@ -25,7 +25,7 @@ function saveCustomArticles() {
 //  STATE
 // ============================================================
 let currentArticle = 0;
-let theme = localStorage.getItem('theme') || 'dark';
+let theme = localStorage.getItem('portal-theme') || 'dark';
 let speechRate = parseFloat(localStorage.getItem('speechRate')) || 0.95;
 const translationCache = {};
 const wordCache = {};
@@ -82,7 +82,8 @@ function lookupCache(cache, key, lsKey) {
 // ============================================================
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('themeIcon').textContent = theme === 'dark' ? '🌙' : '☀';
+  var icon = document.getElementById('portalThemeIcon');
+  if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀';
 }
 applyTheme();
 
@@ -102,12 +103,6 @@ speedSlider.addEventListener('input', function() {
   ttsAudioCache.forEach(function(url) { URL.revokeObjectURL(url); });
   ttsAudioCache.clear();
   ttsCacheKeys.length = 0;
-});
-
-document.getElementById('themeToggle').addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('theme', theme);
-  applyTheme();
 });
 
 // ============================================================
@@ -1300,14 +1295,12 @@ updateProgress();
 (function() {
   var portalThemeBtn = document.getElementById('portalThemeToggle');
   var portalThemeIcon = document.getElementById('portalThemeIcon');
-  var current = document.documentElement.getAttribute('data-theme') || 'dark';
-  if (portalThemeIcon) portalThemeIcon.textContent = current === 'dark' ? '🌙' : '☀';
+  if (portalThemeIcon) portalThemeIcon.textContent = theme === 'dark' ? '🌙' : '☀';
   if (portalThemeBtn) {
     portalThemeBtn.addEventListener('click', function() {
-      current = current === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem('theme', current); } catch(e) {}
+      theme = theme === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('portal-theme', theme); } catch(e) {}
       applyTheme();
-      if (portalThemeIcon) portalThemeIcon.textContent = current === 'dark' ? '🌙' : '☀';
     });
   }
 })();

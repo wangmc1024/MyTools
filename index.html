@@ -171,8 +171,16 @@
 
     @media (max-width: 640px) {
       .dash-cards { flex-direction: column; align-items: stretch; gap: 20px; }
-      .dash-card { width: 100%; }
+      .dash-card {
+        width: 100%;
+        overflow: visible;
+        padding: 16px 20px;
+      }
+      .dash-card-body { min-width: 0; overflow: visible; }
+      .dash-card-avatar { width: 36px; height: 36px; }
+      .dash-card-icon { font-size: 24px; }
       .dash-connector { display: none; }
+      #canvas-wrap { height: 320px; }
     }
 
     /* ---- Tooltip ---- */

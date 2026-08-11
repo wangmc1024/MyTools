@@ -31,7 +31,7 @@ var currentArticleBtn = null;
 var currentAudioEl = null;
 
 // Load preferences from localStorage
-try { theme = localStorage.getItem('theme') || 'dark'; } catch(e) {}
+try { theme = localStorage.getItem('portal-theme') || 'dark'; } catch(e) {}
 try { speechRate = parseFloat(localStorage.getItem('speechRate')) || 0.95; } catch(e) {}
 try {
   var savedVisibleRaw = localStorage.getItem('visibleArticleIds');
