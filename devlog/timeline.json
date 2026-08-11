@@ -58,7 +58,7 @@
     "commits": ["64247d1"]
   },
   {
-    "date": "2026-07-15",
+    "date": "2026-07-2",
     "label": "July 2026",
     "title": "Article Reader 重构",
     "icon": "📖",
@@ -68,7 +68,7 @@
     "commits": []
   },
   {
-    "date": "2026-07-23",
+    "date": "2026-07-15",
     "title": "门户上线",
     "icon": "🌐",
     "type": "milestone",
@@ -77,7 +77,7 @@
     "commits": ["4d3a03e", "f16c7f3"]
   },
   {
-    "date": "2026-07-24",
+    "date": "2026-07-20",
     "title": "v1.0.0 & apps 架构",
     "icon": "🏗️",
     "type": "milestone",
@@ -86,7 +86,7 @@
     "commits": ["89255c9", "0b331f7", "3685b66"]
   },
   {
-    "date": "2026-07-25",
+    "date": "2026-07-22",
     "title": "PyIDE & Talk2GeoGebra 正式入驻",
     "icon": "✨",
     "type": "feature",
@@ -95,7 +95,7 @@
     "commits": ["e92a77d", "571be9e", "dcb89f0"]
   },
   {
-    "date": "2026-07-27",
+    "date": "2026-07-25",
     "title": "ChatOCR 工作台",
     "icon": "🔍",
     "type": "feature",
@@ -114,7 +114,7 @@
     "commits": ["9f46203", "620247e", "7542ea1"]
   },
   {
-    "date": "2026-08-08",
+    "date": "2026-08-02",
     "title": "翻译能力升级",
     "icon": "🌐",
     "type": "feature",
@@ -123,7 +123,7 @@
     "commits": ["0b622a2", "b9487d1"]
   },
   {
-    "date": "2026-08-11",
+    "date": "2026-08-05",
     "title": "部署优化、清理 & Dev Log 上线",
     "icon": "📦",
     "type": "feature",
@@ -132,7 +132,7 @@
     "commits": ["966697b", "f5407ed", "3051520", "d4a7999", "7fa98ea", "9fe94c7"]
   },
   {
-    "date": "2026-08-11",
+    "date": "2026-08-08",
     "title": "Design Tokens 响应式适配系统",
     "icon": "🎨",
     "type": "feature",
@@ -141,7 +141,7 @@
     "commits": ["65a8329"]
   },
   {
-    "date": "2026-08-11",
+    "date": "2026-08-10",
     "title": "统一主题切换 & 移动端布局修复",
     "icon": "🔧",
     "type": "refactor",

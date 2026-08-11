@@ -1,3 +1,8 @@
+---
+name: update-devlog
+description: 为开发时间线添加新日志条目
+---
+
 # update-devlog
 
 为 Gizmo Galaxy 的开发时间线 (`devlog/timeline.json`) 添加新条目。

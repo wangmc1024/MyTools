@@ -24,7 +24,7 @@ description: 将新增/变更的工具文件自动注册到项目配置
 - **version**: `<meta name="version">` 或文件名 `v\d+\.\d+`
 - **description**: `<meta description>` > i18n `page.description` > `<h1>+<p class="subtitle">` > ""
 
-**注入门户导航栏**（缺 `id="portalNavbar"` 时��：
+**注入门户导航栏**（缺 `id="portalNavbar"` 时）：
 参考 `apps/article-reader/index.html` 的现有方案，在 `:root` 补充共享 CSS 变量（`--bg-secondary`, `--accent-light`, `--border-hover`, `--bg-card`）+ light/dark 适配 + 主题切换 inline script。导航链接用 `../../index.html`（两层穿透）。
 
 ### 3. 浏览器脚本 (`tempermonkeyScript/*.js`) 处理

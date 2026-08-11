@@ -88,8 +88,8 @@
     flex-wrap: nowrap;
   }
 
-  .nav-links,
-  .navbar-links {
+  #portalNavbar.nav-links,
+  #portalNavbar.navbar-links {
     display: none;
     flex-direction: row;
     flex-wrap: wrap;
@@ -103,13 +103,13 @@
     box-shadow: var(--shadow-lg);
   }
 
-  .nav-links.is-open,
-  .navbar-links.is-open {
+  #portalNavbar.nav-links.is-open,
+  #portalNavbar.navbar-links.is-open {
     display: flex;
   }
 
-  .nav-links a,
-  .navbar-links a {
+  #portalNavbar.nav-links a,
+  #portalNavbar.navbar-links a {
     padding: var(--spacing-2) var(--spacing-2);
     min-height: 44px;
     display: flex;
