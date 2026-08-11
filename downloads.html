@@ -8,6 +8,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
   <title>下载中心 — Gizmo Galaxy</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/portal-nav.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -20,22 +22,7 @@
     }
   </script>
   <style>
-    :root, [data-theme="dark"] {
-      --bg: #0a0e1a; --bg-card: rgba(255,255,255,0.06);
-      --bg-card-hover: rgba(255,255,255,0.12);
-      --text: #e8eaf0; --text-muted: #9ca3af;
-      --border: rgba(255,255,255,0.08);
-      --accent: rgba(99,91,255,0.12);
-      --accent-light: #8b83ff;
-    }
-    [data-theme="light"] {
-      --bg: #f0f2f8; --bg-card: rgba(255,255,255,0.8);
-      --bg-card-hover: rgba(99,91,255,0.06);
-      --text: #1a1a2e; --text-muted: #666;
-      --border: rgba(0,0,0,0.08);
-      --accent: rgba(99,91,255,0.08);
-      --accent-light: #635bff;
-    }
+    /* ---- Theme variables now in tokens.css ---- */
     body { background: var(--bg); color: var(--text); transition: background .3s, color .3s; }
     .nav-glass {
       position: sticky; top: 0; z-index: 100;
@@ -273,7 +260,10 @@
       </svg>
       <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">Gizmo Galaxy</span>
     </a>
-    <div class="flex items-center gap-1">
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="nav-links flex items-center gap-1">
       <a href="index.html" class="back-link" title="返回首页">
         <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:.75;">
           <path d="M14 3l2.2 5.7L22 9.8l-4.6 3.4L18.3 19 14 16.6 9.7 19l.9-5.8L6 9.8l5.8-1.1L14 3z" fill="url(#lg)"/>

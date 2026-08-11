@@ -1,39 +1,9 @@
-:root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --secondary-color: #64748b;
-    --success-color: #059669;
-    --warning-color: #d97706;
-    --error-color: #dc2626;
-    --background-color: #f8fafc;
-    --surface-color: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --border-color: #e2e8f0;
-    --border-focus: #3b82f6;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
+/* ============================================================
+   VoiceCraft — AI Voice Processing Platform
+   Depends on: ../../assets/css/tokens.css
+   ============================================================ */
 
-    /* Portal navbar variables — shared with other Web Tools */
-    --bg-secondary: #111827;
-    --accent-light: #818cf8;
-    --border-hover: rgba(255,255,255,0.28);
-    --bg-card: rgba(255,255,255,0.14);
-    --bg-card-hover: rgba(255,255,255,0.20);
-}
-
-[data-theme="light"] {
-    --bg-secondary: #f8fafc;
-    --accent-light: #2563eb;
-    --border-hover: rgba(0,0,0,0.12);
-    --bg-card: #ffffff;
-    --bg-card-hover: rgba(99,91,255,0.08);
-}
+/* ---- Theme variables now in tokens.css ---- */
 
 * {
     margin: 0;
@@ -702,24 +672,24 @@ body {
 
 @media (max-width: 768px) {
     .container {
-        padding: 16px;
+        padding: var(--spacing-4);
     }
 
     .header {
-        padding: 30px 20px;
+        padding: var(--space-xl) var(--space-md);
     }
 
     .header h1 {
-        font-size: 2rem;
+        font-size: var(--text-2xl);
     }
 
     .form-container {
-        padding: 24px;
+        padding: var(--spacing-6);
     }
 
     .controls-grid {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: var(--spacing-4);
     }
 
     .input-method-tabs {
@@ -728,9 +698,9 @@ body {
     }
 
     .tab-btn {
-        padding: 12px 16px;
+        padding: var(--spacing-3) var(--spacing-4);
         font-size: 0.85rem;
-        gap: 8px;
+        gap: var(--spacing-2);
     }
 
     .tab-btn .tab-icon {
@@ -739,7 +709,7 @@ body {
     }
 
     .file-drop-zone {
-        padding: 32px 16px;
+        padding: var(--spacing-8) var(--spacing-4);
     }
 
     .file-drop-icon {
@@ -748,9 +718,9 @@ body {
     }
 
     .file-info {
-        padding: 16px;
+        padding: var(--spacing-4);
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-3);
         align-items: flex-start;
     }
 
@@ -760,17 +730,17 @@ body {
 
     /* 移动端模式切换器样式 */
     .mode-switcher {
-        padding: 0 16px;
-        margin-bottom: 20px;
+        padding: 0 var(--spacing-4);
+        margin-bottom: var(--space-md);
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-3);
     }
 
     .mode-btn {
         max-width: none;
-        padding: 14px 20px;
+        padding: var(--spacing-3\.5, 14px) var(--space-md);
         font-size: 0.9rem;
-        gap: 8px;
+        gap: var(--spacing-2);
     }
 
     .mode-icon {

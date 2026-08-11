@@ -483,14 +483,14 @@ body.dark-theme .clear-input-btn:hover {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .container { padding: 15px; }
-  .header { flex-direction: column; gap: 15px; text-align: center; }
-  .header h2 { font-size: 22px; }
-  .toolbar { padding: 20px; }
+  .container { padding: var(--space-md); }
+  .header { flex-direction: column; gap: var(--space-md); text-align: center; }
+  .header h2 { font-size: var(--text-xl); }
+  .toolbar { padding: var(--space-md); }
   .toolbar-row { flex-direction: column; align-items: stretch; }
   .left-buttons, .right-buttons { justify-content: center; }
   .help-categories { grid-template-columns: 1fr; }
   .panels { grid-template-columns: 1fr; }
-  .btn-large { padding: 12px 20px; font-size: 14px; }
+  .btn-large { padding: var(--spacing-3) var(--space-md); font-size: var(--text-sm); }
   #prompt { min-width: 100%; }
 }

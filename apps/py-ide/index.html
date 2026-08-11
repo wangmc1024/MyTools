@@ -4,74 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PyIDE - 浏览器内 Python 集成开发环境</title>
+    <link rel="stylesheet" href="../../assets/css/tokens.css">
+    <link rel="stylesheet" href="../../assets/css/portal-nav.css">
     <meta name="description" content="基于 Pyodide 的浏览器内 Python 集成开发环境，无需服务器即可运行 Python 代码">
     <!-- CodeMirror 5 from cdnjs via zstatic (domestic China mirror) -->
     <link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
     <style>
-        :root {
-            /* Portal navbar variables */
-            --bg-secondary: #111827;
-            --accent-light: #818cf8;
-            --border-hover: rgba(255,255,255,0.28);
-            --bg-card: rgba(255,255,255,0.14);
-            --bg-card-hover: rgba(255,255,255,0.20);
-
-            /* App-specific (dark) */
-            --bg-primary: #0f172a;
-            --bg-secondary-app: #1e293b;
-            --bg-editor: #0d1117;
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --accent: #818cf8;
-            --accent-hover: #6366f1;
-            --success: #22c55e;
-            --error: #ef4444;
-            --warning: #f59e0b;
-            --border: #334155;
-            --border-color: #334155;
-            --line-number-bg: #0d1117;
-            --line-number-fg: #475569;
-            --output-bg: #0d1117;
-            --tab-active-bg: #1e293b;
-            --tab-inactive-bg: transparent;
-            --console-input-bg: #1e293b;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
-            --radius: 6px;
-            --radius-lg: 8px;
-        }
-
-        [data-theme="light"] {
-            --bg-secondary: #f8fafc;
-            --accent-light: #2563eb;
-            --border-hover: rgba(0,0,0,0.12);
-            --bg-card: #ffffff;
-            --bg-card-hover: rgba(99,91,255,0.08);
-
-            --bg-primary: #ffffff;
-            --bg-secondary-app: #f1f5f9;
-            --bg-editor: #fafafa;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --success: #16a34a;
-            --error: #dc2626;
-            --warning: #d97706;
-            --border: #e2e8f0;
-            --border-color: #e2e8f0;
-            --line-number-bg: #f8fafc;
-            --line-number-fg: #cbd5e1;
-            --output-bg: #f8fafc;
-            --tab-active-bg: #ffffff;
-            --tab-inactive-bg: transparent;
-            --console-input-bg: #f8fafc;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
-        }
+        /* ---- Theme variables now in tokens.css ---- */
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -456,7 +396,12 @@
   <span>|</span>
   <span style="font-weight:500;color:var(--text-primary);" id="toolTitle">PyIDE</span>
   <div style="flex:1;"></div>
-  <button id="portalThemeToggle" title="切换主题"><span id="portalThemeIcon"></span></button>
+  <button class="nav-toggle" id="navToggle" aria-label="菜单">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="nav-links" style="display:flex;align-items:center;gap:8px;">
+    <button id="portalThemeToggle" title="切换主题"><span id="portalThemeIcon"></span></button>
+  </div>
 </div>
 
 <!-- Loading overlay -->

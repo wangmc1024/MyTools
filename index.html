@@ -8,6 +8,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
   <title>Gizmo Galaxy — AI Tools Center</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/portal-nav.css">
   <!-- Tailwind CSS v3 CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -27,27 +29,7 @@
     }
   </script>
   <style>
-    /* ---- Theme variables for JS-accessible colors ---- */
-    :root, [data-theme="dark"] {
-      --bg: #0a0e1a;
-      --bg-card: rgba(255,255,255,0.08);
-      --bg-card-hover: rgba(255,255,255,0.14);
-      --text: #e8eaf0;
-      --text-muted: #9ca3af;
-      --border: rgba(255,255,255,0.1);
-      --label-bg: rgba(10,14,26,0.75);
-      --label-stroke: rgba(10,14,26,0.9);
-    }
-    [data-theme="light"] {
-      --bg: #f0f2f8;
-      --bg-card: rgba(0,0,0,0.04);
-      --bg-card-hover: rgba(0,0,0,0.08);
-      --text: #1a1a2e;
-      --text-muted: #666;
-      --border: rgba(0,0,0,0.1);
-      --label-bg: rgba(240,242,248,0.85);
-      --label-stroke: rgba(240,242,248,0.9);
-    }
+    /* ---- Theme variables now in tokens.css ---- */
 
     body { background: var(--bg); color: var(--text); font-family: inherit; transition: background .3s, color .3s; }
 
@@ -302,7 +284,10 @@
       </svg>
       <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">Gizmo Galaxy</span>
     </a>
-    <div class="flex items-center gap-1">
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="nav-links flex items-center gap-1">
       <a href="#" id="navTools" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link active-tool">工具</a>
       <a href="downloads.html" id="navDownloads" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link">下载</a>
       <a href="devlog/index.html" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link">📡 日志</a>

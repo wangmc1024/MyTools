@@ -1,0 +1,118 @@
+/* ============================================================
+   Gizmo Galaxy — Portal Navigation (Shared)
+   Depends on: assets/css/tokens.css
+   ============================================================ */
+
+/* --- Sticky top navbar for all sub-apps --- */
+#portalNavbar {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  background: var(--color-bg-alt);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  height: var(--spacing-11, 44px);
+  padding: 0 var(--spacing-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  gap: var(--spacing-3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#portalNavbar a {
+  color: var(--color-accent-light);
+  text-decoration: none;
+  font-weight: var(--font-bold);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  transition: opacity var(--duration-fast) var(--ease-smooth);
+}
+
+#portalNavbar a:hover {
+  opacity: 0.8;
+}
+
+/* Theme toggle button */
+#portalThemeToggle {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  transition: all var(--duration-fast) var(--ease-smooth);
+  -webkit-tap-highlight-color: transparent;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+#portalThemeToggle:hover {
+  background: var(--color-surface-hover);
+  transform: scale(1.05);
+}
+
+/* --- Mobile nav toggle (hamburger) --- */
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: var(--spacing-2);
+  -webkit-tap-highlight-color: transparent;
+  min-width: 44px;
+  min-height: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+@media (max-width: 768px) {
+  .nav-toggle {
+    display: flex;
+  }
+
+  #portalNavbar {
+    flex-wrap: wrap;
+  }
+
+  .nav-links,
+  .navbar-links {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    background: var(--color-bg-alt);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: var(--spacing-3) var(--spacing-4);
+    gap: var(--spacing-2);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .nav-links.is-open,
+  .navbar-links.is-open {
+    display: flex;
+  }
+
+  .nav-links a,
+  .navbar-links a {
+    padding: var(--spacing-2) 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}

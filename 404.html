@@ -8,6 +8,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
   <title>404 — Gizmo Galaxy</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/portal-nav.css">
   <!-- Tailwind CSS v3 CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -27,29 +29,7 @@
     }
   </script>
   <style>
-    /* ---- Theme tokens (matches index.html) ---- */
-    :root, [data-theme="dark"] {
-      --bg: #0a0e1a;
-      --bg-card: rgba(255,255,255,0.06);
-      --bg-card-hover: rgba(255,255,255,0.12);
-      --text: #e8eaf0;
-      --text-muted: #9ca3af;
-      --border: rgba(255,255,255,0.08);
-      --accent: rgba(99,91,255,0.12);
-      --accent-light: #8b83ff;
-      --label-bg: rgba(10,14,26,0.75);
-    }
-    [data-theme="light"] {
-      --bg: #f0f2f8;
-      --bg-card: rgba(0,0,0,0.04);
-      --bg-card-hover: rgba(0,0,0,0.08);
-      --text: #1a1a2e;
-      --text-muted: #666;
-      --border: rgba(0,0,0,0.1);
-      --accent: rgba(99,91,255,0.08);
-      --accent-light: #635bff;
-      --label-bg: rgba(240,242,248,0.85);
-    }
+    /* ---- Theme variables now in tokens.css ---- */
     body {
       background: var(--bg); color: var(--text);
       font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Noto Sans SC', sans-serif;
@@ -263,7 +243,10 @@
         </svg>
         <span>Gizmo Galaxy</span>
       </a>
-      <div style="display:flex;align-items:center;gap:6px;">
+      <button class="nav-toggle" id="navToggle" aria-label="菜单">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links" style="display:flex;align-items:center;gap:6px;">
         <a href="/" class="nav-link shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium">工具</a>
         <a href="/downloads.html" class="nav-link shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium">下载</a>
         <button class="theme-btn ml-2" id="themeToggle" title="切换主题">☀️</button>

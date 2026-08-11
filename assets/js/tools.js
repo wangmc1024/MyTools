@@ -249,7 +249,27 @@ window.setTheme = setTheme;
 
 // Auto-initialize theme when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() { setTheme(getTheme()); });
+  document.addEventListener('DOMContentLoaded', function() { setTheme(getTheme()); initNavToggle(); });
 } else {
   setTheme(getTheme());
+  initNavToggle();
+}
+
+/* ---------- Mobile Nav Toggle ---------- */
+function initNavToggle() {
+  var toggle = document.getElementById('navToggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', function() {
+    var nav = this.closest('nav, header, #portalNavbar');
+    if (!nav) return;
+    var links = nav.querySelector('.nav-links, .navbar-links');
+    if (links) links.classList.toggle('is-open');
+  });
+  // Close menu when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#portalNavbar')) {
+      var openMenu = document.querySelector('.nav-links.is-open, .navbar-links.is-open');
+      if (openMenu) openMenu.classList.remove('is-open');
+    }
+  });
 }

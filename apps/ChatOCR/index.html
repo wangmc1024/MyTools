@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ChatOCR Pro · 智能文字识别</title>
+  <link rel="stylesheet" href="../../assets/css/tokens.css">
+  <link rel="stylesheet" href="../../assets/css/portal-nav.css">
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet" />
@@ -20,7 +22,10 @@
       <span class="brand-title">ChatOCR<em>Pro</em></span>
       <span class="brand-pill">OCR · 多模态</span>
     </div>
-    <nav class="nav-actions">
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <nav class="nav-actions nav-links">
       <label class="toggle-pill" title="智能路由 (按意图自动匹配 OCR / 对话 / 画图 等模型)">
         <span id="routerModeLabel" title="点击切换路由模式：AI路由 / 关键词匹配">🪄 AI路由</span>
         <input type="checkbox" id="routerToggle" checked />

@@ -1,56 +1,10 @@
 /* ============================================================
    RESET & BASE
+   Depends on: ../../assets/css/tokens.css
    ============================================================ */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-:root {
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-card: rgba(255,255,255,0.14);
-  --bg-card-hover: rgba(255,255,255,0.18);
-  --text-primary: #e8eaf0;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-glow: rgba(99,102,241,0.15);
-  --border: rgba(255,255,255,0.16);
-  --border-hover: rgba(255,255,255,0.28);
-  --shadow: 0 8px 32px rgba(0,0,0,0.3);
-  --radius: 16px;
-  --radius-sm: 10px;
-  --transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  --bold-bg: rgba(99,102,241,0.12);
-  --bold-border: rgba(99,102,241,0.3);
-  --reading-border: rgba(99,102,241,0.5);
-  --modal-bg: #2d3357;
-  --modal-input: #1e2440;
-  --modal-border: rgba(255,255,255,0.28);
-  --overlay: rgba(0,0,0,0.35);
-}
-
-[data-theme="light"] {
-  --bg-primary: #f0f2f5;
-  --bg-secondary: #ffffff;
-  --bg-card: rgba(0,0,0,0.06);
-  --bg-card-hover: rgba(0,0,0,0.09);
-  --text-primary: #1a1a2e;
-  --text-secondary: #555;
-  --text-muted: #999;
-  --accent: #4f46e5;
-  --accent-light: #6366f1;
-  --accent-glow: rgba(79,70,229,0.1);
-  --border: rgba(0,0,0,0.1);
-  --border-hover: rgba(0,0,0,0.2);
-  --shadow: 0 8px 32px rgba(0,0,0,0.08);
-  --bold-bg: rgba(79,70,229,0.08);
-  --bold-border: rgba(79,70,229,0.25);
-  --reading-border: rgba(79,70,229,0.4);
-  --modal-bg: #ffffff;
-  --modal-input: #f4f5f7;
-  --modal-border: rgba(0,0,0,0.12);
-  --overlay: rgba(0,0,0,0.25);
-}
+/* ---- Theme variables now in tokens.css ---- */
 
 body {
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
