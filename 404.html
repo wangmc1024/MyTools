@@ -12,8 +12,11 @@
   <link rel="stylesheet" href="assets/css/portal-nav.css">
   <!-- Tailwind CSS v3 CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- GSAP for advanced animations -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script>
     tailwind.config = {
+      mode: 'open',
       darkMode: 'class',
       theme: {
         extend: {
@@ -29,7 +32,6 @@
     }
   </script>
   <style>
-    /* ---- Theme variables now in tokens.css ---- */
     body {
       background: var(--bg); color: var(--text);
       font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Noto Sans SC', sans-serif;
@@ -38,7 +40,6 @@
     }
     ::selection { background: rgba(99,91,255,.3); }
 
-    /* ---- Glass Navbar (matches index.html) ---- */
     .nav-glass {
       position: sticky; top: 0; z-index: 100;
       backdrop-filter: blur(20px) saturate(180%);
@@ -46,12 +47,13 @@
       background: rgba(17,24,39,.72) !important;
       border-bottom: 1px solid var(--border);
     }
-    [data-theme="light"] .nav-glass { background: rgba(255,255,255,.72) !important; }
+    [data-theme="light"] .nav-glass { background: rgba(255,255,255,.85) !important; }
     .nav-link {
       color: rgba(255,255,255,.7); transition: all .2s;
     }
-    [data-theme="light"] .nav-link { color: rgba(0,0,0,.6); }
+    [data-theme="light"] .nav-link { color: rgba(0,0,0,.55); }
     .nav-link:hover { background: var(--bg-card-hover); }
+    .nav-links { display: flex; align-items: center; gap: 6px; }
     .theme-btn {
       width: 36px; height: 36px; border-radius: 10px;
       background: var(--bg-card); border: 1px solid var(--border);
@@ -61,54 +63,113 @@
     }
     .theme-btn:hover { background: var(--bg-card-hover); transform: scale(1.05); }
 
-    /* ---- Starfield canvas (matches index.html constellation) ---- */
     #starfield {
       position: fixed; inset: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: 0;
     }
 
-    /* ---- Scene ---- */
     .scene {
       position: relative; z-index: 1;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       min-height: calc(100vh - 60px); padding: 40px 20px;
+      overflow: hidden;
     }
 
-    /* ---- Astronaut Illustration (pure CSS/SVG) ---- */
+    /* ---- Articulated Astronaut with GSAP-driven joints ---- */
     .astronaut-wrap {
-      position: relative; width: 180px; height: 180px; margin-bottom: 12px;
-      animation: astroFloat 6s ease-in-out infinite;
+      position: absolute; width: 200px; height: 200px; margin-bottom: 12px;
+      cursor: grab; user-select: none; -webkit-user-select: none;
+      touch-action: none;
+      left: 50%; top: 35%;
+      z-index: 10;
     }
-    @keyframes astroFloat {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      25% { transform: translateY(-12px) rotate(2deg); }
-      50% { transform: translateY(-6px) rotate(-1deg); }
-      75% { transform: translateY(-14px) rotate(1.5deg); }
+    .astronaut-wrap.dragging { cursor: grabbing; }
+    .astro-svg { width: 160px; height: 190px; overflow: visible; }
+
+    /* Joint groups for GSAP rotation */
+    .joint-torso { transform-origin: 80px 95px; }
+    .joint-l-arm { transform-origin: 42px 78px; }
+    .joint-r-arm { transform-origin: 118px 78px; }
+    .joint-l-forearm { transform-origin: 26px 96px; }
+    .joint-r-forearm { transform-origin: 134px 96px; }
+    .joint-l-leg { transform-origin: 62px 118px; }
+    .joint-r-leg { transform-origin: 98px 118px; }
+    .joint-l-boot { transform-origin: 54px 152px; }
+    .joint-r-boot { transform-origin: 106px 152px; }
+    .joint-head { transform-origin: 80px 45px; }
+    .joint-pack { transform-origin: 34px 90px; }
+
+    /* Light theme astronaut colors via data-theme */
+    [data-theme="light"] .astro-suit-body { fill: #e8eaf0; stroke: #a5b4fc; }
+    [data-theme="light"] .astro-suit-dark { fill: #d1d5db; stroke: #818cf8; }
+    [data-theme="light"] .astro-visor-bg { fill: #c7d2fe; }
+    [data-theme="light"] .astro-visor-reflect { fill: #ffffff; opacity:.35; }
+    [data-theme="light"] .astro-accent { fill: #6366f1; stroke: #4f46e5; }
+    [data-theme="light"] .astro-detail-line { stroke: rgba(99,102,241,.3); }
+    [data-theme="dark"] .astro-suit-body { fill: #2d2d3d; stroke: #818cf8; }
+    [data-theme="dark"] .astro-suit-dark { fill: #1e1e2e; stroke: #6366f1; }
+    [data-theme="dark"] .astro-visor-bg { fill: #1a1a2e; }
+    [data-theme="dark"] .astro-visor-reflect { fill: #ffffff; opacity:.12; }
+    [data-theme="dark"] .astro-accent { fill: #6366f1; stroke: #818cf8; }
+    [data-theme="dark"] .astro-detail-line { stroke: rgba(129,140,248,.25); }
+
+    /* Drag trail particles */
+    .astro-trail {
+      position: fixed; pointer-events: none; z-index: 0;
+      border-radius: 50%;
+      animation: trailFade .9s ease-out forwards;
     }
-    .astronaut-body {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
+    .astro-trail.sparkle {
+      width: 4px; height: 4px;
+      background: radial-gradient(circle, #fff 0%, #818cf8 60%, transparent 100%);
+      box-shadow: 0 0 10px rgba(129,140,248,.9), 0 0 20px rgba(129,140,248,.4);
+    }
+    .astro-trail.stardust {
+      width: 3px; height: 3px;
+      background: #c4b5fd;
+      box-shadow: 0 0 6px rgba(196,181,253,.8);
+    }
+    .astro-trail.burst {
+      width: 6px; height: 6px;
+      background: radial-gradient(circle, #fff 0%, #ec4899 50%, transparent 100%);
+      box-shadow: 0 0 12px rgba(236,72,153,.7), 0 0 24px rgba(236,72,153,.3);
+    }
+    @keyframes trailFade {
+      0% { opacity: 1; transform: scale(1) translateY(0); }
+      100% { opacity: 0; transform: scale(0) translateY(-30px); }
     }
 
-    /* ---- Orbit ring ---- */
+    /* Gravity well effect on stars near astronaut */
+    .gravity-pull {
+      position: fixed; pointer-events: none; z-index: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(99,102,241,.15);
+      animation: gravityPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes gravityPulse {
+      0%, 100% { transform: scale(1); opacity: .6; }
+      50% { transform: scale(1.8); opacity: 0; }
+    }
+
+    /* Orbit ring */
     .orbit-ring {
       position: absolute;
-      width: 220px; height: 220px;
+      width: 240px; height: 240px;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      border: 1.5px dashed rgba(99,91,255,.2);
+      border: 1.5px dashed rgba(99,91,255,.18);
       border-radius: 50%;
-      animation: orbitSpin 20s linear infinite;
+      animation: orbitSpin 25s linear infinite;
     }
     .orbit-dot {
       position: absolute; width: 8px; height: 8px;
-      background: #635bff; border-radius: 50%;
+      background: var(--color-brand-500, #635bff); border-radius: 50%;
       box-shadow: 0 0 12px rgba(99,91,255,.6);
       top: -4px; left: 50%; transform: translateX(-50%);
     }
     @keyframes orbitSpin { from { transform: translate(-50%,-50%) rotate(0deg); } to { transform: translate(-50%,-50%) rotate(360deg); } }
 
-    /* ---- Error Code ---- */
+    /* Error code */
     .error-code {
       font-size: clamp(72px, 14vw, 160px);
       font-weight: 900; letter-spacing: -4px; line-height: 1;
@@ -124,7 +185,6 @@
       50% { background-position: 100% 50%; }
     }
 
-    /* ---- Subtitle ---- */
     .subtitle {
       font-size: 20px; font-weight: 600; color: var(--text);
       margin-bottom: 6px; text-align: center;
@@ -135,7 +195,6 @@
       margin-bottom: 36px;
     }
 
-    /* ---- Glass Card (suggestions) ---- */
     .suggestions {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
       max-width: 640px; width: 100%; margin-bottom: 36px;
@@ -150,7 +209,7 @@
       cursor: pointer;
     }
     .sug-card:hover {
-      border-color: #635bff; transform: translateY(-4px);
+      border-color: var(--color-brand-500, #635bff); transform: translateY(-4px);
       box-shadow: 0 8px 32px rgba(99,91,255,.18);
       background: var(--bg-card-hover);
     }
@@ -166,7 +225,6 @@
     .sug-label { font-size: 14px; font-weight: 600; }
     .sug-desc { font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.4; }
 
-    /* ---- Action Buttons ---- */
     .actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
     .btn-primary {
       display: inline-flex; align-items: center; gap: 8px;
@@ -192,12 +250,10 @@
       background: var(--bg-card-hover); transform: translateY(-2px);
     }
 
-    /* ---- Floating elements ---- */
     .float-decor {
       position: absolute; pointer-events: none; z-index: 0; opacity: .4;
     }
 
-    /* ---- Entrance animations ---- */
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(28px); }
       to { opacity: 1; transform: translateY(0); }
@@ -209,11 +265,11 @@
     .anim-d4 { animation-delay: .44s; }
     .anim-d5 { animation-delay: .58s; }
 
-    /* ---- Responsive ---- */
     @media (max-width: 640px) {
       .suggestions { grid-template-columns: 1fr; max-width: 300px; }
-      .astronaut-wrap { width: 140px; height: 140px; }
-      .orbit-ring { width: 180px; height: 180px; }
+      .astronaut-wrap { width: 150px; height: 150px; }
+      .astro-svg { width: 120px; height: 143px; }
+      .orbit-ring { width: 190px; height: 190px; }
       .desc { padding: 0 12px; }
     }
     @media (min-width: 641px) and (max-width: 768px) {
@@ -246,7 +302,7 @@
       <button class="nav-toggle" id="navToggle" aria-label="菜单">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <div class="nav-links" style="align-items:center;gap:6px;">
+      <div class="nav-links">
         <a href="/" class="nav-link shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium">工具</a>
         <a href="/downloads.html" class="nav-link shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium">下载</a>
         <button class="theme-btn ml-2" id="themeToggle" title="切换主题">☀️</button>
@@ -270,52 +326,113 @@
     </svg>
 
     <!-- Astronaut + Orbit -->
-    <div class="astronaut-wrap anim anim-d1">
+    <div class="astronaut-wrap" id="astronautWrap">
       <div class="orbit-ring">
         <div class="orbit-dot"></div>
       </div>
-      <div class="astronaut-body">
-        <svg viewBox="0 0 120 120" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Helmet -->
-          <ellipse cx="60" cy="42" rx="28" ry="30" fill="#2a2a3a" stroke="#6366f1" stroke-width="2"/>
-          <ellipse cx="60" cy="42" rx="22" ry="24" fill="#1a1a2e"/>
-          <!-- Visor reflection -->
-          <ellipse cx="54" cy="38" rx="10" ry="12" fill="url(#visorG)" opacity=".7"/>
-          <ellipse cx="52" cy="35" rx="4" ry="5" fill="#fff" opacity=".15"/>
+      <svg class="astro-svg" viewBox="0 0 160 190" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="visorGrad" x1="64" y1="28" x2="84" y2="52" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1" stop-opacity=".4"/>
+            <stop offset="1" stop-color="#818cf8" stop-opacity=".15"/>
+          </linearGradient>
+          <linearGradient id="helmetShine" x1="68" y1="22" x2="82" y2="38" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#fff" stop-opacity=".2"/>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="chestGlow" cx="80" cy="88" r="10" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#818cf8" stop-opacity=".5"/>
+            <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Backpack (behind body) -->
+        <g class="joint-pack" id="astroPack">
+          <rect x="28" y="76" width="10" height="30" rx="4" class="astro-suit-dark" stroke-width="1.2"/>
+          <rect x="26" y="80" width="14" height="22" rx="3" class="astro-suit-body" stroke-width="0.8" opacity=".7"/>
+          <circle cx="33" cy="86" r="2.5" class="astro-accent" stroke-width="0.6"/>
+          <circle cx="33" cy="94" r="2.5" class="astro-accent" stroke-width="0.6"/>
+        </g>
+
+        <!-- Left Leg -->
+        <g class="joint-l-leg" id="astroLLeg">
+          <path d="M62 118 Q58 135 54 150" class="astro-suit-dark" stroke-width="9" stroke-linecap="round"/>
+          <ellipse cx="54" cy="152" rx="8" ry="5" class="astro-suit-body" stroke-width="1.2"/>
+        </g>
+
+        <!-- Right Leg -->
+        <g class="joint-r-leg" id="astroRLeg">
+          <g class="joint-r-boot" id="astroRBoot">
+            <path d="M98 118 Q102 135 106 150" class="astro-suit-dark" stroke-width="9" stroke-linecap="round"/>
+            <ellipse cx="106" cy="152" rx="8" ry="5" class="astro-suit-body" stroke-width="1.2"/>
+          </g>
+        </g>
+
+        <!-- Torso / Body -->
+        <g class="joint-torso" id="astroTorso">
+          <rect x="50" y="70" width="60" height="48" rx="12" class="astro-suit-body" stroke-width="1.5"/>
+          <!-- Chest plate detail -->
+          <rect x="58" y="78" width="44" height="32" rx="6" class="astro-suit-dark" stroke-width="0.8"/>
+          <!-- Chest light with glow -->
+          <circle cx="80" cy="92" r="8" fill="url(#chestGlow)"/>
+          <circle cx="80" cy="92" r="4" class="astro-accent" stroke-width="0.8" filter="url(#glow)" id="chestLight"/>
+          <!-- Belt -->
+          <rect x="50" y="110" width="60" height="6" rx="2" class="astro-suit-dark" stroke-width="0.8"/>
+          <rect x="74" y="109" width="12" height="8" rx="2" class="astro-accent" stroke-width="0.6"/>
+          <!-- Detail lines -->
+          <line x1="66" y1="78" x2="66" y2="106" class="astro-detail-line" stroke-width="0.6"/>
+          <line x1="94" y1="78" x2="94" y2="106" class="astro-detail-line" stroke-width="0.6"/>
+        </g>
+
+        <!-- Left Arm -->
+        <g class="joint-l-arm" id="astroLArm">
+          <path d="M50 78 Q38 84 28 94" class="astro-suit-dark" stroke-width="8" stroke-linecap="round"/>
+          <g class="joint-l-forearm" id="astroLForearm">
+            <path d="M28 94 Q20 102 16 112" class="astro-suit-dark" stroke-width="7" stroke-linecap="round"/>
+            <!-- Glove -->
+            <circle cx="15" cy="114" r="5" class="astro-accent" stroke-width="0.8"/>
+          </g>
+        </g>
+
+        <!-- Right Arm -->
+        <g class="joint-r-arm" id="astroRArm">
+          <path d="M110 78 Q122 84 132 94" class="astro-suit-dark" stroke-width="8" stroke-linecap="round"/>
+          <g class="joint-r-forearm" id="astroRForearm">
+            <path d="M132 94 Q140 102 144 112" class="astro-suit-dark" stroke-width="7" stroke-linecap="round"/>
+            <!-- Glove -->
+            <circle cx="145" cy="114" r="5" class="astro-accent" stroke-width="0.8"/>
+          </g>
+        </g>
+
+        <!-- Head + Helmet -->
+        <g class="joint-head" id="astroHead">
+          <!-- Helmet outer shell -->
+          <ellipse cx="80" cy="42" rx="32" ry="34" class="astro-suit-body" stroke-width="2"/>
+          <!-- Helmet inner dark area -->
+          <ellipse cx="80" cy="44" rx="25" ry="27" class="astro-visor-bg"/>
+          <!-- Visor glass -->
+          <ellipse cx="74" cy="40" rx="13" ry="16" fill="url(#visorGrad)"/>
+          <!-- Visor reflection highlight -->
+          <ellipse cx="70" cy="36" rx="5" ry="7" class="astro-visor-reflect"/>
+          <!-- Helmet shine overlay -->
+          <ellipse cx="80" cy="32" rx="20" ry="18" fill="url(#helmetShine)" style="pointer-events:none;"/>
           <!-- Antenna -->
-          <line x1="60" y1="12" x2="60" y2="6" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="60" cy="5" r="3" fill="#6366f1">
-            <animate attributeName="opacity" values="1;.3;1" dur="2s" repeatCount="indefinite"/>
+          <line x1="80" y1="10" x2="80" y2="3" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="80" cy="2" r="3.5" fill="#635bff" filter="url(#glow)">
+            <animate attributeName="opacity" values="1;.25;1" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="r" values="3.5;4.5;3.5" dur="2s" repeatCount="indefinite"/>
           </circle>
-          <!-- Body -->
-          <rect x="42" y="70" width="36" height="28" rx="8" fill="#2a2a3a" stroke="#6366f1" stroke-width="1.5"/>
-          <!-- Backpack -->
-          <rect x="38" y="72" width="6" height="22" rx="3" fill="#1e1e2e" stroke="#6366f1" stroke-width="1"/>
-          <!-- Arms -->
-          <path d="M42 76 Q30 80 26 92" stroke="#2a2a3a" stroke-width="6" stroke-linecap="round" fill="none"/>
-          <path d="M78 76 Q90 80 94 92" stroke="#2a2a3a" stroke-width="6" stroke-linecap="round" fill="none"/>
-          <!-- Gloves -->
-          <circle cx="25" cy="93" r="4" fill="#6366f1" opacity=".6"/>
-          <circle cx="95" cy="93" r="4" fill="#6366f1" opacity=".6"/>
-          <!-- Legs -->
-          <path d="M50 98 Q48 110 44 116" stroke="#2a2a3a" stroke-width="6" stroke-linecap="round" fill="none"/>
-          <path d="M70 98 Q72 110 76 116" stroke="#2a2a3a" stroke-width="6" stroke-linecap="round" fill="none"/>
-          <!-- Boots -->
-          <ellipse cx="43" cy="117" rx="6" ry="3" fill="#6366f1" opacity=".5"/>
-          <ellipse cx="77" cy="117" rx="6" ry="3" fill="#6366f1" opacity=".5"/>
-          <!-- Chest light -->
-          <circle cx="60" cy="82" r="3" fill="#6366f1" opacity=".8">
-            <animate attributeName="r" values="3;4;3" dur="1.5s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values=".8;.4;.8" dur="1.5s" repeatCount="indefinite"/>
-          </circle>
-          <defs>
-            <linearGradient id="visorG" x1="44" y1="26" x2="64" y2="50" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#6366f1" stop-opacity=".3"/>
-              <stop offset="1" stop-color="#818cf8" stop-opacity=".1"/>
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
+          <!-- Ear pieces / comms -->
+          <rect x="46" y="38" width="6" height="14" rx="3" class="astro-suit-dark" stroke-width="0.8"/>
+          <rect x="108" y="38" width="6" height="14" rx="3" class="astro-suit-dark" stroke-width="0.8"/>
+          <!-- Chin guard -->
+          <path d="M68 66 Q80 72 92 66" class="astro-suit-body" stroke-width="1.5" fill="none"/>
+        </g>
+      </svg>
     </div>
 
     <!-- 404 Code -->
@@ -380,19 +497,431 @@
         html.setAttribute('data-theme', next);
         localStorage.setItem('portal-theme', next);
         updateBtn();
+        if (window.onThemeChange) window.onThemeChange(next);
       });
       function updateBtn() {
         btn.textContent = html.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
       }
     })();
 
-    /* ---- Starfield (matches index.html constellation style) ---- */
+    /* ---- GSAP Articulated Astronaut: free float + drag + background interaction ---- */
+    (function() {
+      if (!window.gsap) return;
+      var wrap = document.getElementById('astronautWrap');
+      if (!wrap) return;
+
+      var joints = {
+        head: '#astroHead',
+        torso: '#astroTorso',
+        lArm: '#astroLArm',
+        rArm: '#astroRArm',
+        lForearm: '#astroLForearm',
+        rForearm: '#astroRForearm',
+        lLeg: '#astroLLeg',
+        rLeg: '#astroRLeg',
+        rBoot: '#astroRBoot',
+        pack: '#astroPack'
+      };
+
+      // ===== Free-floating physics state =====
+      var floatState = {
+        x: -(wrap.offsetWidth / 2),
+        y: -(wrap.offsetHeight / 2),
+        vx: 0, vy: 0,
+        angle: 0, vAngle: 0,
+        time: Math.random() * 1000
+      };
+      var floatBounds = { margin: 60 };
+      var isFloating = true;
+      var floatRaf = null;
+
+      function updateFloatBounds() {
+        var scene = document.querySelector('.scene');
+        if (!scene) return;
+        var rect = scene.getBoundingClientRect();
+        var wrapRect = wrap.getBoundingClientRect();
+        // Bounds in px from center
+        floatBounds.maxX = (rect.width - wrapRect.width) / 2 - floatBounds.margin;
+        floatBounds.maxY = (rect.height - wrapRect.height) / 2 - floatBounds.margin;
+        if (floatBounds.maxX < 80) floatBounds.maxX = 80;
+        if (floatBounds.maxY < 80) floatBounds.maxY = 80;
+      }
+      updateFloatBounds();
+      window.addEventListener('resize', updateFloatBounds);
+
+      // ===== Idle joint micro-movements =====
+      var idleTLS = [];
+      function startIdleJoints() {
+        stopIdleJoints();
+        var tl = gsap.timeline({ repeat: -1, yoyo: true });
+        tl.to(joints.head, { rotation: 3, duration: 2.8, ease: 'sine.inOut' }, 0)
+          .to(joints.lArm, { rotation: -5, duration: 3.2, ease: 'sine.inOut' }, 0)
+          .to(joints.rArm, { rotation: 5, duration: 3.5, ease: 'sine.inOut' }, 0)
+          .to(joints.lForearm, { rotation: 7, duration: 2.6, ease: 'sine.inOut' }, 0)
+          .to(joints.rForearm, { rotation: -6, duration: 2.9, ease: 'sine.inOut' }, 0)
+          .to(joints.torso, { rotation: 1, duration: 4.2, ease: 'sine.inOut' }, 0)
+          .to([joints.lLeg, joints.rLeg], { rotation: 1.5, duration: 3.8, ease: 'sine.inOut' }, 0)
+          .to(joints.pack, { rotation: -2, duration: 3.5, ease: 'sine.inOut' }, 0);
+        idleTLS.push(tl);
+
+        var chest = gsap.to('#chestLight', {
+          attr: { r: 5.5 },
+          opacity: 1,
+          duration: 1.4,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut'
+        });
+        idleTLS.push(chest);
+      }
+      function stopIdleJoints() {
+        idleTLS.forEach(function(t) { t.kill(); });
+        idleTLS = [];
+      }
+      startIdleJoints();
+
+      // ===== Free-float physics loop (no CSS animation, pure JS + GSAP set) =====
+      function startFreeFloat() {
+        if (floatRaf) cancelAnimationFrame(floatRaf);
+        isFloating = true;
+        floatState.vx = (Math.random() - 0.5) * 1.5;
+        floatState.vy = (Math.random() - 0.5) * 1.5;
+        floatState.vAngle = (Math.random() - 0.5) * 0.05;
+
+        function tick() {
+          if (!isFloating) return;
+          floatState.time += 0.016;
+
+          // Perlin-ish noise via stacked sines for organic drift
+          var noiseX = Math.sin(floatState.time * 0.4) * 0.4
+                     + Math.sin(floatState.time * 0.9 + 1.7) * 0.2
+                     + Math.sin(floatState.time * 1.7 + 3.1) * 0.1;
+          var noiseY = Math.sin(floatState.time * 0.35 + 2.1) * 0.35
+                     + Math.sin(floatState.time * 0.75 + 4.3) * 0.18
+                     + Math.sin(floatState.time * 1.3 + 0.5) * 0.08;
+          var noiseAngle = Math.sin(floatState.time * 0.25 + 1.0) * 0.02
+                         + Math.sin(floatState.time * 0.6 + 2.5) * 0.01;
+
+          floatState.vx += noiseX * 0.05;
+          floatState.vy += noiseY * 0.05;
+          floatState.vAngle += noiseAngle * 0.05;
+
+          // Damping
+          floatState.vx *= 0.995;
+          floatState.vy *= 0.995;
+          floatState.vAngle *= 0.99;
+
+          // Speed limit
+        var maxSpeed = 2.5;
+        floatState.vx = Math.max(-maxSpeed, Math.min(maxSpeed, floatState.vx));
+        floatState.vy = Math.max(-maxSpeed, Math.min(maxSpeed, floatState.vy));
+
+          floatState.x += floatState.vx;
+          floatState.y += floatState.vy;
+          floatState.angle += floatState.vAngle;
+
+          // Soft boundary bounce
+          if (floatState.x < -floatBounds.maxX) { floatState.vx += 0.015; floatState.angle += 0.003; }
+          if (floatState.x > floatBounds.maxX)  { floatState.vx -= 0.015; floatState.angle -= 0.003; }
+          if (floatState.y < -floatBounds.maxY) { floatState.vy += 0.015; }
+          if (floatState.y > floatBounds.maxY)  { floatState.vy -= 0.015; }
+
+          // Clamp position
+          floatState.x = Math.max(-floatBounds.maxX, Math.min(floatBounds.maxX, floatState.x));
+          floatState.y = Math.max(-floatBounds.maxY, Math.min(floatBounds.maxY, floatState.y));
+
+          // Apply via GSAP for smooth rendering
+          gsap.set(wrap, {
+            x: floatState.x,
+            y: floatState.y,
+            rotation: floatState.angle
+          });
+
+          // Notify starfield
+          var rect = wrap.getBoundingClientRect();
+          if (window.updateAstroPos) {
+            window.updateAstroPos(rect.left + rect.width / 2, rect.top + rect.height / 2, false);
+          }
+
+          floatRaf = requestAnimationFrame(tick);
+        }
+        tick();
+      }
+
+      function stopFreeFloat() {
+        isFloating = false;
+        if (floatRaf) {
+          cancelAnimationFrame(floatRaf);
+          floatRaf = null;
+        }
+      }
+
+      // Start floating on load
+      startFreeFloat();
+
+      // ===== Drag state =====
+      var isDragging = false;
+      var startX, startY, curX, curY;
+      var dragOffsetX = 0, dragOffsetY = 0;
+      var trailTimer = null;
+      var gravityTimer = null;
+      var lastMoveTime = 0;
+      var dragVelX = 0, dragVelY = 0;
+
+      function onDown(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        isDragging = true;
+        wrap.classList.add('dragging');
+
+        // Stop free float
+        stopFreeFloat();
+        stopIdleJoints();
+
+        var pt = e.touches ? e.touches[0] : e;
+        // Record offset within the element so we can drag from any point
+        var rect = wrap.getBoundingClientRect();
+        dragOffsetX = pt.clientX - rect.left;
+        dragOffsetY = pt.clientY - rect.top;
+        startX = pt.clientX;
+        startY = pt.clientY;
+        curX = floatState.x;
+        curY = floatState.y;
+        dragVelX = 0;
+        dragVelY = 0;
+        lastMoveTime = performance.now();
+
+        // Trail particles during drag
+        trailTimer = setInterval(function() {
+          if (!isDragging) return;
+          var rect = wrap.getBoundingClientRect();
+          var cx = rect.left + rect.width / 2;
+          var cy = rect.top + rect.height / 2;
+          var types = ['sparkle', 'stardust', 'burst'];
+          spawnTrail(cx, cy, types[Math.floor(Math.random() * types.length)]);
+        }, 40);
+
+        // Gravity well effect on background
+        gravityTimer = setInterval(function() {
+          if (!isDragging) return;
+          var rect = wrap.getBoundingClientRect();
+          var cx = rect.left + rect.width / 2;
+          var cy = rect.top + rect.height / 2;
+          spawnGravityWell(cx, cy);
+          spawnStardustRing(cx, cy);
+        }, 250);
+
+        // Drag pose
+        gsap.to(joints.head, { rotation: -10, duration: 0.35, ease: 'power2.out' });
+        gsap.to(joints.lArm, { rotation: -40, duration: 0.35, ease: 'power2.out' });
+        gsap.to(joints.rArm, { rotation: 40, duration: 0.35, ease: 'power2.out' });
+        gsap.to(joints.lForearm, { rotation: 25, duration: 0.4, ease: 'power2.out' });
+        gsap.to(joints.rForearm, { rotation: -25, duration: 0.4, ease: 'power2.out' });
+        gsap.to(joints.torso, { rotation: 4, duration: 0.35, ease: 'power2.out' });
+        gsap.to([joints.lLeg, joints.rLeg], { rotation: -8, duration: 0.4, ease: 'power2.out' });
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onUp);
+      }
+
+      function onMove(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        var pt = e.touches ? e.touches[0] : e;
+        var now = performance.now();
+        var dt = Math.max(now - lastMoveTime, 1);
+        lastMoveTime = now;
+
+        // Calculate new position: mouse delta added to current float position
+        var deltaX = pt.clientX - startX;
+        var deltaY = pt.clientY - startY;
+        var newX = floatState.x + deltaX;
+        var newY = floatState.y + deltaY;
+
+        dragVelX = (newX - curX) / dt * 16;
+        dragVelY = (newY - curY) / dt * 16;
+        curX = newX;
+        curY = newY;
+
+        // Clamp to scene bounds
+        var scene = document.querySelector('.scene');
+        if (scene) {
+          var sRect = scene.getBoundingClientRect();
+          var wRect = wrap.getBoundingClientRect();
+          var maxOffX = (sRect.width - wRect.width) / 2;
+          var maxOffY = (sRect.height - wRect.height) / 2;
+          curX = Math.max(-maxOffX, Math.min(maxOffX, curX));
+          curY = Math.max(-maxOffY, Math.min(maxOffY, curY));
+        }
+
+        // Tilt based on horizontal velocity
+        var targetRot = dragVelX * 1.5;
+        gsap.set(wrap, { x: curX, y: curY, rotation: targetRot });
+
+        // Dynamic joint response to movement speed
+        var speed = Math.sqrt(dragVelX * dragVelX + dragVelY * dragVelY);
+        var speedFactor = Math.min(speed / 8, 1);
+        gsap.to(joints.lArm, { rotation: -40 - speedFactor * 20, duration: 0.15, overwrite: true });
+        gsap.to(joints.rArm, { rotation: 40 + speedFactor * 20, duration: 0.15, overwrite: true });
+        gsap.to(joints.head, { rotation: -10 - dragVelY * 1.5, duration: 0.15, overwrite: true });
+        gsap.to(joints.pack, { rotation: -dragVelX * 0.15, duration: 0.2, overwrite: true });
+
+        // Notify starfield
+        var rect = wrap.getBoundingClientRect();
+        if (window.updateAstroPos) {
+          window.updateAstroPos(rect.left + rect.width / 2, rect.top + rect.height / 2, true);
+        }
+
+        // Warp stars on fast movement
+        if (speed > 12 && window.setWarpFactor) {
+          window.setWarpFactor(Math.min((speed - 12) / 20, 1));
+        }
+      }
+
+      function onUp() {
+        if (!isDragging) return;
+        isDragging = false;
+        clearInterval(trailTimer);
+        clearInterval(gravityTimer);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+
+        wrap.classList.remove('dragging');
+
+        // Transfer drag velocity to float state for inertia throw
+        floatState.x = curX;
+        floatState.y = curY;
+        floatState.vx = dragVelX * 0.4;
+        floatState.vy = dragVelY * 0.4;
+        floatState.angle = dragVelX * 1.5;
+        floatState.vAngle = dragVelX * 0.05;
+
+        // Spring joints back
+        gsap.to(joints.head, { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.35)' });
+        gsap.to(joints.lArm, { rotation: 0, duration: 0.85, ease: 'elastic.out(1, 0.3)' });
+        gsap.to(joints.rArm, { rotation: 0, duration: 0.85, ease: 'elastic.out(1, 0.3)' });
+        gsap.to(joints.lForearm, { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.35)' });
+        gsap.to(joints.rForearm, { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.35)' });
+        gsap.to(joints.torso, { rotation: 0, duration: 0.75, ease: 'elastic.out(1, 0.4)' });
+        gsap.to([joints.lLeg, joints.rLeg], { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.35)' });
+        gsap.to(joints.pack, { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.35)' });
+
+        // Burst particles on release
+        var rect = wrap.getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        for (var i = 0; i < 20; i++) {
+          var angle = (Math.PI * 2 * i) / 20;
+          spawnBurst(cx, cy, angle, 40 + Math.random() * 50);
+        }
+
+        // Clear warp
+        if (window.setWarpFactor) window.setWarpFactor(0);
+
+        // Resume free float after brief delay
+        setTimeout(function() {
+          startIdleJoints();
+          startFreeFloat();
+        }, 100);
+      }
+
+      function spawnTrail(x, y, type) {
+        var el = document.createElement('div');
+        el.className = 'astro-trail ' + type;
+        el.style.left = (x + (Math.random() - 0.5) * 50) + 'px';
+        el.style.top = (y + (Math.random() - 0.5) * 50) + 'px';
+        document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 1000);
+      }
+
+      function spawnBurst(x, y, angle, dist) {
+        var el = document.createElement('div');
+        el.className = 'astro-trail burst';
+        var dx = Math.cos(angle) * dist;
+        var dy = Math.sin(angle) * dist;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.transition = 'left 1s cubic-bezier(.16,1,.3,1), top 1s cubic-bezier(.16,1,.3,1), opacity 1s ease-out, transform 1s ease-out';
+        document.body.appendChild(el);
+        requestAnimationFrame(function() {
+          el.style.left = (x + dx) + 'px';
+          el.style.top = (y + dy) + 'px';
+          el.style.opacity = '0';
+          el.style.transform = 'scale(0)';
+        });
+        setTimeout(function() { el.remove(); }, 1100);
+      }
+
+      function spawnGravityWell(x, y) {
+        var el = document.createElement('div');
+        el.className = 'gravity-pull';
+        el.style.width = '80px';
+        el.style.height = '80px';
+        el.style.left = (x - 40) + 'px';
+        el.style.top = (y - 40) + 'px';
+        document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 1800);
+      }
+
+      function spawnStardustRing(x, y) {
+        for (var i = 0; i < 6; i++) {
+          var angle = (Math.PI * 2 * i) / 6;
+          var el = document.createElement('div');
+          el.className = 'astro-trail stardust';
+          var r = 30 + Math.random() * 20;
+          var sx = x + Math.cos(angle) * r;
+          var sy = y + Math.sin(angle) * r;
+          el.style.left = sx + 'px';
+          el.style.top = sy + 'px';
+          el.style.transition = 'left .7s ease-out, top .7s ease-out, opacity .7s ease-out';
+          document.body.appendChild(el);
+          requestAnimationFrame(function() {
+            el.style.left = (x + Math.cos(angle) * (r + 20)) + 'px';
+            el.style.top = (y + Math.sin(angle) * (r + 20)) + 'px';
+            el.style.opacity = '0';
+          });
+          setTimeout(function() { el.remove(); }, 800);
+        }
+      }
+
+      wrap.addEventListener('mousedown', onDown);
+      wrap.addEventListener('touchstart', onDown, { passive: false });
+    })();
+
+    /* ---- Enhanced Starfield: theme-aware, astronaut proximity + warp interaction ---- */
     (function() {
       var c = document.getElementById('starfield');
       var ctx = c.getContext('2d');
       var stars = [];
-      var STAR_COUNT = 80;
+      var particles = [];
+      var shootings = [];
+      var warpStars = [];
+      var STAR_COUNT = 160;
+      var PARTICLE_COUNT = 70;
+      var CONNECT_DIST = 130;
       var w, h;
+      var astroX = null, astroY = null, isInteracting = false;
+      var warpFactor = 0;
+      var lastAstroX = null, lastAstroY = null;
+
+      window.updateAstroPos = function(x, y, active) {
+        astroX = x; astroY = y; isInteracting = active;
+      };
+      window.setWarpFactor = function(f) {
+        warpFactor = Math.max(0, Math.min(1, f));
+      };
+      window.onThemeChange = function(theme) {};
+
+      function getThemeColors() {
+        var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        return isDark
+          ? { nebula1: [99,102,241], nebula2: [236,72,153], starBright: [255,255,255], starDim: [196,181,253], lineColor: [99,91,255], particleA: [129,140,248], particleB: [236,72,153], bgBase: [10,14,26] }
+          : { nebula1: [165,180,252], nebula2: [244,114,182], starBright: [55,65,81], starDim: [129,140,248], lineColor: [99,102,241], particleA: [99,102,241], particleB: [236,72,153], bgBase: [249,250,251] };
+      }
 
       function resize() {
         var dpr = window.devicePixelRatio || 1;
@@ -403,74 +932,287 @@
       resize();
       window.addEventListener('resize', resize);
 
-      // Create stars
       for (var i = 0; i < STAR_COUNT; i++) {
         stars.push({
           x: Math.random() * 2000,
           y: Math.random() * 2000,
+          baseX: 0, baseY: 0,
           r: Math.random() * 1.8 + 0.3,
           o: Math.random() * 0.6 + 0.15,
           twinkleSpeed: Math.random() * 0.02 + 0.005,
           twinklePhase: Math.random() * Math.PI * 2,
-          color: Math.random() > 0.7 ? '#c4b5fd' : '#ffffff',
+          colorIdx: Math.random(),
+          vx: 0, vy: 0
         });
       }
 
-      // Constellation lines
-      var connections = [];
-      for (var i = 0; i < 12; i++) {
-        var a = Math.floor(Math.random() * STAR_COUNT);
-        var b = Math.floor(Math.random() * STAR_COUNT);
-        if (a !== b) connections.push([a, b]);
+      for (var i = 0; i < PARTICLE_COUNT; i++) {
+        particles.push({
+          x: Math.random() * 2000,
+          y: Math.random() * 2000,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          r: Math.random() * 1.2 + 0.3,
+          o: Math.random() * 0.5 + 0.1,
+          type: Math.random() > 0.5 ? 0 : 1
+        });
+      }
+
+      function spawnShootingStar(tc) {
+        var sx = Math.random() * w * 0.7;
+        var sy = Math.random() * h * 0.3;
+        var ang = Math.PI / 4 + (Math.random() - 0.5) * 0.6;
+        var spd = 6 + Math.random() * 6;
+        shootings.push({
+          x: sx, y: sy,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          life: 1,
+          decay: 0.008 + Math.random() * 0.008,
+          len: 80 + Math.random() * 60,
+          colors: tc
+        });
+      }
+
+      function spawnWarpStar(cx, cy) {
+        var angle = Math.random() * Math.PI * 2;
+        var dist = 20 + Math.random() * 100;
+        warpStars.push({
+          x: cx + Math.cos(angle) * dist,
+          y: cy + Math.sin(angle) * dist,
+          vx: Math.cos(angle) * (4 + Math.random() * 6),
+          vy: Math.sin(angle) * (4 + Math.random() * 6),
+          life: 1,
+          decay: 0.03 + Math.random() * 0.02,
+          len: 20 + Math.random() * 30,
+          width: 1 + Math.random() * 2
+        });
       }
 
       var t = 0;
       function draw() {
         t += 1;
         ctx.clearRect(0, 0, w, h);
+        var tc = getThemeColors();
 
-        // Draw connections
-        ctx.strokeStyle = 'rgba(99,91,255,0.06)';
-        ctx.lineWidth = 1;
-        for (var i = 0; i < connections.length; i++) {
-          var s1 = stars[connections[i][0]];
-          var s2 = stars[connections[i][1]];
-          if (s1 && s2) {
-            ctx.beginPath();
-            ctx.moveTo(s1.x % w, s1.y % h);
-            ctx.lineTo(s2.x % w, s2.y % h);
-            ctx.stroke();
+        drawNebula(tc);
+
+        // Calculate astro velocity for background reaction
+        var astroVelX = 0, astroVelY = 0;
+        if (astroX != null && lastAstroX != null) {
+          astroVelX = astroX - lastAstroX;
+          astroVelY = astroY - lastAstroY;
+        }
+        lastAstroX = astroX;
+        lastAstroY = astroY;
+        var astroSpeed = Math.sqrt(astroVelX * astroVelX + astroVelY * astroVelY);
+
+        // Decay warp factor
+        warpFactor *= 0.92;
+
+        // Drifting particles — affected by astronaut movement
+        for (var i = 0; i < particles.length; i++) {
+          var p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+
+          // Particles get pushed away by astronaut
+          if (astroX != null && astroY != null) {
+            var pdx = p.x - astroX;
+            var pdy = p.y - astroY;
+            var pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+            if (pdist < 200 && pdist > 1) {
+              var push = (1 - pdist / 200) * 0.8;
+              p.vx += (pdx / pdist) * push;
+              p.vy += (pdy / pdist) * push;
+            }
+          }
+
+          // Damping
+          p.vx *= 0.98;
+          p.vy *= 0.98;
+
+          if (p.x < -10) p.x = w + 10;
+          if (p.x > w + 10) p.x = -10;
+          if (p.y < -10) p.y = h + 10;
+          if (p.y > h + 10) p.y = -10;
+
+          var pc = p.type === 0 ? tc.particleA : tc.particleB;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + pc[0] + ',' + pc[1] + ',' + pc[2] + ',' + (p.o * 0.45) + ')';
+          ctx.fill();
+        }
+
+        // Proximity connections
+        ctx.lineWidth = 0.6;
+        for (var i = 0; i < stars.length; i++) {
+          var s1x = stars[i].x % w;
+          var s1y = stars[i].y % h;
+          for (var j = i + 1; j < stars.length; j++) {
+            var s2x = stars[j].x % w;
+            var s2y = stars[j].y % h;
+            var dx = s1x - s2x;
+            var dy = s1y - s2y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < CONNECT_DIST) {
+              var alpha = (1 - dist / CONNECT_DIST) * 0.32;
+              ctx.strokeStyle = 'rgba(' + tc.lineColor[0] + ',' + tc.lineColor[1] + ',' + tc.lineColor[2] + ',' + alpha + ')';
+              ctx.beginPath();
+              ctx.moveTo(s1x, s1y);
+              ctx.lineTo(s2x, s2y);
+              ctx.stroke();
+            }
           }
         }
 
-        // Draw stars
+        // Draw stars with astronaut proximity interaction
         for (var i = 0; i < stars.length; i++) {
           var s = stars[i];
           var twinkle = Math.sin(t * s.twinkleSpeed + s.twinklePhase) * 0.3 + 0.7;
           var alpha = s.o * twinkle;
+          var sx = s.x % w;
+          var sy = s.y % h;
+
+          // Astronaut gravity pull / push — stars near astronaut get attracted and swirl
+          var pullX = 0, pullY = 0, extraGlow = 0;
+          if (astroX != null && astroY != null) {
+            var adx = astroX - sx;
+            var ady = astroY - sy;
+            var aDist = Math.sqrt(adx * adx + ady * ady);
+            if (aDist < 220 && aDist > 1) {
+              var strength = (1 - aDist / 220) * 12;
+              // Gravity pull
+              pullX = (adx / aDist) * strength;
+              pullY = (ady / aDist) * strength;
+              // Swirl effect when moving
+              if (astroSpeed > 2) {
+                pullX += (ady / aDist) * astroSpeed * 0.3;
+                pullY -= (adx / aDist) * astroSpeed * 0.3;
+              }
+              extraGlow = (1 - aDist / 220) * 0.7;
+              alpha = Math.min(alpha + extraGlow, 1);
+            }
+          }
+          sx += pullX; sy += pullY;
+
+          var sc = s.colorIdx > 0.7 ? tc.starDim : tc.starBright;
           ctx.beginPath();
-          ctx.arc(s.x % w, s.y % h, s.r, 0, Math.PI * 2);
-          ctx.fillStyle = s.color === '#c4b5fd'
-            ? 'rgba(196,181,253,' + alpha + ')'
-            : 'rgba(255,255,255,' + alpha + ')';
+          ctx.arc(sx, sy, s.r * (1 + extraGlow * 0.5), 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + alpha + ')';
           ctx.fill();
 
-          // Glow for larger stars
-          if (s.r > 1.4) {
+          if (s.r > 1.2 || extraGlow > 0.05) {
+            var glowR = s.r * (3.5 + extraGlow * 4);
             ctx.beginPath();
-            ctx.arc(s.x % w, s.y % h, s.r * 3, 0, Math.PI * 2);
-            var glow = ctx.createRadialGradient(s.x % w, s.y % h, 0, s.x % w, s.y % h, s.r * 3);
-            glow.addColorStop(0, 'rgba(99,102,241,' + (alpha * 0.15) + ')');
-            glow.addColorStop(1, 'rgba(99,102,241,0)');
-            ctx.fillStyle = glow;
+            ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
+            var glowAlpha = alpha * (0.18 + extraGlow * 0.5);
+            var grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR);
+            grad.addColorStop(0, 'rgba(' + tc.nebula1[0] + ',' + tc.nebula1[1] + ',' + tc.nebula1[2] + ',' + glowAlpha + ')');
+            grad.addColorStop(1, 'rgba(' + tc.nebula1[0] + ',' + tc.nebula1[1] + ',' + tc.nebula1[2] + ',0)');
+            ctx.fillStyle = grad;
             ctx.fill();
           }
         }
 
+        // Warp stars (speed lines) when moving fast
+        if (warpFactor > 0.05) {
+          for (var i = 0; i < 3; i++) {
+            if (astroX != null && astroY != null) {
+              spawnWarpStar(astroX, astroY);
+            }
+          }
+        }
+        for (var i = warpStars.length - 1; i >= 0; i--) {
+          var ws = warpStars[i];
+          var vLen = Math.sqrt(ws.vx * ws.vx + ws.vy * ws.vy);
+          var tailX = ws.x - (ws.vx / vLen) * ws.len;
+          var tailY = ws.y - (ws.vy / vLen) * ws.len;
+
+          var grad = ctx.createLinearGradient(ws.x, ws.y, tailX, tailY);
+          grad.addColorStop(0, 'rgba(' + tc.starBright[0] + ',' + tc.starBright[1] + ',' + tc.starBright[2] + ',' + (ws.life * 0.8) + ')');
+          grad.addColorStop(1, 'rgba(' + tc.lineColor[0] + ',' + tc.lineColor[1] + ',' + tc.lineColor[2] + ',0)');
+
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = ws.width;
+          ctx.beginPath();
+          ctx.moveTo(ws.x, ws.y);
+          ctx.lineTo(tailX, tailY);
+          ctx.stroke();
+
+          ws.x += ws.vx;
+          ws.y += ws.vy;
+          ws.life -= ws.decay;
+          if (ws.life <= 0) {
+            warpStars.splice(i, 1);
+          }
+        }
+
+        // Shooting stars
+        for (var i = shootings.length - 1; i >= 0; i--) {
+          var sh = shootings[i];
+          var vLen = Math.sqrt(sh.vx * sh.vx + sh.vy * sh.vy);
+          var tailX = sh.x - (sh.vx / vLen) * sh.len;
+          var tailY = sh.y - (sh.vy / vLen) * sh.len;
+
+          var grad = ctx.createLinearGradient(sh.x, sh.y, tailX, tailY);
+          var sc = sh.colors;
+          grad.addColorStop(0, 'rgba(' + sc.starBright[0] + ',' + sc.starBright[1] + ',' + sc.starBright[2] + ',' + sh.life + ')');
+          grad.addColorStop(0.4, 'rgba(' + sc.starDim[0] + ',' + sc.starDim[1] + ',' + sc.starDim[2] + ',' + (sh.life * 0.5) + ')');
+          grad.addColorStop(1, 'rgba(' + sc.lineColor[0] + ',' + sc.lineColor[1] + ',' + sc.lineColor[2] + ',0)');
+
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(sh.x, sh.y);
+          ctx.lineTo(tailX, tailY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(sh.x, sh.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + sc.starBright[0] + ',' + sc.starBright[1] + ',' + sc.starBright[2] + ',' + sh.life + ')';
+          ctx.fill();
+
+          sh.x += sh.vx;
+          sh.y += sh.vy;
+          sh.life -= sh.decay;
+          if (sh.life <= 0 || sh.x > w + 100 || sh.y > h + 100 || sh.x < -100 || sh.y < -100) {
+            shootings.splice(i, 1);
+          }
+        }
+
+        if (Math.random() < 0.007 && shootings.length < 3) {
+          spawnShootingStar(tc);
+        }
+
         requestAnimationFrame(draw);
       }
+
+      function drawNebula(tc) {
+        var cx = w * 0.22, cy = h * 0.33;
+        var r = Math.min(w, h) * 0.42;
+        var g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g1.addColorStop(0, 'rgba(' + tc.nebula1[0] + ',' + tc.nebula1[1] + ',' + tc.nebula1[2] + ',0.07)');
+        g1.addColorStop(0.5, 'rgba(' + tc.nebula1[0] + ',' + tc.nebula1[1] + ',' + tc.nebula1[2] + ',0.025)');
+        g1.addColorStop(1, 'rgba(' + tc.nebula1[0] + ',' + tc.nebula1[1] + ',' + tc.nebula1[2] + ',0)');
+        ctx.fillStyle = g1;
+        ctx.fillRect(0, 0, w, h);
+
+        var cx2 = w * 0.82, cy2 = h * 0.72;
+        var r2 = Math.min(w, h) * 0.36;
+        var g2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, r2);
+        g2.addColorStop(0, 'rgba(' + tc.nebula2[0] + ',' + tc.nebula2[1] + ',' + tc.nebula2[2] + ',0.05)');
+        g2.addColorStop(0.5, 'rgba(' + tc.nebula2[0] + ',' + tc.nebula2[1] + ',' + tc.nebula2[2] + ',0.018)');
+        g2.addColorStop(1, 'rgba(' + tc.nebula2[0] + ',' + tc.nebula2[1] + ',' + tc.nebula2[2] + ',0)');
+        ctx.fillStyle = g2;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      setTimeout(function() { spawnShootingStar(getThemeColors()); }, 1500);
+      setTimeout(function() { spawnShootingStar(getThemeColors()); }, 4500);
       draw();
     })();
   </script>
+  <script src="assets/js/portal-nav.js"></script>
 </body>
 </html>

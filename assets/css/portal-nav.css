@@ -79,37 +79,60 @@
   height: 22px;
 }
 
+/* --- Mobile responsive: hide desktop nav, show dropdown --- */
 @media (max-width: 768px) {
   .nav-toggle {
     display: flex;
   }
 
-  #portalNavbar {
+  /* Hide desktop nav containers on mobile */
+  #portalNavbar,
+  .nav-glass {
     flex-wrap: nowrap;
+    position: relative;
   }
 
-  #portalNavbar.nav-links,
-  #portalNavbar.navbar-links {
+  /* Position bubble relative to inner flex container (Pattern A) */
+  .nav-glass > div,
+  #portalNavbar > div {
+    position: relative;
+  }
+
+  /* Hide desktop nav-links on mobile, convert to bubble popover when open */
+  .nav-glass .nav-links,
+  #portalNavbar .nav-links,
+  .nav-glass .navbar-links,
+  #portalNavbar .navbar-links {
     display: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--spacing-2);
+    flex-direction: column;
+    min-width: 140px;
+    gap: 2px;
     background: var(--color-bg-alt);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    padding: var(--spacing-3) var(--spacing-4);
-    border-bottom: 1px solid var(--color-border);
+    padding: 6px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
+    position: absolute;
+    top: calc(var(--spacing-11, 44px) + 4px);
+    right: var(--spacing-3);
+    z-index: 9998;
   }
 
-  #portalNavbar.nav-links.is-open,
-  #portalNavbar.navbar-links.is-open {
+  /* Show dropdown when toggled open */
+  .nav-glass .nav-links.is-open,
+  #portalNavbar .nav-links.is-open,
+  .nav-glass .navbar-links.is-open,
+  #portalNavbar .navbar-links.is-open {
     display: flex;
   }
 
-  #portalNavbar.nav-links a,
-  #portalNavbar.navbar-links a {
+  /* Mobile-friendly nav link sizing */
+  .nav-glass .nav-links a,
+  #portalNavbar .nav-links a,
+  .nav-glass .navbar-links a,
+  #portalNavbar .navbar-links a {
     padding: var(--spacing-2) var(--spacing-2);
     min-height: 44px;
     display: flex;

@@ -132,7 +132,7 @@
     "commits": ["966697b", "f5407ed", "3051520", "d4a7999", "7fa98ea", "9fe94c7"]
   },
   {
-    "date": "2026-08-08",
+    "date": "2026-08-07",
     "title": "Design Tokens 响应式适配系统",
     "icon": "🎨",
     "type": "feature",
@@ -141,12 +141,30 @@
     "commits": ["65a8329"]
   },
   {
-    "date": "2026-08-10",
+    "date": "2026-08-08",
     "title": "统一主题切换 & 移动端布局修复",
     "icon": "🔧",
     "type": "refactor",
     "description": "移除三个子应用重复的 themeToggle 按钮，仅保留导航栏 portalThemeToggle。统一 localStorage 主题键为 portal-theme，修复跨页面主题不同步。修复移动端导航栏按钮垂直堆叠、首页卡片文字截断、画布高度过大等问题。",
     "tags": ["主题统一", "移动端修复", "重构"],
     "commits": ["f3a1745"]
+  },
+  {
+    "date": "2026-08-10",
+    "title": "VoiceCraft 代码优化",
+    "icon": "🎙️",
+    "type": "refactor",
+    "description": "优化 VoiceCraft 语音工坊应用代码结构和运行效率。",
+    "tags": ["VoiceCraft", "代码优化"],
+    "commits": ["3051520"]
+  },
+  {
+    "date": "2026-08-11",
+    "title": "移动端导航重叠修复",
+    "icon": "📱",
+    "type": "maintenance",
+    "description": "修复移动端导航重叠问题：桌面端导航 DOM 在 max-width:768px 下未隐藏，与汉堡按钮重叠。将 .nav-links 选择器提升为 #portalNavbar .nav-links 以提高 CSS 特异性，覆盖 Tailwind .flex 类。同时移除 4 个子应用页面的 inline style=\"display:flex\"，确保媒体查询 display:none 生效。",
+    "tags": ["移动端", "导航", "CSS", "修复"],
+    "commits": ["5caaa5a"]
   }
 ]

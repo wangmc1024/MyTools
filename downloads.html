@@ -13,6 +13,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      mode: 'open',
       darkMode: 'class',
       theme: {
         extend: {
@@ -260,9 +261,6 @@
       </svg>
       <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">Gizmo Galaxy</span>
     </a>
-    <button class="nav-toggle" id="navToggle" aria-label="菜单">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
     <div class="nav-links flex items-center gap-1">
       <a href="index.html" class="back-link" title="返回首页">
         <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:.75;">
@@ -271,10 +269,10 @@
         </svg>
         返回首页
       </a>
-      <button id="themeToggle" class="theme-btn" title="切换主题">
-        <span id="themeIcon">☽️</span>
-      </button>
     </div>
+    <button id="themeToggle" class="theme-btn ml-2" title="切换主题">
+      <span id="themeIcon">☽️</span>
+    </button>
   </div>
 </nav>
 
@@ -325,6 +323,7 @@
 </div>
 
 <script src="assets/js/tools.js?v=2"></script>
+<script src="assets/js/portal-nav.js"></script>
 <script src="assets/js/download.js?v=4"></script>
 <script>
   (function () {

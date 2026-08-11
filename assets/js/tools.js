@@ -267,7 +267,7 @@ function initNavToggle() {
   });
   // Close menu when clicking outside
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('#portalNavbar')) {
+    if (!e.target.closest('#portalNavbar, .nav-glass')) {
       var openMenu = document.querySelector('.nav-links.is-open, .navbar-links.is-open');
       if (openMenu) openMenu.classList.remove('is-open');
     }

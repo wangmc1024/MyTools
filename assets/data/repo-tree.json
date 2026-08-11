@@ -473,6 +473,11 @@
             "name": "tools.js",
             "type": "file",
             "path": "assets/js/tools.js"
+          },
+          {
+            "name": "portal-nav.js",
+            "type": "file",
+            "path": "assets/js/portal-nav.js"
           }
         ]
       }

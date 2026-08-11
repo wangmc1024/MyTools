@@ -10,7 +10,7 @@
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-08-07"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "English Learning Reader",
@@ -23,33 +23,33 @@
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-08-07"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "DeepSeek 问答一键导出 MD",
     "icon": "📝",
     "type": "浏览器脚本",
-    "category": "工具",
+    "category": "效率工具",
     "description": "Tampermonkey 用户脚本，一键导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。",
     "status": "online",
     "url": null,
     "downloadUrl": "tempermonkeyScript/DeepSeek问答一键导出md.js",
     "fileType": "Userscript",
     "version": "v6.6",
-    "updatedAt": "2026-06-10"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "评教一键勾选",
     "icon": "✅",
     "type": "浏览器脚本",
-    "category": "工具",
+    "category": "效率工具",
     "description": "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。",
     "status": "online",
     "url": null,
     "downloadUrl": "tempermonkeyScript/评教一键勾选.js",
     "fileType": "Userscript",
     "version": "v6.0",
-    "updatedAt": "2026-06-10"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "PyIDE",
@@ -62,7 +62,7 @@
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-07-25"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "Talk2GeoGebra",
@@ -75,7 +75,7 @@
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-07-25"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "VoiceCraft",
@@ -88,7 +88,7 @@
     "version": null,
     "downloadUrl": null,
     "fileType": null,
-    "updatedAt": "2026-07-24"
+    "updatedAt": "2026-08-11"
   },
   {
     "name": "ChatOCR",
@@ -101,6 +101,6 @@
     "downloadUrl": null,
     "version": null,
     "fileType": null,
-    "updatedAt": "2026-07-26"
+    "updatedAt": "2026-08-11"
   }
 ]
