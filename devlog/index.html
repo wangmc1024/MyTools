@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='13' fill='%23635bff' opacity='.12'/%3E%3Ccircle cx='14' cy='14' r='9' fill='%23635bff' opacity='.6'/%3E%3Ccircle cx='14' cy='14' r='2' fill='%23fff' opacity='.8'/%3E%3C/svg%3E">
+  <title>Dev Log — Gizmo Galaxy</title>
+
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { primary: '#635bff', primaryLight: '#7f74ff' } } },
+    }
+  </script>
+
+  <!-- GSAP + ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #06080f; --text: #e8eaf0; --text-dim: rgba(255,255,255,0.45);
+      --line: #635bff; --line-glow: rgba(99,91,255,0.5);
+      --card-bg: rgba(255,255,255,0.03); --card-border: rgba(255,255,255,0.06);
+      --card-hover: rgba(99,91,255,0.08);
+      --tag-bg: rgba(99,91,255,0.12); --tag-text: #a78bfa;
+    }
+    [data-theme="light"] {
+      --bg: #f0f2f8; --text: #1a1a2e; --text-dim: rgba(0,0,0,0.45);
+      --line: #635bff; --line-glow: rgba(99,91,255,0.35);
+      --card-bg: rgba(255,255,255,0.85); --card-border: rgba(0,0,0,0.06);
+      --card-hover: rgba(99,91,255,0.05);
+      --tag-bg: rgba(99,91,255,0.08); --tag-text: #635bff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif; }
+
+    /* ---- Nav ---- */
+    .nav-glass {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(6,8,15,.72) !important;
+      border-bottom: 1px solid var(--card-border);
+    }
+    [data-theme="light"] .nav-glass { background: rgba(255,255,255,.72) !important; }
+    .nav-link { color: var(--text-dim); transition: all .2s; text-decoration: none; }
+    .nav-link:hover { color: var(--text); }
+    .nav-link.active { color: #fff; background: rgba(99,91,255,.15); }
+    [data-theme="light"] .nav-link.active { color: #635bff; background: rgba(99,91,255,.08); }
+
+    /* ---- Starfield canvas ---- */
+    #starfield { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    /* ---- Main content ---- */
+    .page-main { position: relative; z-index: 1; }
+
+    /* ---- Timeline ---- */
+    .tl-wrap { position: relative; max-width: 820px; margin: 0 auto; padding: 60px 0 100px; }
+
+    /* Central glowing line */
+    .tl-spine {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+      background: linear-gradient(180deg, transparent 0%, var(--line) 8%, var(--line) 92%, transparent 100%);
+      transform: translateX(-50%);
+    }
+    .tl-spine::before {
+      content: ''; position: absolute; inset: 0; width: 8px; left: -3px;
+      background: linear-gradient(180deg, transparent, var(--line-glow), transparent);
+      filter: blur(4px);
+    }
+    /* Traveling light dot */
+    .tl-spine::after {
+      content: ''; position: absolute; left: 50%; width: 8px; height: 8px; margin-left: -4px;
+      background: #fff; border-radius: 50%;
+      box-shadow: 0 0 16px 4px var(--line), 0 0 40px 10px rgba(99,91,255,0.25);
+      animation: travelDot 8s ease-in-out infinite;
+    }
+    @keyframes travelDot {
+      0%   { top: -8px; opacity: 0; }
+      4%   { opacity: 1; }
+      96%  { opacity: 1; }
+      100% { top: calc(100% + 8px); opacity: 0; }
+    }
+
+    /* ---- Month separator ---- */
+    .tl-month {
+      text-align: center; position: relative; margin: 56px 0 40px; z-index: 2;
+    }
+    .tl-month span {
+      display: inline-block; padding: 5px 22px;
+      background: var(--bg); border: 1px solid var(--line-glow);
+      border-radius: 999px; font-size: 12px; font-weight: 600;
+      letter-spacing: .08em; color: var(--line);
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    /* ---- Event ---- */
+    .tl-event { position: relative; display: flex; margin-bottom: 56px; }
+    .tl-event:last-child { margin-bottom: 0; }
+
+    /* Alternating sides */
+    .tl-event.tl-left  { justify-content: flex-start; }
+    .tl-event.tl-right { justify-content: flex-end; }
+
+    /* Node on the spine */
+    .tl-dot {
+      position: absolute; left: 50%; top: 24px; z-index: 3;
+      width: 14px; height: 14px; margin-left: -7px;
+      background: var(--line); border: 3px solid var(--bg); border-radius: 50%;
+      box-shadow: 0 0 10px var(--line-glow);
+      transition: transform .4s, box-shadow .4s;
+    }
+    .tl-dot.big {
+      width: 20px; height: 20px; margin-left: -10px; top: 21px;
+      background: linear-gradient(135deg, #a99fff, #635bff);
+      box-shadow: 0 0 20px var(--line-glow), 0 0 50px rgba(99,91,255,0.2);
+    }
+
+    /* Connector arm */
+    .tl-arm {
+      position: absolute; top: 30px; height: 2px; background: var(--line-glow);
+      z-index: 2;
+    }
+    .tl-event.tl-left .tl-arm  { left: calc(50% + 7px); width: 32px; }
+    .tl-event.tl-right .tl-arm { right: calc(50% + 7px); width: 32px; }
+
+    /* ---- Card ---- */
+    .tl-card {
+      width: calc(50% - 48px);
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 16px; padding: 22px 26px;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      transition: border-color .35s, box-shadow .35s, transform .35s;
+      cursor: default;
+      /* Initial state for GSAP */
+      opacity: 0;
+    }
+    .tl-card:hover {
+      border-color: rgba(99,91,255,0.3);
+      box-shadow: 0 12px 40px rgba(99,91,255,0.1), inset 0 0 0 1px rgba(99,91,255,0.08);
+      transform: translateY(-3px);
+    }
+    [data-theme="light"] .tl-card { background: var(--card-bg); }
+    [data-theme="light"] .tl-card:hover { box-shadow: 0 12px 40px rgba(99,91,255,0.06); }
+
+    .tl-date {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--line); font-weight: 600; letter-spacing: .04em; margin-bottom: 8px;
+    }
+    .tl-title {
+      font-size: 17px; font-weight: 700; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 8px; line-height: 1.3;
+    }
+    .tl-icon { font-size: 22px; flex-shrink: 0; }
+    .tl-desc {
+      font-size: 13.5px; line-height: 1.75; color: var(--text-dim);
+    }
+    .tl-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+    .tl-tag {
+      font-size: 10.5px; padding: 2px 10px; border-radius: 999px;
+      background: var(--tag-bg); color: var(--tag-text); font-weight: 500;
+    }
+    .tl-hash {
+      margin-top: 10px; font-size: 10.5px; font-family: 'JetBrains Mono', monospace;
+      color: rgba(255,255,255,0.2); letter-spacing: .02em;
+    }
+    [data-theme="light"] .tl-hash { color: rgba(0,0,0,0.2); }
+
+    /* ---- Footer ---- */
+    .tl-footer {
+      text-align: center; margin-top: 64px; padding: 32px 0;
+      border-top: 1px solid var(--card-border);
+    }
+    .tl-footer p { font-size: 13px; color: var(--text-dim); }
+    .tl-footer .tl-pulse {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #10b981; margin-right: 6px; vertical-align: middle;
+      box-shadow: 0 0 8px rgba(16,185,129,0.6);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.3)} }
+
+    /* ---- Mobile ---- */
+    @media (max-width: 768px) {
+      .tl-spine { left: 20px; }
+      .tl-dot { left: 20px !important; margin-left: -7px !important; }
+      .tl-dot.big { margin-left: -10px !important; }
+      .tl-arm { left: 27px !important; right: auto !important; width: 16px !important; }
+      .tl-event, .tl-event.tl-left, .tl-event.tl-right {
+        justify-content: flex-end;
+      }
+      .tl-card { width: calc(100% - 52px); }
+    }
+
+    /* ---- Scrollbar ---- */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+
+  <!-- Starfield -->
+  <canvas id="starfield"></canvas>
+
+  <!-- ======== NAVBAR ======== -->
+  <nav class="nav-glass">
+    <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
+      <a href="../index.html" class="flex items-center gap-2 shrink-0 group">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" class="group-hover:scale-110 transition-transform">
+          <circle cx="14" cy="14" r="9" fill="#635bff" opacity=".6"/>
+          <circle cx="14" cy="14" r="2" fill="#fff" opacity=".8"/>
+          <circle cx="14" cy="14" r="1" fill="#635bff"/>
+        </svg>
+        <span class="text-sm font-bold tracking-tight" style="color:var(--line)">Gizmo Galaxy</span>
+      </a>
+      <div class="flex items-center gap-1">
+        <a href="../index.html" class="nav-link px-3 py-1.5 rounded-lg text-sm font-medium">工具</a>
+        <a href="../downloads.html" class="nav-link px-3 py-1.5 rounded-lg text-sm font-medium">下载</a>
+        <a href="index.html" class="nav-link active px-3 py-1.5 rounded-lg text-sm font-medium">📡 日志</a>
+        <button id="themeToggle" class="ml-2 w-8 h-8 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 transition" title="切换主题">
+          <span id="themeIcon">☀️</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ======== MAIN ======== -->
+  <main class="page-main mx-auto max-w-[1200px] px-6 pt-10 pb-16">
+
+    <!-- Header -->
+    <header class="tl-header text-center mb-4" style="opacity:0">
+      <div class="text-4xl mb-3">📡</div>
+      <h1 class="text-3xl font-extrabold tracking-tight mb-2" style="background:linear-gradient(135deg,#e8eaf0 20%,#a78bfa 60%,#635bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Development Log</h1>
+      <p class="text-sm" style="color:var(--text-dim)">Gizmo Galaxy 开发历程 · 从第一行代码到现在</p>
+    </header>
+
+    <!-- Timeline -->
+    <div class="tl-wrap" id="timeline">
+      <div class="tl-spine"></div>
+      <!-- JS renders events here -->
+    </div>
+
+  </main>
+
+  <script>
+  (function() {
+    'use strict';
+
+    /* ================================================================
+       Starfield — canvas-based, theme-aware
+       ================================================================ */
+    var sfCanvas = document.getElementById('starfield');
+    var sfCtx = sfCanvas.getContext('2d');
+    var sfStars = [];
+
+    function sfResize() {
+      sfCanvas.width = window.innerWidth;
+      sfCanvas.height = window.innerHeight * 3;
+      sfStars = [];
+      var n = Math.floor((sfCanvas.width * sfCanvas.height) / 4000);
+      for (var i = 0; i < n; i++) {
+        sfStars.push({
+          x: Math.random() * sfCanvas.width,
+          y: Math.random() * sfCanvas.height,
+          r: Math.random() * 1.1 + 0.2,
+          a: Math.random() * 0.45 + 0.1,
+          sp: Math.random() * 0.002 + 0.0005,
+          ph: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    sfResize();
+    window.addEventListener('resize', sfResize);
+
+    function sfDraw(t) {
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      sfCtx.clearRect(0, 0, sfCanvas.width, sfCanvas.height);
+      for (var i = 0; i < sfStars.length; i++) {
+        var s = sfStars[i];
+        var alpha = dark
+          ? Math.max(0, s.a + Math.sin(t * s.sp + s.ph) * 0.2)
+          : Math.max(0, s.a * 0.4 + Math.sin(t * s.sp + s.ph) * 0.08);
+        sfCtx.beginPath();
+        sfCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        sfCtx.fillStyle = dark
+          ? 'rgba(190,185,255,' + alpha.toFixed(3) + ')'
+          : 'rgba(99,91,255,' + alpha.toFixed(3) + ')';
+        sfCtx.fill();
+      }
+      requestAnimationFrame(sfDraw);
+    }
+    requestAnimationFrame(sfDraw);
+
+    /* ================================================================
+       Theme toggle
+       ================================================================ */
+    var isDark = true;
+    document.getElementById('themeToggle').addEventListener('click', function() {
+      isDark = !isDark;
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+    });
+
+    /* ================================================================
+       Render timeline
+       ================================================================ */
+    function esc(s) {
+      if (!s) return '';
+      var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+    }
+
+    fetch('timeline.json')
+      .then(function(r) { return r.json(); })
+      .then(function(events) {
+        var wrap = document.getElementById('timeline');
+        // Keep the spine
+        var spine = wrap.querySelector('.tl-spine');
+        wrap.innerHTML = '';
+        wrap.appendChild(spine);
+
+        var lastLabel = '';
+        var eventIdx = 0;
+        events.forEach(function(ev, i) {
+          // Month separator
+          if (ev.label && ev.label !== lastLabel) {
+            lastLabel = ev.label;
+            var sep = document.createElement('div');
+            sep.className = 'tl-month';
+            sep.innerHTML = '<span>' + esc(ev.label) + '</span>';
+            wrap.appendChild(sep);
+          }
+
+          var isMilestone = ev.type === 'milestone';
+          var side = eventIdx % 2 === 0 ? 'tl-left' : 'tl-right';
+          eventIdx++;
+
+          // Event container
+          var item = document.createElement('div');
+          item.className = 'tl-event ' + side;
+
+          // Dot
+          var dot = document.createElement('div');
+          dot.className = 'tl-dot' + (isMilestone ? ' big' : '');
+          item.appendChild(dot);
+
+          // Arm
+          var arm = document.createElement('div');
+          arm.className = 'tl-arm';
+          item.appendChild(arm);
+
+          // Card
+          var card = document.createElement('div');
+          card.className = 'tl-card';
+
+          var tagsHtml = '';
+          if (ev.tags && ev.tags.length) {
+            tagsHtml = '<div class="tl-tags">' + ev.tags.map(function(t) {
+              return '<span class="tl-tag">' + esc(t) + '</span>';
+            }).join('') + '</div>';
+          }
+
+          var hashHtml = '';
+          if (ev.commits && ev.commits.length) {
+            hashHtml = '<div class="tl-hash">' + ev.commits.map(function(c) {
+              return c.substring(0, 7);
+            }).join(' · ') + '</div>';
+          }
+
+          card.innerHTML =
+            '<div class="tl-date">' + esc(ev.date) + '</div>' +
+            '<div class="tl-title"><span class="tl-icon">' + (ev.icon || '') + '</span>' + esc(ev.title) + '</div>' +
+            '<div class="tl-desc">' + esc(ev.description) + '</div>' +
+            tagsHtml + hashHtml;
+
+          item.appendChild(card);
+          wrap.appendChild(item);
+        });
+
+        // Footer
+        var footer = document.createElement('div');
+        footer.className = 'tl-footer';
+        footer.style.opacity = '0';
+        footer.innerHTML = '<p><span class="tl-pulse"></span>持续更新中…</p>';
+        wrap.appendChild(footer);
+
+        /* ================================================================
+           GSAP ScrollTrigger animations
+           ================================================================ */
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Header fade in
+        gsap.to('.tl-header', {
+          opacity: 1, y: 0, duration: 0.8, ease: 'power3.out',
+          scrollTrigger: { trigger: '.tl-header', start: 'top 85%' }
+        });
+        gsap.from('.tl-header', { y: 30, duration: 0.8, ease: 'power3.out' });
+
+        // Each card: slide in from its side
+        var cards = wrap.querySelectorAll('.tl-card');
+        cards.forEach(function(card) {
+          var fromLeft = card.closest('.tl-left') !== null;
+          gsap.set(card, { opacity: 0, x: fromLeft ? -40 : 40 });
+          gsap.to(card, {
+            opacity: 1, x: 0, duration: 0.7, ease: 'power3.out',
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 85%',
+              toggleActions: 'play none none none'
+            }
+          });
+        });
+
+        // Dots: scale in
+        var dots = wrap.querySelectorAll('.tl-dot');
+        dots.forEach(function(dot) {
+          gsap.from(dot, {
+            scale: 0, duration: 0.4, ease: 'back.out(2)',
+            scrollTrigger: { trigger: dot, start: 'top 85%' }
+          });
+        });
+
+        // Month separators
+        var months = wrap.querySelectorAll('.tl-month');
+        months.forEach(function(m) {
+          gsap.from(m, {
+            opacity: 0, scale: 0.8, duration: 0.5, ease: 'power2.out',
+            scrollTrigger: { trigger: m, start: 'top 85%' }
+          });
+        });
+
+        // Footer
+        gsap.to(footer, {
+          opacity: 1, duration: 0.6,
+          scrollTrigger: { trigger: footer, start: 'top 90%' }
+        });
+
+        // Parallax spine glow on scroll
+        gsap.to('.tl-spine', {
+          '--line-glow-intensity': 1,
+          scrollTrigger: {
+            trigger: wrap,
+            start: 'top center',
+            end: 'bottom center',
+            scrub: 1
+          }
+        });
+      })
+      .catch(function(err) {
+        console.error('Failed to load timeline:', err);
+      });
+  })();
+  </script>
+
+</body>
+</html>

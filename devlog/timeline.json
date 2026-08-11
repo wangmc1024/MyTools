@@ -1,0 +1,134 @@
+[
+  {
+    "date": "2026-03-20",
+    "label": "March 2026",
+    "title": "Talk2GeoGebra 原型",
+    "icon": "🧪",
+    "type": "feature",
+    "description": "用自然语言控制 GeoGebra 画图的最早原型。一个独立的 HTML 文件，手动拼接 API 调用，能画出简单的函数图像。当时还没有想好它该放在哪里。",
+    "tags": ["原型", "GeoGebra"],
+    "commits": []
+  },
+  {
+    "date": "2026-04-05",
+    "label": "April 2026",
+    "title": "DeepSeek 答案导出脚本",
+    "icon": "📝",
+    "type": "feature",
+    "description": "写了一个油猴脚本，一键把 DeepSeek 的回答导出为格式化的 Markdown。用了一阵子发现挺顺手，就想：能不能多攒几个这样的工具？",
+    "tags": ["油猴脚本", "DeepSeek"],
+    "commits": []
+  },
+  {
+    "date": "2026-04-18",
+    "title": "评教一键好评",
+    "icon": "⭐",
+    "type": "feature",
+    "description": "期末评教季的产物。脚本自动填充好评模板，省去重复勾选。工具集有了第二个成员。",
+    "tags": ["油猴脚本"],
+    "commits": []
+  },
+  {
+    "date": "2026-05-12",
+    "label": "May 2026",
+    "title": "Article Reader 构想",
+    "icon": "📖",
+    "type": "milestone",
+    "description": "开始做英文文章阅读器。最初的版本很粗糙——一个全屏的 HTML 页面，手动粘贴文章内容，逐段高亮生词。但「浏览器里直接用」的想法开始成形。",
+    "tags": ["Article Reader", "原型"],
+    "commits": []
+  },
+  {
+    "date": "2026-06-10",
+    "label": "June 2026",
+    "title": "Git 仓库初始化",
+    "icon": "🚀",
+    "type": "milestone",
+    "description": "把散落的脚本文件整理到一起，建了 MyTools 仓库，提交了第一批代码。项目从「本地文件夹」变成了有版本管理的项目。",
+    "tags": ["Git", "起步"],
+    "commits": ["f55391a"]
+  },
+  {
+    "date": "2026-06-27",
+    "title": "Mermaid 模板",
+    "icon": "📐",
+    "type": "feature",
+    "description": "新增 Mermaid 图表样式模板。工具类型开始从「油猴脚本」向更多种类扩展。",
+    "tags": ["模板"],
+    "commits": ["64247d1"]
+  },
+  {
+    "date": "2026-07-15",
+    "label": "July 2026",
+    "title": "Article Reader 重构",
+    "icon": "📖",
+    "type": "refactor",
+    "description": "Article Reader 从单文件重写为模块化结构，加入实时翻译和 TTS 朗读功能。同期开始做 English Learning Reader 变体。",
+    "tags": ["Article Reader", "TTS"],
+    "commits": []
+  },
+  {
+    "date": "2026-07-23",
+    "title": "门户上线",
+    "icon": "🌐",
+    "type": "milestone",
+    "description": "一天内搭建了 index.html 星图门户、tools.json 注册表、GitHub Actions 自动同步 Gitee。工具集合正式有了「首页」。",
+    "tags": ["门户", "CI/CD"],
+    "commits": ["4d3a03e", "f16c7f3"]
+  },
+  {
+    "date": "2026-07-24",
+    "title": "v1.0.0 & apps 架构",
+    "icon": "🏗️",
+    "type": "milestone",
+    "description": "新增 apps/ 目录统一管理应用，首页星空图重做，下载中心拆分为独立页面。voice-craft 语音工坊上线。v1.0.0 发布。",
+    "tags": ["v1.0.0", "VoiceCraft"],
+    "commits": ["89255c9", "0b331f7", "3685b66"]
+  },
+  {
+    "date": "2026-07-25",
+    "title": "PyIDE & Talk2GeoGebra 正式入驻",
+    "icon": "✨",
+    "type": "feature",
+    "description": "PyIDE（浏览器端 Python IDE，基于 Pyodide）上线。Talk2GeoGebra 从独立 HTML 迁移到 apps/ 目录，加入 AI 模型接口。Logo 重做，favicon 上线，第一个 PR 合并。",
+    "tags": ["PyIDE", "Talk2GeoGebra"],
+    "commits": ["e92a77d", "571be9e", "dcb89f0"]
+  },
+  {
+    "date": "2026-07-27",
+    "title": "ChatOCR 工作台",
+    "icon": "🔍",
+    "type": "feature",
+    "description": "ChatOCR 上线 — 对话式 OCR 多模态工作台，支持拍照/相册识别 + AI 对话。SPA 架构，模块化拆分。同期完成多个应用导航栏统一。",
+    "tags": ["ChatOCR", "多模态"],
+    "commits": ["11f4ba6", "2b446e8"]
+  },
+  {
+    "date": "2026-08-01",
+    "label": "August 2026",
+    "title": "稳定性修复",
+    "icon": "🔧",
+    "type": "refactor",
+    "description": "PyIDE 编辑器滚动修复、Pyodide 升级 v0.25.4、文件预览 bug 修复、repo-tree.json 补全。打磨细节的一周。",
+    "tags": ["修复", "PyIDE"],
+    "commits": ["9f46203", "620247e", "7542ea1"]
+  },
+  {
+    "date": "2026-08-08",
+    "title": "翻译能力升级",
+    "icon": "🌐",
+    "type": "feature",
+    "description": "Article Reader 和 English Learning Reader 接入百度翻译 API，通过 Cloudflare Worker 实现渐进式单词翻译。阅读工具跨语言能力提升。",
+    "tags": ["翻译", "百度API", "Cloudflare"],
+    "commits": ["0b622a2", "b9487d1"]
+  },
+  {
+    "date": "2026-08-11",
+    "title": "部署优化 & 清理",
+    "icon": "📦",
+    "type": "maintenance",
+    "description": "repo-tree.json 结构调整，旧文件清理，Gitee 同步修复，404 页面上线，VoiceCraft 代码优化。",
+    "tags": ["维护", "部署"],
+    "commits": ["966697b", "f5407ed", "3051520"]
+  }
+]

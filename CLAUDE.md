@@ -58,6 +58,14 @@ MyTools/
 - 关闭预览：点击 ✕ / 遮罩层 / 按 Esc
 - 文件内容加载优先级：本地 fetch → Gitee raw URL → Cloudflare worker 代理
 
+## Dev Log 时间线
+
+- 入口：`index.html` 导航栏「📡 日志」→ `devlog/index.html`
+- 数据：`devlog/timeline.json` — 按时间顺序排列的事件数组
+- 技术栈：GSAP + ScrollTrigger 驱动滚动动画，Canvas 星空背景
+- 添加新条目时追加到 `timeline.json` 末尾，`label` 字段仅在新月份首次出现时设置
+- 里程碑(milestone)节点会显示为更大的发光圆点
+
 ## Skills
 
 ### `/sync-toolkit`
@@ -65,3 +73,6 @@ MyTools/
 
 ### `/git-sync`
 自动执行 `git add/commit/push` 流程，含提交信息自动生成。
+
+### `/update-devlog`
+为 devlog 时间线添加新条目。读取最近的 git 提交记录，生成简洁的事实性描述，追加到 `devlog/timeline.json`。

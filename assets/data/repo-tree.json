@@ -511,6 +511,22 @@
     ]
   },
   {
+    "name": "devlog",
+    "type": "dir",
+    "children": [
+      {
+        "name": "index.html",
+        "type": "file",
+        "path": "devlog/index.html"
+      },
+      {
+        "name": "timeline.json",
+        "type": "file",
+        "path": "devlog/timeline.json"
+      }
+    ]
+  },
+  {
     "name": "404.html",
     "type": "file",
     "path": "404.html"
