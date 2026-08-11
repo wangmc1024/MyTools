@@ -6,19 +6,18 @@
 var DB_NAME = 'ArticleReader';
 var DB_VERSION = 2;
 
-// Silicon Flow Translation API (primary)
-var SILICON_FLOW_API_KEY = 'sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt';
-var SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-var SILICON_FLOW_MODEL = 'tencent/Hunyuan-MT-7B';
+// Silicon Flow Translation API (primary) — populated by config-loader.js from api-config.json
+var SILICON_FLOW_API_KEY = typeof window.SILICON_FLOW_API_KEY !== 'undefined' ? window.SILICON_FLOW_API_KEY : '';
+var SILICON_FLOW_API_URL = typeof window.SILICON_FLOW_API_URL !== 'undefined' ? window.SILICON_FLOW_API_URL : '';
+var SILICON_FLOW_MODEL = typeof window.SILICON_FLOW_MODEL !== 'undefined' ? window.SILICON_FLOW_MODEL : 'tencent/Hunyuan-MT-7B';
 
 // Cloudflare Worker fallback
-var CLOUDFLARE_WORKER_URL = 'https://deeplx.wangmc1024.workers.dev/translate';
+var CLOUDFLARE_WORKER_URL = typeof window.CLOUDFLARE_WORKER_URL !== 'undefined' ? window.CLOUDFLARE_WORKER_URL : '';
 
-// Edge-TTS Cloud Engine (primary)
-var TTS_API_URL = 'https://edge-tts-voice-magic.wangmc1024.workers.dev/v1/audio/speech';
-// Edge-TTS Cloud Engine (fallback)
-var TTS_API_URL_FALLBACK = 'https://tts.wangwangit.com/v1/audio/speech';
-var EDGE_TTS_TIMEOUT = 15000;
+// Edge-TTS Cloud Engine (primary / fallback) — populated by config-loader.js
+var TTS_API_URL = typeof window.TTS_API_URL !== 'undefined' ? window.TTS_API_URL : '';
+var TTS_API_URL_FALLBACK = typeof window.TTS_API_URL_FALLBACK !== 'undefined' ? window.TTS_API_URL_FALLBACK : '';
+var EDGE_TTS_TIMEOUT = typeof window.EDGE_TTS_TIMEOUT !== 'undefined' ? window.EDGE_TTS_TIMEOUT : 15000;
 
 // Translation result validation
 var TRANSLATION_ERROR_MARKERS = [

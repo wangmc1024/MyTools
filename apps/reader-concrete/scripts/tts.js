@@ -2,7 +2,8 @@
 //  EDGE-TTS CLOUD ENGINE (via Edge-TTS API)
 //  Fallback chain: wangmc worker → wangwangit → system TTS
 // ============================================================
-const TTS_API_URLS = [
+// TTS_API_URLS and EDGE_TTS_TIMEOUT populated by config-loader.js from api-config.json
+const TTS_API_URLS = window.TTS_API_URLS || [
   'https://edge-tts-voice-magic.wangmc1024.workers.dev/v1/audio/speech',
   'https://tts.wangwangit.com/v1/audio/speech'
 ];
@@ -44,7 +45,7 @@ async function probeTTSEndpoints() {
   console.log('[TTS] All cloud endpoints failed, using System TTS');
 }
 let EDGE_TTS_VOICE = localStorage.getItem('ttsVoice') || 'en-US-JennyNeural';
-const EDGE_TTS_TIMEOUT = 15000;
+const EDGE_TTS_TIMEOUT = window.EDGE_TTS_TIMEOUT || 15000;
 
 // Audio cache (in-memory, keyed by text+voice+rate, limited size)
 const TTS_CACHE_MAX = 50;

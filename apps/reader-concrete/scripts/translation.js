@@ -1,10 +1,11 @@
 // ============================================================
 //  TRANSLATION (Silicon Flow API primary, Cloudflare Worker fallback)
 // ============================================================
-const SILICON_FLOW_API_KEY = 'sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt';
-const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const SILICON_FLOW_MODEL = 'tencent/Hunyuan-MT-7B';
-const CLOUDFLARE_WORKER_URL = 'https://deeplx.wangmc1024.workers.dev/translate';
+// Config values populated by config-loader.js from api-config.json
+const SILICON_FLOW_API_KEY = window.SILICON_FLOW_API_KEY || '';
+const SILICON_FLOW_API_URL = window.SILICON_FLOW_API_URL || '';
+const SILICON_FLOW_MODEL = window.SILICON_FLOW_MODEL || 'tencent/Hunyuan-MT-7B';
+const CLOUDFLARE_WORKER_URL = window.CLOUDFLARE_WORKER_URL || '';
 
 function buildTranslationPrompt(text) {
   return 'Translate the following English text into natural Simplified Chinese. Only output the translation, nothing else:\n\n' + text;

@@ -428,6 +428,9 @@
                     </div>
                     <input type="password" class="form-input" id="tokenInput"
                            placeholder="输入您的API Key（可选）" style="display: none;">
+                    <div class="token-hint" id="tokenHint" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        使用默认key将自动添加认证，无需填写
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-primary" id="transcribeBtn">
@@ -471,6 +474,7 @@
     </div>
 </div>
 
+    <script src="../../assets/js/config-loader.js"></script>
     <script src="assets/js/main.js?v=2"></script>
     <script src="assets/js/portal.js?v=2"></script>
 </body>

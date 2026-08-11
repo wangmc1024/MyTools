@@ -308,10 +308,11 @@ function escapeAttr(str) {
 // ============================================================
 //  TRANSLATION (Silicon Flow API primary, Cloudflare Worker fallback)
 // ============================================================
-const SILICON_FLOW_API_KEY = 'sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt';
-const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const SILICON_FLOW_MODEL = 'tencent/Hunyuan-MT-7B';
-const CLOUDFLARE_WORKER_URL = 'https://deeplx.wangmc1024.workers.dev/translate';
+// Config values populated by config-loader.js from api-config.json
+const SILICON_FLOW_API_KEY = window.SILICON_FLOW_API_KEY || '';
+const SILICON_FLOW_API_URL = window.SILICON_FLOW_API_URL || '';
+const SILICON_FLOW_MODEL = window.SILICON_FLOW_MODEL || 'tencent/Hunyuan-MT-7B';
+const CLOUDFLARE_WORKER_URL = window.CLOUDFLARE_WORKER_URL || '';
 
 function buildTranslationPrompt(text) {
   return 'Translate the following English text into natural Simplified Chinese. Only output the translation, nothing else:\n\n' + text;
@@ -619,10 +620,8 @@ document.addEventListener('mousemove', (e) => {
 //  EDGE-TTS CLOUD ENGINE (via Edge-TTS API)
 //  Fallback chain: wangmc worker → wangwangit → system TTS
 // ============================================================
-const TTS_API_URLS = [
-  'https://edge-tts-voice-magic.wangmc1024.workers.dev/v1/audio/speech',
-  'https://tts.wangwangit.com/v1/audio/speech'
-];
+// TTS_API_URLS and EDGE_TTS_TIMEOUT populated by config-loader.js from api-config.json
+const TTS_API_URLS = window.TTS_API_URLS || [];
 let _activeTtsUrl = null; // set by probeTTSEndpoints() on init
 
 // Lightweight probe: minimal POST request, 5s timeout
@@ -661,7 +660,7 @@ async function probeTTSEndpoints() {
   console.log('[TTS] All cloud endpoints failed, using System TTS');
 }
 let EDGE_TTS_VOICE = localStorage.getItem('ttsVoice') || 'en-US-JennyNeural';
-const EDGE_TTS_TIMEOUT = 15000;
+const EDGE_TTS_TIMEOUT = window.EDGE_TTS_TIMEOUT || 15000;
 
 // Audio cache (in-memory, keyed by text+voice+rate, limited size)
 const TTS_CACHE_MAX = 50;

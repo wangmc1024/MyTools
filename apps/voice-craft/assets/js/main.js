@@ -12,6 +12,60 @@ const TTS_ENDPOINTS = [
     'https://tts.wangwangit.com/v1/audio/speech',
 ];
 
+// API配置缓存
+let cachedApiConfig = null;
+
+// 非模态弹窗提示
+function showToast(message, type = 'info') {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = `
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            z-index: 10001; display: flex; flex-direction: column; gap: 8px; align-items: center;
+        `;
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    Object.assign(toast.style, {
+        padding: '12px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: '500',
+        color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', opacity: '0',
+        transform: 'translateY(20px)', transition: 'all 0.3s ease',
+        background: type === 'info' ? '#635bff' : type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#635bff'
+    });
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Load API configuration from centralized config file
+async function loadApiConfig() {
+    if (cachedApiConfig) return cachedApiConfig;
+    try {
+        var resp = await fetch('../../assets/data/api-config.json');
+        if (!resp.ok) throw new Error('Failed to load API config');
+        cachedApiConfig = await resp.json();
+        return cachedApiConfig;
+    } catch (e) {
+        console.warn('Failed to load API config:', e.message);
+        return null;
+    }
+}
+
+// 页面加载时预加载配置
+document.addEventListener('DOMContentLoaded', function() {
+    loadApiConfig();
+});
+
 // 健康检查后确定的可用 TTS URL（null 表示尚未探测）
 let workingTTSUrl = null;
 
@@ -1029,10 +1083,18 @@ document.getElementById('transcriptionForm').addEventListener('submit', async fu
             formData.append('model', sttModelSelect.value);
         }
 
-        // 准备请求头
+        // 准备请求头 - 使用默认key或自定义key
         const headers = {};
         if (tokenOption === 'custom' && customToken.trim()) {
             headers['Authorization'] = `Bearer ${customToken.trim()}`;
+        } else if (tokenOption === 'default') {
+            const config = await loadApiConfig();
+            if (config && config.silicon_flow_stt && config.silicon_flow_stt.default_api_key) {
+                headers['Authorization'] = `Bearer ${config.silicon_flow_stt.default_api_key}`;
+            } else {
+                showToast('API 配置加载失败，无法使用默认 Token，请检查 api-config.json', 'error');
+                return;
+            }
         }
 
         const response = await requestWithTimeout(`https://api.siliconflow.cn/v1/audio/transcriptions`, {
@@ -1325,8 +1387,23 @@ function initializeAudioVisualizer() {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
+}
+
+// 确保canvas有正确的尺寸（在canvas变为可见后调用）
+function ensureCanvasSize(canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const displayWidth = Math.round(rect.width);
+    const displayHeight = Math.round(rect.height);
+    
+    if (displayWidth > 0 && displayHeight > 0) {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+    }
+    
+    return { width: displayWidth || canvas.width, height: displayHeight || canvas.height };
 }
 
 // 开始录音
@@ -1394,8 +1471,12 @@ async function startRecording() {
         // 开始录音计时器
         startRecordingTimer();
 
-        // 开始音频可视化
-        startAudioVisualization();
+        // 开始音频可视化（延迟一帧等待浏览器完成布局，确保canvas有正确尺寸）
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                startAudioVisualization();
+            });
+        });
 
         console.log('录音已开始');
 
@@ -1493,9 +1574,9 @@ function startAudioVisualization() {
     const canvas = document.getElementById('audioCanvas');
     if (!canvas || !analyser || !dataArray) return;
 
+    // 确保canvas有正确的显示尺寸
+    const { width: DISPLAY_WIDTH, height: DISPLAY_HEIGHT } = ensureCanvasSize(canvas);
     const ctx = canvas.getContext('2d');
-    const WIDTH = canvas.width;
-    const HEIGHT = canvas.height;
 
     function draw() {
         if (!isRecording) return;
@@ -1503,25 +1584,25 @@ function startAudioVisualization() {
         animationId = requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
 
-        // 清空画布
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        // 清空画布（使用显示尺寸）
+        ctx.clearRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
         // 设置可视化样式
-        const barWidth = (WIDTH / dataArray.length) * 2.5;
+        const barWidth = (DISPLAY_WIDTH / dataArray.length) * 2.5;
         let barHeight;
         let x = 0;
 
         // 绘制频率柱状图
         for (let i = 0; i < dataArray.length; i++) {
-            barHeight = dataArray[i] * (HEIGHT / 256);
+            barHeight = dataArray[i] * (DISPLAY_HEIGHT / 256);
 
             // 创建渐变色
-            const gradient = ctx.createLinearGradient(0, HEIGHT - barHeight, 0, HEIGHT);
+            const gradient = ctx.createLinearGradient(0, DISPLAY_HEIGHT - barHeight, 0, DISPLAY_HEIGHT);
             gradient.addColorStop(0, '#2563eb');
             gradient.addColorStop(1, '#818cf8');
 
             ctx.fillStyle = gradient;
-            ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+            ctx.fillRect(x, DISPLAY_HEIGHT - barHeight, barWidth, barHeight);
 
             x += barWidth + 1;
         }
@@ -1541,7 +1622,8 @@ function stopAudioVisualization() {
     const canvas = document.getElementById('audioCanvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const dpr = window.devicePixelRatio || 1;
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     }
 }
 

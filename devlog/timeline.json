@@ -160,11 +160,11 @@
   },
   {
     "date": "2026-08-11",
-    "title": "移动端导航重叠修复",
-    "icon": "📱",
-    "type": "maintenance",
-    "description": "修复移动端导航重叠问题：桌面端导航 DOM 在 max-width:768px 下未隐藏，与汉堡按钮重叠。将 .nav-links 选择器提升为 #portalNavbar .nav-links 以提高 CSS 特异性，覆盖 Tailwind .flex 类。同时移除 4 个子应用页面的 inline style=\"display:flex\"，确保媒体查询 display:none 生效。",
-    "tags": ["移动端", "导航", "CSS", "修复"],
-    "commits": ["5caaa5a"]
+    "title": "门户导航系统改进与工具配置同步",
+    "icon": "🔧",
+    "type": "refactor",
+    "description": "优化 portal-nav.css 移动端响应式逻辑，新增 portal-nav.js 统一处理移动端菜单开关与外部点击关闭。修复 tools.js 关闭菜单选择器，支持 .nav-glass 容器。统一各子应用 navbar 结构，提取 ChatOCR/Talk2GeoGebra/reader-concrete/voice-craft/py-ide 的内联样式为 CSS 类。更新 404 页面添加 GSAP 动画与 nav-links flex 布局。同步 tools.json 日期与分类，向 repo-tree.json 注册 portal-nav.js。",
+    "tags": ["导航", "移动端", "CSS", "工具配置"],
+    "commits": ["5caaa5a", "ccbf20b"]
   }
 ]

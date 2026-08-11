@@ -1,0 +1,21 @@
+{
+  "silicon_flow": {
+    "api_key": "sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt",
+    "api_url": "https://api.siliconflow.cn/v1/chat/completions",
+    "model": "tencent/Hunyuan-MT-7B"
+  },
+  "silicon_flow_stt": {
+    "default_api_key": "sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt"
+  },
+  "edge_tts": {
+    "url": "https://edge-tts-voice-magic.wangmc1024.workers.dev/v1/audio/speech",
+    "fallback_url": "https://tts.wangwangit.com/v1/audio/speech"
+  },
+  "cloudflare_worker": {
+    "url": "https://edge-tts-voice-magic.wangmc1024.workers.dev"
+  },
+  "deeplx_worker": {
+    "url": "https://deeplx.wangmc1024.workers.dev/translate"
+  },
+  "edge_tts_timeout": 15000
+}
