@@ -231,7 +231,10 @@ async function fetchWordDictionaryProgressive(word, onUpdate, signal) {
   function tryUpdate() {
     if (checkAborted()) return;
     var result = buildMergedResult(word, dict, baidu, memory, cloudflare, silicon);
-    if (result && result !== lastSentResult) {
+    // Progressive rendering: show first valid result, don't replace once set.
+    // Final merged result (with best translation + dictionary enrichment) is rendered
+    // after all APIs settle in onOneResult().
+    if (result && !lastSentResult) {
       lastSentResult = result;
       onUpdate(result);
     }
@@ -240,11 +243,18 @@ async function fetchWordDictionaryProgressive(word, onUpdate, signal) {
   function onOneResult(value) {
     settled++;
     if (checkAborted()) return;
-    tryUpdate();
-    // Once all settled, cache the final result
+    // Progressive: show first result (already handled in tryUpdate above).
+    // Final: when all APIs settle, build the complete merged result and render it.
     if (settled >= total) {
       var final = buildMergedResult(word, dict, baidu, memory, cloudflare, silicon);
-      if (final) dictionaryCache[word] = final;
+      if (final) {
+        if (lastSentResult) {
+          // Replace the progressive result with the full merged result
+          onUpdate(final);
+        }
+        dictionaryCache[word] = final;
+        saveDictionaryCacheToLS();
+      }
     }
   }
 
@@ -290,10 +300,11 @@ async function fetchWordDictionary(word) {
  * Supports INCREMENTAL updates: can build from translation-only when dict is unavailable,
  * or enhance translation result when dictionary joins in later.
  *
- * Priority: dictionaryapi.dev (rich) > Baidu > MyMemory > Cloudflare > Silicon Flow
+ * Priority: dictionaryapi.dev (rich) > Silicon Flow > Baidu > MyMemory > Cloudflare
  */
 function buildMergedResult(word, dict, baidu, memory, cloudflare, silicon) {
-  var translation = baidu || memory || cloudflare || silicon;
+  // Silicon Flow is preferred for translation quality — overrides free APIs when available
+  var translation = silicon || baidu || memory || cloudflare;
   var hasTranslation = translation && translation.trim();
 
   // Case 1: We have dictionary data (rich)
@@ -307,7 +318,8 @@ function buildMergedResult(word, dict, baidu, memory, cloudflare, silicon) {
       });
     }
     dict.source = 'merged';
-    if (baidu) dict.source += '+Baidu';
+    if (silicon) dict.source += '+SiliconFlow';
+    else if (baidu) dict.source += '+Baidu';
     else if (memory) dict.source += '+MyMemory';
     return dict;
   }
@@ -315,10 +327,10 @@ function buildMergedResult(word, dict, baidu, memory, cloudflare, silicon) {
   // Case 2: We have translation but NO dictionary yet - return translation-only result
   // This allows immediate display of Chinese translation
   if (hasTranslation) {
-    var source = 'baidu';
-    if (!baidu && memory) source = 'mymemory';
-    else if (!baidu && !memory && cloudflare) source = 'cloudflare';
-    else if (!baidu && !memory && !cloudflare && silicon) source = 'siliconflow';
+    var source = 'siliconflow';
+    if (!silicon && baidu) source = 'baidu';
+    else if (!silicon && !baidu && memory) source = 'mymemory';
+    else if (!silicon && !baidu && !memory && cloudflare) source = 'cloudflare';
 
     // Build a translation-only result (will be enhanced later when dict arrives)
     var result = {
