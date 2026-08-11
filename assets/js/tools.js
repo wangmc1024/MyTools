@@ -1,5 +1,5 @@
 /**
- * MyTools Portal — Shared Utilities
+ * Gizmo Galaxy Portal — Shared Utilities
  */
 
 /* ---------- DOM helpers ---------- */

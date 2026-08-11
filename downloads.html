@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
-  <title>下载中心 — MyTools</title>
+  <title>下载中心 — Gizmo Galaxy</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -240,31 +240,38 @@
   <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
     <a href="index.html" class="flex items-center gap-2 shrink-0 group">
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="group-hover:scale-110 transition-transform duration-300">
-        <!-- Outer glow ring -->
-        <circle cx="14" cy="14" r="13" fill="url(#lg)" opacity=".1"/>
-        <circle cx="14" cy="14" r="11" stroke="url(#lg)" stroke-width=".5" opacity=".25"/>
-        <!-- Main star (gradient) -->
-        <path d="M14 3l2.2 5.7L22 9.8l-4.6 3.4L18.3 19 14 16.6 9.7 19l.9-5.8L6 9.8l5.8-1.1L14 3z" fill="url(#lg)"/>
-        <!-- Inner highlight -->
-        <path d="M14 5.2l1.7 4.3 4.7.7-3.6 2.9 1.1 4.5L14 15.3l-3.9 2.3 1.1-4.5-3.6-2.9 4.7-.7L14 5.2z" fill="#fff" opacity=".18"/>
-        <!-- Tiny sparkle stars -->
-        <path d="M20 6l.4 1 .9.1-.8.6.2.9-.8-.5-.8.5.2-.9-.8-.6.9-.1z" fill="#fff" opacity=".5"/>
-        <path d="M7.5 18l.3.7.8.1-.6.4.2.7-.6-.4-.6.4.2-.7-.6-.4.8-.1z" fill="#fff" opacity=".35"/>
-        <!-- Wrench icon at center -->
-        <g transform="translate(14,14) rotate(-25)">
-          <rect x="-1.2" y="-6" width="2.4" height="5" rx="1" fill="#fff" opacity=".9"/>
-          <circle cx="0" cy="-6.5" r="2.2" stroke="#fff" stroke-width="1.6" fill="none" opacity=".9"/>
-          <rect x="-2.5" y="-0.5" width="5" height="1.6" rx=".6" fill="#fff" opacity=".9"/>
-        </g>
         <defs>
-          <linearGradient id="lg" x1="5" y1="2" x2="23" y2="24" gradientUnits="userSpaceOnUse">
+          <linearGradient id="lg" x1="6" y1="4" x2="22" y2="24" gradientUnits="userSpaceOnUse">
             <stop stop-color="#a99fff"/>
             <stop offset=".5" stop-color="#8b83ff"/>
             <stop offset="1" stop-color="#635bff"/>
           </linearGradient>
+          <linearGradient id="lg2" x1="0" y1="0" x2="28" y2="0" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#a99fff" stop-opacity=".6"/>
+            <stop offset=".5" stop-color="#635bff" stop-opacity=".35"/>
+            <stop offset="1" stop-color="#a99fff" stop-opacity=".6"/>
+          </linearGradient>
         </defs>
+        <!-- Outer ambient glow -->
+        <circle cx="14" cy="14" r="13" fill="url(#lg)" opacity=".08"/>
+        <!-- Planet body -->
+        <circle cx="14" cy="14" r="9" fill="url(#lg)"/>
+        <!-- Planet highlight -->
+        <ellipse cx="11" cy="11" rx="3.5" ry="2.5" fill="#fff" opacity=".12" transform="rotate(-30 11 11)"/>
+        <!-- Star ring (ellipse for 3D tilt) -->
+        <ellipse cx="14" cy="14" rx="14" ry="4.5" fill="none" stroke="url(#lg2)" stroke-width="1.2" transform="rotate(-20 14 14)" opacity=".55"/>
+        <!-- Tiny gizmo: gear dot at center -->
+        <circle cx="14" cy="14" r="2" fill="#fff" opacity=".85"/>
+        <circle cx="14" cy="14" r="1" fill="#635bff" opacity=".9"/>
+        <!-- Sparkle particles -->
+        <circle cx="22" cy="7" r=".8" fill="#fff" opacity=".55"/>
+        <circle cx="6" cy="20" r=".7" fill="#fff" opacity=".4"/>
+        <circle cx="23" cy="20" r=".6" fill="#c4b5fd" opacity=".5"/>
+        <circle cx="5" cy="7" r=".8" fill="#fff" opacity=".45"/>
+        <circle cx="14" cy="3" r=".7" fill="#fff" opacity=".6"/>
+        <circle cx="14" cy="25" r=".6" fill="#c4b5fd" opacity=".4"/>
       </svg>
-      <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</span>
+      <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">Gizmo Galaxy</span>
     </a>
     <div class="flex items-center gap-1">
       <a href="index.html" class="back-link" title="返回首页">

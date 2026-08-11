@@ -511,6 +511,11 @@
     ]
   },
   {
+    "name": "404.html",
+    "type": "file",
+    "path": "404.html"
+  },
+  {
     "name": "CLAUDE.md",
     "type": "file",
     "path": "CLAUDE.md"

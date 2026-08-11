@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
-  <title>MyTools — AI Tools Center</title>
+  <title>Gizmo Galaxy — AI Tools Center</title>
   <!-- Tailwind CSS v3 CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -99,7 +99,7 @@
       background: #635bff; color: #fff; border-color: #635bff;
     }
 
-    /* ---- Blog card ---- */
+    /* ---- Blog card (legacy class retained for other uses) ---- */
     .blog-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -109,6 +109,88 @@
     }
     .blog-card:hover {
       border-color: #635bff; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,91,255,.18);
+    }
+
+    /* ---- Space Dashboard: GitHub + Blog cards ---- */
+    .dashboard-wrap { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
+
+    /* Constellation connector lines between dashboard and canvas below */
+    .dash-connector { width: 100%; height: 60px; display: block; margin-bottom: -10px; }
+
+    .dash-cards { display: flex; flex-wrap: wrap; gap: 24px; width: 100%; max-width: 960px; position: relative; z-index: 2; }
+
+    /* Float animation — echoes the starfield's gentle drift */
+    @keyframes dashFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .dash-card {
+      position: relative;
+      flex: 1 1 0;
+      display: flex; align-items: center; gap: 18px;
+      padding: 24px 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 18px;
+      text-decoration: none; color: inherit;
+      transition: all .35s cubic-bezier(.4,0,.2,1);
+      overflow: hidden;
+      animation: dashFloat 5s ease-in-out infinite;
+    }
+    .dash-card-blog { animation-delay: -2.5s; } /* offset so cards float out of phase */
+
+    /* Purple glow ring — mirrors the canvas node glow */
+    .dash-card-glow {
+      position: absolute; inset: -1px;
+      border-radius: 18px;
+      background: radial-gradient(ellipse at 30% 20%, rgba(99,91,255,.18) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity .35s;
+      pointer-events: none;
+    }
+    .dash-card:hover .dash-card-glow { opacity: 1; }
+    .dash-card:hover {
+      border-color: #635bff;
+      transform: translateY(-6px) !important;
+      box-shadow: 0 12px 48px rgba(99,91,255,.25), 0 0 0 1px rgba(99,91,255,.15);
+    }
+
+    .dash-card-icon {
+      font-size: 32px; flex-shrink: 0;
+      filter: drop-shadow(0 0 8px rgba(99,91,255,.4));
+      transition: transform .35s;
+    }
+    .dash-card:hover .dash-card-icon { transform: scale(1.15) rotate(-5deg); }
+
+    .dash-card-avatar {
+      width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid #635bff;
+      box-shadow: 0 0 12px rgba(99,91,255,.4);
+      transition: transform .35s, box-shadow .35s;
+    }
+    .dash-card:hover .dash-card-avatar { transform: scale(1.1); box-shadow: 0 0 20px rgba(99,91,255,.6); }
+
+    .dash-card-body { flex: 1; min-width: 0; }
+    .dash-card-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 2px;
+    }
+    .dash-card-title { font-weight: 600; font-size: 16px; }
+    .dash-card-handle { font-weight: 400; color: var(--text-muted); font-size: 13px; }
+    .dash-card-desc { color: var(--text-muted); font-size: 12px; margin-top: 1px; }
+
+    .dash-card-stats { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .dash-stat { font-size: 12px; color: var(--text-muted); background: rgba(99,91,255,.1); padding: 4px 10px; border-radius: 999px; }
+    .dash-stat strong { color: #635bff; }
+    .dash-card-arrow { color: #635bff; font-size: 18px; transition: transform .3s; }
+    .dash-card:hover .dash-card-arrow { transform: translateX(4px); }
+
+    @media (max-width: 640px) {
+      .dash-cards { flex-direction: column; align-items: stretch; gap: 20px; }
+      .dash-card { width: 100%; }
+      .dash-connector { display: none; }
     }
 
     /* ---- Tooltip ---- */
@@ -176,6 +258,8 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* (GitHub + Blog cards now use .dash-card — see .dashboard-wrap above) */
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased">
@@ -185,31 +269,38 @@
   <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
     <a href="index.html" class="flex items-center gap-2 shrink-0 group">
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="group-hover:scale-110 transition-transform duration-300">
-        <!-- Outer glow ring -->
-        <circle cx="14" cy="14" r="13" fill="url(#lg)" opacity=".1"/>
-        <circle cx="14" cy="14" r="11" stroke="url(#lg)" stroke-width=".5" opacity=".25"/>
-        <!-- Main star (gradient) -->
-        <path d="M14 3l2.2 5.7L22 9.8l-4.6 3.4L18.3 19 14 16.6 9.7 19l.9-5.8L6 9.8l5.8-1.1L14 3z" fill="url(#lg)"/>
-        <!-- Inner highlight -->
-        <path d="M14 5.2l1.7 4.3 4.7.7-3.6 2.9 1.1 4.5L14 15.3l-3.9 2.3 1.1-4.5-3.6-2.9 4.7-.7L14 5.2z" fill="#fff" opacity=".18"/>
-        <!-- Tiny sparkle stars -->
-        <path d="M20 6l.4 1 .9.1-.8.6.2.9-.8-.5-.8.5.2-.9-.8-.6.9-.1z" fill="#fff" opacity=".5"/>
-        <path d="M7.5 18l.3.7.8.1-.6.4.2.7-.6-.4-.6.4.2-.7-.6-.4.8-.1z" fill="#fff" opacity=".35"/>
-        <!-- Wrench icon at center -->
-        <g transform="translate(14,14) rotate(-25)">
-          <rect x="-1.2" y="-6" width="2.4" height="5" rx="1" fill="#fff" opacity=".9"/>
-          <circle cx="0" cy="-6.5" r="2.2" stroke="#fff" stroke-width="1.6" fill="none" opacity=".9"/>
-          <rect x="-2.5" y="-0.5" width="5" height="1.6" rx=".6" fill="#fff" opacity=".9"/>
-        </g>
         <defs>
-          <linearGradient id="lg" x1="5" y1="2" x2="23" y2="24" gradientUnits="userSpaceOnUse">
+          <linearGradient id="lg" x1="6" y1="4" x2="22" y2="24" gradientUnits="userSpaceOnUse">
             <stop stop-color="#a99fff"/>
             <stop offset=".5" stop-color="#8b83ff"/>
             <stop offset="1" stop-color="#635bff"/>
           </linearGradient>
+          <linearGradient id="lg2" x1="0" y1="0" x2="28" y2="0" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#a99fff" stop-opacity=".6"/>
+            <stop offset=".5" stop-color="#635bff" stop-opacity=".35"/>
+            <stop offset="1" stop-color="#a99fff" stop-opacity=".6"/>
+          </linearGradient>
         </defs>
+        <!-- Outer ambient glow -->
+        <circle cx="14" cy="14" r="13" fill="url(#lg)" opacity=".08"/>
+        <!-- Planet body -->
+        <circle cx="14" cy="14" r="9" fill="url(#lg)"/>
+        <!-- Planet highlight -->
+        <ellipse cx="11" cy="11" rx="3.5" ry="2.5" fill="#fff" opacity=".12" transform="rotate(-30 11 11)"/>
+        <!-- Star ring (ellipse for 3D tilt) -->
+        <ellipse cx="14" cy="14" rx="14" ry="4.5" fill="none" stroke="url(#lg2)" stroke-width="1.2" transform="rotate(-20 14 14)" opacity=".55"/>
+        <!-- Tiny gizmo: gear dot at center -->
+        <circle cx="14" cy="14" r="2" fill="#fff" opacity=".85"/>
+        <circle cx="14" cy="14" r="1" fill="#635bff" opacity=".9"/>
+        <!-- Sparkle particles -->
+        <circle cx="22" cy="7" r=".8" fill="#fff" opacity=".55"/>
+        <circle cx="6" cy="20" r=".7" fill="#fff" opacity=".4"/>
+        <circle cx="23" cy="20" r=".6" fill="#c4b5fd" opacity=".5"/>
+        <circle cx="5" cy="7" r=".8" fill="#fff" opacity=".45"/>
+        <circle cx="14" cy="3" r=".7" fill="#fff" opacity=".6"/>
+        <circle cx="14" cy="25" r=".6" fill="#c4b5fd" opacity=".4"/>
       </svg>
-      <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">MyTools</span>
+      <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">Gizmo Galaxy</span>
     </a>
     <div class="flex items-center gap-1">
       <a href="#" id="navTools" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link active-tool">工具</a>
@@ -225,22 +316,50 @@
 <main class="mx-auto max-w-[1200px] px-6 pt-8 pb-12">
 
   <!-- HERO -->
-  <header class="text-center mb-8">
+  <header class="text-center mb-6">
     <div class="text-5xl mb-3">🛠️</div>
-    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-[var(--text)] via-primary to-primaryLight bg-clip-text text-transparent mb-2">AI Tools Center</h1>
-    <p class="text-[var(--text-muted)] text-base">My Personal AI &amp; Software Collection</p>
+    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-[var(--text)] via-primary to-primaryLight bg-clip-text text-transparent mb-2">Gizmo Galaxy</h1>
+    <p class="text-[var(--text-muted)] text-base">Your Galaxy of Gizmos &amp; Tools</p>
   </header>
 
-  <!-- BLOG CARD -->
-  <section class="mb-10">
-    <a href="https://wangmc1024.github.io" target="_blank" rel="noopener" class="blog-card block max-w-xl mx-auto rounded-2xl p-5 flex items-center gap-5">
-      <span class="text-3xl shrink-0">📝</span>
-      <div class="flex-1 min-w-0">
-        <div class="font-semibold text-[var(--text)]">我的博客</div>
-        <div class="text-sm text-[var(--text-muted)] truncate">记录学习笔记与技术思考</div>
-      </div>
-      <span class="shrink-0 text-primaryLight text-lg">→</span>
-    </a>
+  <!-- SPACE DASHBOARD: GitHub + Blog cards floating over starfield -->
+  <section class="dashboard-wrap">
+    <!-- Constellation connector line (purely decorative) -->
+    <svg class="dash-connector" viewBox="0 0 800 60" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="200" y1="0" x2="200" y2="60" stroke="#635bff" stroke-width="1" opacity="0.25" stroke-dasharray="4 4"/>
+      <line x1="400" y1="0" x2="400" y2="60" stroke="#635bff" stroke-width="1" opacity="0.15" stroke-dasharray="4 4"/>
+      <line x1="600" y1="0" x2="600" y2="60" stroke="#635bff" stroke-width="1" opacity="0.25" stroke-dasharray="4 4"/>
+    </svg>
+
+    <div class="dash-cards">
+      <!-- GitHub Profile Card -->
+      <a href="https://github.com/wangmc1024" target="_blank" rel="noopener" class="dash-card dash-card-github">
+        <div class="dash-card-glow"></div>
+        <img class="dash-card-avatar" src="https://avatars.githubusercontent.com/u/146403308?v=4" alt="wangmc1024 avatar" width="48" height="48" loading="lazy">
+        <div class="dash-card-body">
+          <div class="dash-card-label">GitHub</div>
+          <div class="dash-card-title">三子曰 <span class="dash-card-handle">@wangmc1024</span></div>
+          <div class="dash-card-desc">Hi, I'm 三子曰</div>
+        </div>
+        <div class="dash-card-stats">
+          <span class="dash-card-arrow">→</span>
+        </div>
+      </a>
+
+      <!-- Blog Card -->
+      <a href="https://wangmc1024.github.io" target="_blank" rel="noopener" class="dash-card dash-card-blog">
+        <div class="dash-card-glow"></div>
+        <div class="dash-card-icon">📝</div>
+        <div class="dash-card-body">
+          <div class="dash-card-label">Blog</div>
+          <div class="dash-card-title">我的博客</div>
+          <div class="dash-card-desc">记录学习笔记与技术思考</div>
+        </div>
+        <div class="dash-card-stats">
+          <span class="dash-card-arrow">→</span>
+        </div>
+      </a>
+    </div>
   </section>
 
   <!-- TOOLS PANEL -->

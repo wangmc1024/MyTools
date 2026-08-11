@@ -1,5 +1,5 @@
 /**
- * MyTools Portal — Download Panel Logic
+ * Gizmo Galaxy Portal — Download Panel Logic
  */
 (function () {
   'use strict';
