@@ -139,5 +139,14 @@
     "description": "引入 CSS Design Tokens 架构，新建 tokens.css 集中管理所有设计变量（颜色/字体/间距/阴影/圆角/Dark-Light主题）。新建 portal-nav.css 共享导航栏样式。所有11个页面统一引用令牌，消除重复的:root变量定义。添加移动端汉堡菜单和触控友好导航。",
     "tags": ["Design Tokens", "响应式", "移动端适配"],
     "commits": ["65a8329"]
+  },
+  {
+    "date": "2026-08-11",
+    "title": "统一主题切换 & 移动端布局修复",
+    "icon": "🔧",
+    "type": "refactor",
+    "description": "移除三个子应用重复的 themeToggle 按钮，仅保留导航栏 portalThemeToggle。统一 localStorage 主题键为 portal-theme，修复跨页面主题不同步。修复移动端导航栏按钮垂直堆叠、首页卡片文字截断、画布高度过大等问题。",
+    "tags": ["主题统一", "移动端修复", "重构"],
+    "commits": ["f3a1745"]
   }
 ]
