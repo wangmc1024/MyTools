@@ -159,6 +159,16 @@
     "commits": ["3051520"]
   },
   {
+    "date": "2026-09-08",
+    "label": "September 2026",
+    "title": "收藏夹页面上线",
+    "icon": "🔖",
+    "type": "feature",
+    "description": "新增 bookmarks.html 收藏夹页面，卡片网格展示常去网站，支持分类标签筛选和实时搜索。数据由 bookmarks/bookmarks.json 驱动，未来只需编辑 JSON 即可新增条目。复用项目 Design Tokens 与 portal-nav 体系，响应式布局适配移动端。门户导航栏新增「收藏夹」入口。",
+    "tags": ["收藏夹", "卡片网格", "JSON 驱动", "新页面"],
+    "commits": ["c8e32ca"]
+  },
+  {
     "date": "2026-08-11",
     "title": "门户导航系统改进与工具配置同步",
     "icon": "🔧",
