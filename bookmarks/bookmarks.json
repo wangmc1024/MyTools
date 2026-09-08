@@ -1,0 +1,98 @@
+[
+  {
+    "name": "GitHub",
+    "icon": "🐙",
+    "url": "https://github.com",
+    "category": "开发",
+    "description": "全球最大的代码托管平台，开源项目的家园。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Stack Overflow",
+    "icon": "📚",
+    "url": "https://stackoverflow.com",
+    "category": "开发",
+    "description": "程序员问答社区，解决编程难题的首选之地。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "MDN Web Docs",
+    "icon": "🌐",
+    "url": "https://developer.mozilla.org",
+    "category": "开发",
+    "description": "Mozilla 维护的 Web 技术权威文档库。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Hacker News",
+    "icon": "📰",
+    "url": "https://news.ycombinator.com",
+    "category": "资讯",
+    "description": "Y Combinator 旗下的科技新闻聚合，聚焦创业与技术。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Product Hunt",
+    "icon": "🚀",
+    "url": "https://www.producthunt.com",
+    "category": "资讯",
+    "description": "每日发现最新、最酷的互联网产品。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Notion",
+    "icon": "📝",
+    "url": "https://www.notion.so",
+    "category": "效率",
+    "description": "all-in-one 工作空间：笔记、知识库、项目管理。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Figma",
+    "icon": "🎨",
+    "url": "https://www.figma.com",
+    "category": "设计",
+    "description": "协作式界面设计工具，UI/UX 设计师必备。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "ChatGPT",
+    "icon": "💬",
+    "url": "https://chat.openai.com",
+    "category": "AI",
+    "description": "OpenAI 的 GPT 系列对话式 AI，强大的语言理解与生成能力。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "DeepL",
+    "icon": "🌍",
+    "url": "https://www.deepl.com",
+    "category": "效率",
+    "description": "基于 AI 的高质量翻译工具，支持多语言互译。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Dribbble",
+    "icon": "🏀",
+    "url": "https://dribbble.com",
+    "category": "设计",
+    "description": "设计师灵感社区，展示与发现顶级创意作品。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "Coursera",
+    "icon": "🎓",
+    "url": "https://www.coursera.org",
+    "category": "学习",
+    "description": "来自全球顶尖大学的在线课程平台，覆盖各学科。",
+    "addedAt": "2025-01-01"
+  },
+  {
+    "name": "YouTube",
+    "icon": "▶️",
+    "url": "https://www.youtube.com",
+    "category": "娱乐",
+    "description": "全球最大的视频分享平台，内容包罗万象。",
+    "addedAt": "2025-01-01"
+  }
+]

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect x='3' y='3' width='22' height='22' rx='5' fill='none' stroke='%23635bff' stroke-width='2'/%3E%3Cpath d='M8 14l3 3 7-7' fill='none' stroke='%23635bff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png">
+  <title>收藏夹 — Gizmo Galaxy</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/portal-nav.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      mode: 'open',
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { primary: '#635bff', primaryLight: '#7f74ff' },
+          fontFamily: {
+            sans: ['Inter', 'Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'Helvetica Neue', 'Noto Sans SC', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* ---- Theme variables now in tokens.css ---- */
+
+    body { background: var(--bg); color: var(--text); transition: background .3s, color .3s; }
+
+    /* ---- Navbar glassmorphism ---- */
+    .nav-glass {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(17,24,39,.72) !important;
+      border-bottom: 1px solid var(--border);
+    }
+    [data-theme="light"] .nav-glass {
+      background: rgba(255,255,255,.72) !important;
+    }
+
+    /* ---- Nav links (theme-aware) ---- */
+    .nav-link { color: rgba(255,255,255,.7); transition: all .2s; text-decoration: none; }
+    [data-theme="light"] .nav-link { color: rgba(0,0,0,.6); }
+    .nav-link:hover { background: var(--bg-card-hover); }
+    /* ---- Active nav link ---- */
+    .active-tool { color: #fff; background: rgba(99,91,255,.15); }
+    [data-theme="light"] .active-tool { color: #635bff; background: rgba(99,91,255,.1); }
+
+    /* ---- Search input ---- */
+    .search-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: #635bff;
+      box-shadow: 0 0 0 3px rgba(99,91,255,.2);
+    }
+
+    /* ---- Bookmark Card ---- */
+    .bm-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: all .3s cubic-bezier(.4,0,.2,1);
+      position: relative;
+      overflow: hidden;
+    }
+    .bm-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: var(--radius-lg);
+      background: radial-gradient(ellipse at 30% 20%, rgba(99,91,255,.12) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity .35s;
+      pointer-events: none;
+    }
+    .bm-card:hover {
+      border-color: #635bff;
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(99,91,255,.2), 0 0 0 1px rgba(99,91,255,.12);
+    }
+    .bm-card:hover::before { opacity: 1; }
+
+    /* Card header: icon + title */
+    .bm-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .bm-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(99,91,255,.3);
+    }
+    .bm-title {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Card description */
+    .bm-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Card footer: URL + category tag */
+    .bm-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: auto;
+    }
+    .bm-url {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .bm-tag {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: var(--accent-glow);
+      color: var(--accent-light);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ---- Empty state ---- */
+    .empty-state {
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text-secondary); }
+    .empty-state p { font-size: 14px; max-width: 400px; margin: 0 auto; line-height: 1.6; }
+
+    /* ---- Section title ---- */
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 16px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #635bff, #7f74ff);
+    }
+
+    /* ---- Filter tabs ---- */
+    .cat-tab {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      transition: all .25s;
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .cat-tab:hover { background: var(--bg-card-hover); }
+    .cat-tab.active {
+      background: #635bff;
+      color: #fff;
+      border-color: #635bff;
+      box-shadow: 0 2px 12px rgba(99,91,255,.35);
+    }
+
+    /* ---- Responsive grid ---- */
+    .bm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 640px) {
+      .bm-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="nav-glass">
+    <div class="flex items-center justify-between flex-wrap gap-2 mx-auto pt-3.5 pb-3.5 px-4" style="max-width:1024px">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2 no-underline">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+            <defs>
+              <linearGradient id="lg" x1="5" y1="2" x2="23" y2="24" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#a99fff"/>
+                <stop offset=".5" stop-color="#8b83ff"/>
+                <stop offset="1" stop-color="#635bff"/>
+              </linearGradient>
+            </defs>
+            <rect x="3" y="3" width="22" height="22" rx="5" fill="none" stroke="url(#lg)" stroke-width="1.5"/>
+            <path d="M8 14l3 3 7-7" fill="none" stroke="#635bff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="text-base font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">收藏夹</span>
+        </a>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="菜单">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links flex items-center gap-1">
+        <a href="index.html" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link">返回首页</a>
+      </div>
+      <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
+        <span id="themeIcon">☽️</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="mx-auto pt-10 pb-16 px-4" style="max-width:1024px">
+    <header class="text-center mb-8">
+      <div class="text-5xl mb-4">🔖</div>
+      <h1 class="text-3xl font-extrabold text-[var(--text)] mb-2">我的收藏</h1>
+      <p class="text-[var(--text-muted)] text-sm">常去的好网站，一站直达</p>
+    </header>
+
+    <!-- Search + Filters -->
+    <div class="mb-6 space-y-3">
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-sm">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索收藏…" class="search-box w-full rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]">
+      </div>
+      <div id="categoryTabs" class="flex flex-wrap gap-2 justify-center"></div>
+    </div>
+
+    <!-- Cards grid -->
+    <div id="bookmarksGrid" class="bm-grid"></div>
+
+    <!-- Empty state (hidden by default) -->
+    <div id="emptyState" class="empty-state" style="display:none">
+      <div class="empty-icon">📭</div>
+      <h2>暂无匹配结果</h2>
+      <p>换个关键词试试，或检查 bookmarks.json 中是否有数据</p>
+    </div>
+  </main>
+
+  <script src="assets/js/tools.js"></script>
+  <script src="assets/js/portal-nav.js"></script>
+  <script>
+    (function () {
+      // ---- Theme toggle ----
+      var themeIcon = document.getElementById('themeIcon');
+      if (themeIcon) {
+        themeIcon.textContent = window.getTheme && window.getTheme() === 'dark' ? '☀️' : '☽️';
+        document.getElementById('themeToggle').addEventListener('click', function () {
+          if (!window.toggleTheme) return;
+          window.toggleTheme();
+          themeIcon.textContent = window.getTheme() === 'dark' ? '☀️' : '☽️';
+        });
+      }
+
+      // ---- Data ----
+      var allBookmarks = [];
+      var currentCategory = '全部';
+
+      function esc(s) {
+        if (!s) return '';
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      // ---- Render category tabs ----
+      function renderCategories(bookmarks) {
+        var wrap = document.getElementById('categoryTabs');
+        if (!wrap) return;
+        var cats = ['全部'];
+        bookmarks.forEach(function (b) {
+          if (b.category && cats.indexOf(b.category) === -1) cats.push(b.category);
+        });
+        wrap.innerHTML = '';
+        cats.forEach(function (cat) {
+          var btn = document.createElement('button');
+          btn.className = 'cat-tab' + (cat === currentCategory ? ' active' : '');
+          btn.textContent = cat;
+          btn.addEventListener('click', function () {
+            currentCategory = cat;
+            renderCategories(allBookmarks);
+            renderBookmarks();
+          });
+          wrap.appendChild(btn);
+        });
+      }
+
+      // ---- Render bookmark cards ----
+      function renderBookmarks() {
+        var grid = document.getElementById('bookmarksGrid');
+        var empty = document.getElementById('emptyState');
+        if (!grid) return;
+
+        var query = (document.getElementById('searchInput').value || '').toLowerCase();
+        var filtered = allBookmarks.filter(function (b) {
+          var matchCat = currentCategory === '全部' || b.category === currentCategory;
+          var matchQ = !query ||
+            (b.name && b.name.toLowerCase().indexOf(query) !== -1) ||
+            (b.description && b.description.toLowerCase().indexOf(query) !== -1) ||
+            (b.url && b.url.toLowerCase().indexOf(query) !== -1);
+          return matchCat && matchQ;
+        });
+
+        grid.innerHTML = '';
+        if (filtered.length === 0) {
+          grid.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        grid.style.display = '';
+        empty.style.display = 'none';
+
+        filtered.forEach(function (b) {
+          var card = document.createElement('a');
+          card.className = 'bm-card';
+          card.href = b.url || '#';
+          card.target = '_blank';
+          card.rel = 'noopener noreferrer';
+
+          card.innerHTML =
+            '<div class="bm-card-header">' +
+              '<div class="bm-icon">' + esc(b.icon || '🔗') + '</div>' +
+              '<div class="bm-title">' + esc(b.name || '未命名') + '</div>' +
+            '</div>' +
+            (b.description ? '<div class="bm-desc">' + esc(b.description) + '</div>' : '') +
+            '<div class="bm-footer">' +
+              '<span class="bm-url" title="' + esc(b.url || '') + '">' + esc(b.url || '') + '</span>' +
+              (b.category ? '<span class="bm-tag">' + esc(b.category) + '</span>' : '') +
+            '</div>';
+
+          grid.appendChild(card);
+        });
+      }
+
+      // ---- Load data ----
+      fetch('bookmarks/bookmarks.json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          allBookmarks = data || [];
+          renderCategories(allBookmarks);
+          renderBookmarks();
+        })
+        .catch(function (err) {
+          console.error('Failed to load bookmarks:', err);
+          document.getElementById('bookmarksGrid').innerHTML = '';
+          document.getElementById('bookmarksGrid').style.display = 'none';
+          var empty = document.getElementById('emptyState');
+          empty.style.display = 'block';
+          empty.querySelector('h2').textContent = '加载失败';
+          empty.querySelector('p').textContent = '请检查 bookmarks/bookmarks.json 是否存在且格式正确。';
+        });
+
+      // ---- Search live filter ----
+      document.getElementById('searchInput').addEventListener('input', function () {
+        renderBookmarks();
+      });
+    })();
+  </script>
+</body>
+</html>
