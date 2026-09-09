@@ -159,6 +159,16 @@
     "commits": ["3051520"]
   },
   {
+    "date": "2026-08-11",
+    "label": "August 2026",
+    "title": "门户导航系统改进与工具配置同步",
+    "icon": "🔧",
+    "type": "refactor",
+    "description": "优化 portal-nav.css 移动端响应式逻辑，新增 portal-nav.js 统一处理移动端菜单开关与外部点击关闭。修复 tools.js 关闭菜单选择器，支持 .nav-glass 容器。统一各子应用 navbar 结构，提取 ChatOCR/Talk2GeoGebra/reader-concrete/voice-craft/py-ide 的内联样式为 CSS 类。更新 404 页面添加 GSAP 动画与 nav-links flex 布局。同步 tools.json 日期与分类，向 repo-tree.json 注册 portal-nav.js。",
+    "tags": ["导航", "移动端", "CSS", "工具配置"],
+    "commits": ["5caaa5a", "ccbf20b"]
+  },
+  {
     "date": "2026-09-08",
     "label": "September 2026",
     "title": "收藏夹页面上线",
@@ -167,14 +177,5 @@
     "description": "新增 bookmarks.html 收藏夹页面：卡片网格展示收藏网站，支持分类标签筛选和实时搜索。卡片图标支持通过 iconUrl 字段指定自定义图片链接（避开第三方 API 跨域/网络问题），加载失败回退到 emoji。数据由 bookmarks/bookmarks.json 驱动，未来只需编辑 JSON 即可新增条目。复用项目 Design Tokens 与 portal-nav 体系，响应式布局适配移动端。门户导航栏新增「收藏夹」入口。",
     "tags": ["收藏夹", "卡片网格", "JSON 驱动", "Favicon", "新页面"],
     "commits": ["c8e32ca"]
-  },
-  {
-    "date": "2026-08-11",
-    "title": "门户导航系统改进与工具配置同步",
-    "icon": "🔧",
-    "type": "refactor",
-    "description": "优化 portal-nav.css 移动端响应式逻辑，新增 portal-nav.js 统一处理移动端菜单开关与外部点击关闭。修复 tools.js 关闭菜单选择器，支持 .nav-glass 容器。统一各子应用 navbar 结构，提取 ChatOCR/Talk2GeoGebra/reader-concrete/voice-craft/py-ide 的内联样式为 CSS 类。更新 404 页面添加 GSAP 动画与 nav-links flex 布局。同步 tools.json 日期与分类，向 repo-tree.json 注册 portal-nav.js。",
-    "tags": ["导航", "移动端", "CSS", "工具配置"],
-    "commits": ["5caaa5a", "ccbf20b"]
   }
 ]
