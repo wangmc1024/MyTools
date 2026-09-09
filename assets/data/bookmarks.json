@@ -1,0 +1,38 @@
+[
+  {
+    "name": "逻辑帧",
+    "icon": "🎯",
+    "iconUrl": "https://www.logamee.com/favicon.ico",
+    "url": "https://www.logamee.com/",
+    "category": "学习",
+    "description": "面向程序员与 AI 开发者，提供多模态数字教材、AI Agent 和 Vibe Coding 等实战课程的计算机编程教育平台",
+    "addedAt": "2026-09-09"
+  },
+  {
+    "name": "有道写作",
+    "icon": "✍️",
+    "iconUrl": "https://write.youdao.com/favicon.ico",
+    "url": "https://write.youdao.com/",
+    "category": "学习",
+    "description": "网易有道推出的专业级 AI 英文写作辅助工具，支持语法检查与内容润色。",
+    "addedAt": "2026-09-09"
+  },
+  {
+    "name": "追剧么",
+    "icon": "🎬",
+    "iconUrl": "https://zhuiju.me/icon.svg",
+    "url": "https://zhuiju.me/",
+    "category": "娱乐",
+    "description": "全网最新最全 VIP 电影电视剧免费在线观看平台。",
+    "addedAt": "2026-09-09"
+  },
+  {
+    "name": "动手学深度学习",
+    "icon": "🧠",
+    "iconUrl": "https://zh.d2l.ai/_static/favicon.png",
+    "url": "https://zh.d2l.ai",
+    "category": "学习",
+    "description": "李沐等人维护的免费开源深度学习中文教程，理论与代码实践相结合。",
+    "addedAt": "2026-09-09"
+  }
+]

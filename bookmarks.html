@@ -386,20 +386,12 @@
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
 
-          // Build icon: custom iconUrl > favicon API chain > emoji fallback
-          var iconHtml = '<span class="bm-icon-fallback">' + esc(b.icon || '🔗') + '</span>';
+          // Build icon: custom iconUrl (direct, no API) > emoji fallback
           var fallbackEmoji = esc(b.icon || '🔗').replace(/'/g, "\\'");
-
           if (b.iconUrl) {
-            // 优先使用自定义 iconUrl
-            iconHtml = '<img src="' + esc(b.iconUrl) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'https://ico.scdn.io/favicon?url=\' + encodeURIComponent(this.src.split(\'/\')[2]) + \'&refresh=1\';this.onerror=function(){this.parentElement.innerHTML=\'' + fallbackEmoji + '\';}">';
-          } else if (b.url) {
-            // 无iconUrl时，使用 favicon API 多级回退链
-            try {
-              var host = new URL(b.url).hostname;
-              // 回退链：ico.scdn.io (国内中转) → favicon.im (国内CDN) → favicon.is (备用) → emoji
-              iconHtml = '<img src="https://ico.scdn.io/favicon?url=' + host + '&refresh=1" alt="" loading="lazy" onerror="this.onerror=function(){this.src=\'https://favicon.im/' + host + '?larger=true\';this.onerror=function(){this.src=\'https://favicon.is/' + host + '\';this.onerror=function(){this.parentElement.innerHTML=\'' + fallbackEmoji + '\';};};};">';
-            } catch(e) {}
+            iconHtml = '<img src="' + esc(b.iconUrl) + '" alt="" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML=\'' + fallbackEmoji + '\';">';
+          } else {
+            iconHtml = '<span class="bm-icon-fallback">' + fallbackEmoji + '</span>';
           }
 
           card.innerHTML =
@@ -418,7 +410,7 @@
       }
 
       // ---- Load data ----
-      fetch('bookmarks/bookmarks.json')
+      fetch('assets/data/bookmarks.json')
         .then(function (r) { return r.json(); })
         .then(function (data) {
           allBookmarks = data || [];
@@ -432,7 +424,7 @@
           var empty = document.getElementById('emptyState');
           empty.style.display = 'block';
           empty.querySelector('h2').textContent = '加载失败';
-          empty.querySelector('p').textContent = '请检查 bookmarks/bookmarks.json 是否存在且格式正确。';
+          empty.querySelector('p').textContent = '请检查 assets/data/bookmarks.json 是否存在且格式正确。';
         });
 
       // ---- Search live filter ----

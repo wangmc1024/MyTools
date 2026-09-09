@@ -433,6 +433,11 @@
             "path": "assets/data/repo-tree.json"
           },
           {
+            "name": "bookmarks.json",
+            "type": "file",
+            "path": "assets/data/bookmarks.json"
+          },
+          {
             "name": "tools.json",
             "type": "file",
             "path": "assets/data/tools.json"
@@ -528,17 +533,6 @@
         "name": "timeline.json",
         "type": "file",
         "path": "devlog/timeline.json"
-      }
-    ]
-  },
-  {
-    "name": "bookmarks",
-    "type": "dir",
-    "children": [
-      {
-        "name": "bookmarks.json",
-        "type": "file",
-        "path": "bookmarks/bookmarks.json"
       }
     ]
   },
