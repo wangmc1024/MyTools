@@ -164,7 +164,7 @@
     "title": "收藏夹页面上线",
     "icon": "🔖",
     "type": "feature",
-    "description": "新增 bookmarks.html 收藏夹页面：卡片网格展示收藏网站，支持分类标签筛选和实时搜索。卡片图标使用 Google Favicon API 加载目标网站 logo，失败时回退到 emoji。数据由 bookmarks/bookmarks.json 驱动，未来只需编辑 JSON 即可新增条目。复用项目 Design Tokens 与 portal-nav 体系，响应式布局适配移动端。门户导航栏新增「收藏夹」入口。",
+    "description": "新增 bookmarks.html 收藏夹页面：卡片网格展示收藏网站，支持分类标签筛选和实时搜索。卡片图标支持通过 iconUrl 字段指定自定义图片链接（避开第三方 API 跨域/网络问题），加载失败回退到 emoji。数据由 bookmarks/bookmarks.json 驱动，未来只需编辑 JSON 即可新增条目。复用项目 Design Tokens 与 portal-nav 体系，响应式布局适配移动端。门户导航栏新增「收藏夹」入口。",
     "tags": ["收藏夹", "卡片网格", "JSON 驱动", "Favicon", "新页面"],
     "commits": ["c8e32ca"]
   },
