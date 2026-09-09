@@ -105,11 +105,20 @@
     .bm-icon {
       width: 40px; height: 40px;
       border-radius: 12px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
       flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(99,91,255,.3);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    .bm-icon img {
+      width: 26px; height: 26px;
+      object-fit: contain;
+    }
+    .bm-icon-fallback {
+      font-size: 18px;
+      line-height: 1;
     }
     .bm-title {
       font-size: 15px;
@@ -227,32 +236,45 @@
 <body>
   <!-- Navbar -->
   <nav class="nav-glass">
-    <div class="flex items-center justify-between flex-wrap gap-2 mx-auto pt-3.5 pb-3.5 px-4" style="max-width:1024px">
-      <div class="flex items-center gap-3">
-        <a href="index.html" class="flex items-center gap-2 no-underline">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
-            <defs>
-              <linearGradient id="lg" x1="5" y1="2" x2="23" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#a99fff"/>
-                <stop offset=".5" stop-color="#8b83ff"/>
-                <stop offset="1" stop-color="#635bff"/>
-              </linearGradient>
-            </defs>
-            <rect x="3" y="3" width="22" height="22" rx="5" fill="none" stroke="url(#lg)" stroke-width="1.5"/>
-            <path d="M8 14l3 3 7-7" fill="none" stroke="#635bff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="text-base font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">收藏夹</span>
-        </a>
-      </div>
+    <div class="mx-auto max-w-[1200px] px-6 h-14 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2 shrink-0 group">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="group-hover:scale-110 transition-transform duration-300">
+          <defs>
+            <linearGradient id="lg" x1="6" y1="4" x2="22" y2="24" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#a99fff"/>
+              <stop offset=".5" stop-color="#8b83ff"/>
+              <stop offset="1" stop-color="#635bff"/>
+            </linearGradient>
+            <linearGradient id="lg2" x1="0" y1="0" x2="28" y2="0" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#a99fff" stop-opacity=".6"/>
+              <stop offset=".5" stop-color="#635bff" stop-opacity=".35"/>
+              <stop offset="1" stop-color="#a99fff" stop-opacity=".6"/>
+            </linearGradient>
+          </defs>
+          <circle cx="14" cy="14" r="13" fill="url(#lg)" opacity=".08"/>
+          <circle cx="14" cy="14" r="9" fill="url(#lg)"/>
+          <ellipse cx="11" cy="11" rx="3.5" ry="2.5" fill="#fff" opacity=".12" transform="rotate(-30 11 11)"/>
+          <ellipse cx="14" cy="14" rx="14" ry="4.5" fill="none" stroke="url(#lg2)" stroke-width="1.2" transform="rotate(-20 14 14)" opacity=".55"/>
+          <circle cx="14" cy="14" r="2" fill="#fff" opacity=".85"/>
+          <circle cx="14" cy="14" r="1" fill="#635bff" opacity=".9"/>
+          <circle cx="22" cy="7" r=".8" fill="#fff" opacity=".55"/>
+          <circle cx="6" cy="20" r=".7" fill="#fff" opacity=".4"/>
+          <circle cx="23" cy="20" r=".6" fill="#c4b5fd" opacity=".5"/>
+          <circle cx="5" cy="7" r=".8" fill="#fff" opacity=".45"/>
+          <circle cx="14" cy="3" r=".7" fill="#fff" opacity=".6"/>
+          <circle cx="14" cy="25" r=".6" fill="#c4b5fd" opacity=".4"/>
+        </svg>
+        <span class="text-lg font-bold bg-gradient-to-r from-primary to-primaryLight bg-clip-text text-transparent tracking-tight">Gizmo Galaxy</span>
+      </a>
       <button class="nav-toggle" id="navToggle" aria-label="菜单">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <div class="nav-links flex items-center gap-1">
         <a href="index.html" class="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium nav-link">返回首页</a>
+        <button id="themeToggle" class="ml-1 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
+          <span id="themeIcon">☽️</span>
+        </button>
       </div>
-      <button id="themeToggle" class="ml-2 w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-sm text-gray-400 hover:bg-white/10 hover:text-gray-200 transition" title="切换主题">
-        <span id="themeIcon">☽️</span>
-      </button>
     </div>
   </nav>
 
@@ -364,9 +386,18 @@
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
 
+          // Build icon: try favicon from URL, fall back to emoji
+          var iconHtml = '<span class="bm-icon-fallback">' + esc(b.icon || '🔗') + '</span>';
+          if (b.url) {
+            try {
+              var host = new URL(b.url).hostname;
+              iconHtml = '<img src="https://www.google.com/s2/favicons?domain=' + host + '&sz=64" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'' + esc(b.icon || '🔗').replace(/'/g, "\\'") + '\'">';
+            } catch(e) {}
+          }
+
           card.innerHTML =
             '<div class="bm-card-header">' +
-              '<div class="bm-icon">' + esc(b.icon || '🔗') + '</div>' +
+              '<div class="bm-icon">' + iconHtml + '</div>' +
               '<div class="bm-title">' + esc(b.name || '未命名') + '</div>' +
             '</div>' +
             (b.description ? '<div class="bm-desc">' + esc(b.description) + '</div>' : '') +
