@@ -386,13 +386,10 @@
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
 
-          // Build icon: try favicon from URL, fall back to emoji
+          // Build icon: prefer custom iconUrl, then emoji fallback
           var iconHtml = '<span class="bm-icon-fallback">' + esc(b.icon || '🔗') + '</span>';
-          if (b.url) {
-            try {
-              var host = new URL(b.url).hostname;
-              iconHtml = '<img src="https://www.google.com/s2/favicons?domain=' + host + '&sz=64" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'' + esc(b.icon || '🔗').replace(/'/g, "\\'") + '\'">';
-            } catch(e) {}
+          if (b.iconUrl) {
+            iconHtml = '<img src="' + esc(b.iconUrl) + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'' + esc(b.icon || '🔗').replace(/'/g, "\\'") + '\'">';
           }
 
           card.innerHTML =
