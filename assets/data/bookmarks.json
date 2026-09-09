@@ -34,5 +34,14 @@
     "category": "学习",
     "description": "李沐等人维护的免费开源深度学习中文教程，理论与代码实践相结合。",
     "addedAt": "2026-09-09"
+  },
+  {
+    "name": "ClawsGO Science",
+    "icon": "🔬",
+    "iconUrl": "https://clawsgo.cn/favicon.ico",
+    "url": "https://clawsgo.cn/",
+    "category": "学习",
+    "description": "下一代 AI for Science 产品，探索端到端的科研新范式。支持文献检索、数据分析、LaTeX 写作、科研 agent 等。",
+    "addedAt": "2026-09-09"
   }
 ]
