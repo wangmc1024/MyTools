@@ -386,10 +386,20 @@
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
 
-          // Build icon: prefer custom iconUrl, then emoji fallback
+          // Build icon: custom iconUrl > favicon API chain > emoji fallback
           var iconHtml = '<span class="bm-icon-fallback">' + esc(b.icon || '🔗') + '</span>';
+          var fallbackEmoji = esc(b.icon || '🔗').replace(/'/g, "\\'");
+
           if (b.iconUrl) {
-            iconHtml = '<img src="' + esc(b.iconUrl) + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'' + esc(b.icon || '🔗').replace(/'/g, "\\'") + '\'">';
+            // 优先使用自定义 iconUrl
+            iconHtml = '<img src="' + esc(b.iconUrl) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'https://ico.scdn.io/favicon?url=\' + encodeURIComponent(this.src.split(\'/\')[2]) + \'&refresh=1\';this.onerror=function(){this.parentElement.innerHTML=\'' + fallbackEmoji + '\';}">';
+          } else if (b.url) {
+            // 无iconUrl时，使用 favicon API 多级回退链
+            try {
+              var host = new URL(b.url).hostname;
+              // 回退链：ico.scdn.io (国内中转) → favicon.im (国内CDN) → favicon.is (备用) → emoji
+              iconHtml = '<img src="https://ico.scdn.io/favicon?url=' + host + '&refresh=1" alt="" loading="lazy" onerror="this.onerror=function(){this.src=\'https://favicon.im/' + host + '?larger=true\';this.onerror=function(){this.src=\'https://favicon.is/' + host + '\';this.onerror=function(){this.parentElement.innerHTML=\'' + fallbackEmoji + '\';};};};">';
+            } catch(e) {}
           }
 
           card.innerHTML =
