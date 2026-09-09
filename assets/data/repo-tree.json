@@ -532,6 +532,22 @@
     ]
   },
   {
+    "name": "bookmarks",
+    "type": "dir",
+    "children": [
+      {
+        "name": "bookmarks.json",
+        "type": "file",
+        "path": "bookmarks/bookmarks.json"
+      }
+    ]
+  },
+  {
+    "name": "bookmarks.html",
+    "type": "file",
+    "path": "bookmarks.html"
+  },
+  {
     "name": "404.html",
     "type": "file",
     "path": "404.html"
@@ -540,6 +556,11 @@
     "name": "CLAUDE.md",
     "type": "file",
     "path": "CLAUDE.md"
+  },
+  {
+    "name": "MEMORY.md",
+    "type": "file",
+    "path": "MEMORY.md"
   },
   {
     "name": "downloads.html",
