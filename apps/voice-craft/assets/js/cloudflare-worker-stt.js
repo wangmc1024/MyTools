@@ -3,10 +3,11 @@
  * 
  * 路由: POST /v1/audio/transcriptions
  * 
- * 双模型分支:
- *   - 如果请求携带 model=FunAudioLLM/SenseVoiceSmall → 走 SenseVoiceSmall 分支
- *   - 如果请求携带 model=TeleAI/TeleSpeechASR        → 走 TeleSpeechASR 分支
- *   - 如果请求未携带 model 参数                       → 默认走 TeleSpeechASR 分支（新默认）
+ * 三模型分支:
+ *   - 如果请求携带 model=FunAudioLLM/SenseVoiceSmall        → 走 SenseVoiceSmall 分支
+ *   - 如果请求携带 model=TeleAI/TeleSpeechASR              → 走 TeleSpeechASR 分支
+ *   - 如果请求携带 model=XingChenAGI/XingChenASR-V3.2-Ultra → 走 星辰 ASR V3.2 Ultra 分支（中+英+60方言·工业级）
+ *   - 如果请求未携带 model 参数                              → 默认走 TeleSpeechASR 分支（新默认）
  * 
  * Token 优先级: 前端传入的自定义 token > 内置默认 token
  */
@@ -21,7 +22,8 @@ const SILICON_FLOW_BASE_URL = 'https://api.siliconflow.cn/v1/audio/transcription
 // 支持的模型列表（用于校验）
 const SUPPORTED_STT_MODELS = [
   'FunAudioLLM/SenseVoiceSmall', // 模型A — 原有保留：中日韩英粤多语种
-  'TeleAI/TeleSpeechASR',        // 模型B — 新增扩展：60种中文方言
+  'TeleAI/TeleSpeechASR',        // 模型B — 原有保留：60种中文方言
+  'XingChenAGI/XingChenASR-V3.2-Ultra', // 模型C — 星辰 ASR V3.2 Ultra（中+英+60种方言混合识别·工业级）
 ];
 
 // 当请求未指定 model 时的默认模型
@@ -169,6 +171,14 @@ async function handleTranscription(request) {
     text: upstreamData.text || '',
     model: model, // 回显实际使用的模型
   };
+
+  // 透传上游统计字段（仅当上游返回时原样透传，不影响 text 的展示地位）
+  if (upstreamData.duration !== undefined && upstreamData.duration !== null) {
+    responseBody.duration = upstreamData.duration;
+  }
+  if (upstreamData.usage !== undefined && upstreamData.usage !== null) {
+    responseBody.usage = upstreamData.usage;
+  }
 
   return new Response(JSON.stringify(responseBody), {
     status: 200,

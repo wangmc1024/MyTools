@@ -251,8 +251,30 @@ function resolveModelFor(tool) {
 function fileToDataUrl(file) {
   return new Promise((rs, rj) => {
     const fr = new FileReader();
-    fr.onload = () => rs({ name:file.name, mime:file.type||'application/octet-stream',
-                           dataUrl:fr.result, size:file.size });
+    fr.onload = () => {
+      const dataUrl = fr.result;
+      // 修复：确保数据 URL 格式符合 SiliconFlow API 要求
+      const mimeType = file.type || 'application/octet-stream';
+      let sanitizedDataUrl = dataUrl;
+
+      // 如果是图片，确保格式正确
+      if (mimeType.startsWith('image/')) {
+        // 保持原始格式，但确保 base64 正确
+        const parts = dataUrl.split(',');
+        if (parts.length === 2) {
+          // 确保数据 URL 前缀正确
+          const prefix = parts[0];
+          const data = parts[1];
+          // 对于 SiliconFlow，使用标准的 data:image/<type>;base64, 格式
+          if (!prefix.includes(';base64')) {
+            // 如果缺少 ;base64，添加它
+            sanitizedDataUrl = `${prefix};base64,${data}`;
+          }
+        }
+      }
+
+      rs({ name:file.name, mime:mimeType, dataUrl:sanitizedDataUrl, size:file.size });
+    };
     fr.onerror = rj;
     fr.readAsDataURL(file);
   });
@@ -283,8 +305,28 @@ async function handleFiles(fileList) {
   const files = [...fileList].filter(f => /(image\/|application\/pdf)/.test(f.type));
   if (!files.length) { toast('请选择图片或PDF文件'); return; }
   for (const f of files) {
-    if (f.size > 20 * 1024 * 1024) { toast(`文件过大跳过: ${f.name}`); continue; }
-    try { state.pendingImages.push(await fileToDataUrl(f)); }
+    // OCR 任务建议使用更小的图片以获得更好的识别效果
+    if (f.size > 20 * 1024 * 1024) {
+      toast(`文件过大(${(f.size/1024/1024).toFixed(1)}MB)跳过: ${f.name}`);
+      continue;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      toast(`提示：文件${f.name}较大(${(f.size/1024/1024).toFixed(1)}MB)，可能影响OCR识别效果，建议压缩到5MB以下`);
+    }
+    try {
+      const imageData = await fileToDataUrl(f);
+
+      // 调试：显示图片信息
+      console.log('图片上传信息:', {
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        dataUrlLength: imageData.dataUrl.length,
+        isBase64: imageData.dataUrl.includes(';base64')
+      });
+
+      state.pendingImages.push(imageData);
+    }
     catch { toast('读取文件失败'); }
   }
   renderAttachChips(); renderFilePreview(); scrollToBottom(60);
@@ -499,7 +541,7 @@ async function runChat(userMsg, modelId, intent) {
 
   const hasAttachment = (userMsg.attachments?.length > 0);
   const needVision = hasAttachment || (model.caps||[]).some(c=>['ocr','vision'].includes(c));
-  const msgs = buildChatMessages(needVision, isOcrModel);
+  const msgs = buildChatMessages(needVision, isOcrModel, modelId);
 
   const hasStream = true;
   const modelParams = model.params || {};
@@ -581,11 +623,32 @@ async function runChat(userMsg, modelId, intent) {
       if (!ln.startsWith('data:')) continue;
       const piece = ln.slice(5).trim();
       if (piece === '[DONE]') continue;
+
       try {
         const j = JSON.parse(piece);
-        const c = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
-        if (!c) continue;
-        full += c;
+        // 支持多种可能的响应格式
+        let content = '';
+
+        // 1. 标准的 OpenAI 流式格式
+        if (j.choices?.[0]?.delta?.content !== undefined) {
+          content = j.choices[0].delta.content;
+        }
+        // 2. 一些 API 的完整消息格式
+        else if (j.choices?.[0]?.message?.content !== undefined) {
+          content = j.choices[0].message.content;
+        }
+        // 3. SiliconFlow 可能使用的其他格式
+        else if (j.choices?.[0]?.content !== undefined) {
+          content = j.choices[0].content;
+        }
+        // 4. 直接 content 字段
+        else if (j.content !== undefined) {
+          content = j.content;
+        }
+
+        if (content === null || content === undefined || content === '') continue;
+
+        full += content;
         chunkCount++;
         if (first) {
           aiMsg._thinking = false;
@@ -598,9 +661,40 @@ async function runChat(userMsg, modelId, intent) {
           mdxEl.innerHTML = renderMarkdown(full);
         }
         scrollToBottom(0);
-      } catch {}
+      } catch (parseErr) {
+        // 调试信息：记录无法解析的内容
+        console.debug('无法解析流式响应块:', piece?.slice(0, 100), parseErr);
+      }
     }
   }
+
+  // 重要：循环结束后，处理剩余的缓冲数据
+  if (buf.trim()) {
+    try {
+      // 尝试处理剩余的缓冲行
+      const lines = buf.split(/\r?\n/);
+      for (const ln of lines) {
+        if (!ln.startsWith('data:')) continue;
+        const piece = ln.slice(5).trim();
+        if (piece === '[DONE]' || !piece) continue;
+
+        const j = JSON.parse(piece);
+        let content = '';
+        if (j.choices?.[0]?.delta?.content !== undefined) content = j.choices[0].delta.content;
+        else if (j.choices?.[0]?.message?.content !== undefined) content = j.choices[0].message.content;
+        else if (j.choices?.[0]?.content !== undefined) content = j.choices[0].content;
+        else if (j.content !== undefined) content = j.content;
+
+        if (content && content !== '') {
+          full += content;
+          aiMsg.content = full;
+        }
+      }
+    } catch (err) {
+      console.debug('处理缓冲数据时出错:', buf?.slice(0, 200), err);
+    }
+  }
+
   aiMsg._thinking = false;
   if (msgEl) msgEl.classList.remove('streaming');
   if (mdxEl) mdxEl.innerHTML = renderMarkdown(full);
@@ -609,25 +703,79 @@ async function runChat(userMsg, modelId, intent) {
   savePrefs();
 }
 
-function buildChatMessages(needVision, isOcrModel) {
+function buildChatMessages(needVision, isOcrModel, modelId = null) {
   const recent = state.messages.filter(m => m.role !== 'tool').slice(-12);
   const msgs = [];
 
   if (isOcrModel && needVision) {
-    msgs.push({ role:'system', content: '你是一个OCR文字识别助手。请准确识别图片中的所有文字内容，保留原文格式。' });
+    // 针对 SiliconFlow OCR 模型的优化系统提示
+    const isDeepSeekOCR = modelId && modelId.includes('DeepSeek-OCR');
+    const isPaddleOCR = modelId && modelId.includes('PaddleOCR');
+
+    let systemPrompt = '';
+    if (isDeepSeekOCR) {
+      systemPrompt = '你是一个专业的OCR文字识别助手。请**完全、准确地**识别图片中的所有文字内容，不要遗漏任何信息。严格按照以下规则：\n' +
+                     '1. **识别图片中的所有文字**，包括标题、正文、页眉、页脚、注释、标签等\n' +
+                     '2. **完整保留**原文的段落结构、换行、缩进和格式\n' +
+                     '3. **不要跳过任何区域**，即使文字较小、颜色较淡或有背景干扰\n' +
+                     '4. 表格内容转换为Markdown表格格式，保持行列对齐\n' +
+                     '5. 数学公式使用LaTeX格式（用$$包裹），确保符号正确\n' +
+                     '6. 不要添加任何解释、评论或开头语\n' +
+                     '7. 只输出识别到的文字内容，保持原文语言\n' +
+                     '8. 如果包含手写文字，尽可能准确识别，不要忽略';
+    } else if (isPaddleOCR) {
+      systemPrompt = '你是一个专业的OCR文字识别助手，特别擅长中文文档、手写文字和表格识别。请**完整识别图片中的所有文字**：\n' +
+                     '1. **不要遗漏任何文字**，包括小字、角落文字、印章文字等\n' +
+                     '2. 保留原文格式和结构，包括段落、换行、缩进\n' +
+                     '3. 表格转换为Markdown表格格式，保持结构完整\n' +
+                     '4. 数学公式保持原样，准确识别特殊符号\n' +
+                     '5. **重点识别中文内容**，包括繁体字、手写中文\n' +
+                     '6. 不要添加任何额外内容或解释\n' +
+                     '7. 输出完整、准确的所有识别结果';
+    } else {
+      systemPrompt = '你是一个OCR文字识别助手。请**完整、准确地**识别图片中的所有文字内容，不要遗漏任何信息，保留原文格式。';
+    }
+
+    msgs.push({ role:'system', content: systemPrompt });
 
     const lastUser = recent.filter(m => m.role === 'user').slice(-1);
     for (const m of lastUser) {
       const msgAtts = m.attachments || [];
       if (msgAtts.length > 0) {
-        const parts = [{ type:'text', text: m.content||'请识别图片中的文字' }];
+        const parts = [];
+
+        // 根据 SiliconFlow 最佳实践：先图片后文字（对于某些模型更好）
         for (const a of msgAtts) {
-          if (a.mime?.startsWith('image/'))
-            parts.push({ type:'image_url', image_url: { url: a.dataUrl, detail: 'high' } });
+          if (a.mime?.startsWith('image/')) {
+            // 根据图片类型设置正确的 MIME type
+            let detail = 'auto';
+            if (a.mime === 'image/jpeg' || a.mime === 'image/png' || a.mime === 'image/webp') {
+              detail = 'high'; // 对于OCR任务使用高分辨率
+            }
+
+            // 确保数据 URL 格式正确
+            let dataUrl = a.dataUrl;
+            if (!dataUrl.includes(';base64')) {
+              const parts = dataUrl.split(',');
+              if (parts.length === 2) {
+                const mime = a.mime || 'image/jpeg';
+                dataUrl = `data:${mime};base64,${parts[1]}`;
+              }
+            }
+
+            parts.push({ type:'image_url', image_url: { url: dataUrl, detail } });
+          }
         }
+
+        // 添加文字提示（放在图片后面）
+        const textPrompt = m.content || (isPaddleOCR
+          ? '<image>\n<|grounding|>请**完整识别图片中的所有文字**，不要遗漏任何区域，包括标题、正文、页眉、页脚、注释、表格、公式、手写文字等。'
+          : '请**完整、准确地识别图片中的所有文字内容**，包括所有区域的所有文字，不要遗漏任何部分。特别关注：标题、正文、表格、公式、注释、页眉、页脚、标签等。');
+        parts.push({ type:'text', text: textPrompt });
+
         msgs.push({ role:'user', content: parts });
       } else {
-        msgs.push({ role:'user', content: m.content || '请识别图片中的文字' });
+        msgs.push({ role:'user', content: m.content || '请上传图片进行文字识别' });
       }
     }
     return msgs;
@@ -635,15 +783,16 @@ function buildChatMessages(needVision, isOcrModel) {
 
   const isOCR = needVision && recent.some(m => (m.attachments||[]).length > 0);
   msgs.push({ role:'system', content: isOCR
-    ? '你是专业的OCR文字识别助手。请准确识别图片/PDF中的所有文字内容。\n'
+    ? '你是专业的OCR文字识别助手。请**完整、准确地**识别图片/PDF中的所有文字内容，不要遗漏任何信息。\n'
       + '规则：\n'
-      + '1. 保留原文的段落结构、换行和缩进\n'
-      + '2. 表格内容输出为Markdown表格格式\n'
-      + '3. 数学公式输出为LaTeX格式（用$$包裹）\n'
-      + '4. 不要添加任何解释、评论或开头语\n'
-      + '5. 只输出识别到的文字内容，保持原文语言'
+      + '1. **识别所有区域的所有文字**，包括标题、正文、页眉、页脚、注释等\n'
+      + '2. 完整保留原文的段落结构、换行和缩进\n'
+      + '3. 表格内容输出为Markdown表格格式，保持结构完整\n'
+      + '4. 数学公式输出为LaTeX格式（用$$包裹），符号准确\n'
+      + '5. 不要添加任何解释、评论或开头语\n'
+      + '6. 只输出识别到的**全部**文字内容，保持原文语言'
     : '你是 ChatOCR Pro 助手，擅长：\n'
-      + '1. 识别图片/PDF中的文字、表格、公式、手写；\n'
+      + '1. **完整识别**图片/PDF中的文字、表格、公式、手写；\n'
       + '2. 对识别结果问答、翻译、整理；\n'
       + '3. 对话简洁专业，保留原文结构。' });
 
@@ -653,11 +802,35 @@ function buildChatMessages(needVision, isOcrModel) {
     const msgAtts = (isLast ? m.attachments : null) || [];
 
     if (needVision && msgAtts.length > 0) {
-      const parts = [{ type:'text', text: m.content||'请识别图片中的文字' }];
+      const parts = [];
+
+      // 先添加图片（符合 SiliconFlow VLM 最佳实践）
       for (const a of msgAtts) {
-        if (a.mime?.startsWith('image/'))
-          parts.push({ type:'image_url', image_url: { url: a.dataUrl, detail: 'high' } });
+        if (a.mime?.startsWith('image/')) {
+          // 优化数据 URL 格式
+          let dataUrl = a.dataUrl;
+          if (!dataUrl.includes(';base64')) {
+            const urlParts = dataUrl.split(',');
+            if (urlParts.length === 2) {
+              const mime = a.mime || 'image/jpeg';
+              dataUrl = `data:${mime};base64,${urlParts[1]}`;
+            }
+          }
+
+          let detail = 'auto';
+          // 对于 OCR 相关任务，可能需要更高的分辨率
+          if (isOcrModel || isOCR) {
+            detail = 'high';
+          } else if (a.mime === 'image/jpeg' || a.mime === 'image/png') {
+            detail = 'high';
+          }
+
+          parts.push({ type:'image_url', image_url: { url: dataUrl, detail } });
+        }
       }
+
+      // 然后添加文字提示
+      parts.push({ type:'text', text: m.content||'请识别图片中的文字' });
       msgs.push({ role:'user', content: parts });
     } else {
       const textContent = m.content || '';

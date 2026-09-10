@@ -1,5 +1,12 @@
 # Worktrees
 .claude/worktrees/
+# Claude Code local settings (agent-side tooling, not project config)
+.claude/settings.local.json
+
+# Tool snapshot / cache files (merkle hash caches etc.)
+**/.merkle-snapshot.json
+
+.codeartsdoer/
 
 # VS Code (workspace-specific settings)
 .vscode/settings.json

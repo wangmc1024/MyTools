@@ -298,6 +298,7 @@ const translations = {
         'stt.modelLabel': 'Transcription Model',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韩英粤）',
         'stt.model.teleasr': 'TeleSpeechASR（60种方言）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra (CN/EN+60 Dialects·Industrial)',
         'stt.title': 'Speech to Text',
         'stt.upload': 'Upload Audio File',
         'stt.start': 'Start Transcription',
@@ -328,6 +329,7 @@ const translations = {
         'stt.modelLabel': '转录模型选择',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韩英粤多国语言）',
         'stt.model.teleasr': 'TeleSpeechASR（60种中文方言）',
+        'stt.model.xingchen': '星辰 ASR V3.2 Ultra（中英+60方言·工业级）',
         'stt.title': '语音转文字（STT）',
         'stt.upload': '上传音频文件',
         'stt.start': '开始语音转录',
@@ -358,6 +360,7 @@ const translations = {
         'stt.modelLabel': 'トランスクリプションモデル',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韓英広東語）',
         'stt.model.teleasr': 'TeleSpeechASR（60種類の方言）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra（中英+60方言・業界級）',
         'stt.title': '音声テキスト変換（STT）',
         'stt.upload': 'オーディオファイルをアップロード',
         'stt.start': 'トランスクリプション開始',
@@ -388,6 +391,7 @@ const translations = {
         'stt.modelLabel': '트랜스크립션 모델',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韓영 광둥어）',
         'stt.model.teleasr': 'TeleSpeechASR（60종 방언）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra（중영+60방언·산업급）',
         'stt.title': '음성 텍스트 변환（STT）',
         'stt.upload': '오디오 파일 업로드',
         'stt.start': '트랜스크립션 시작',
@@ -418,6 +422,7 @@ const translations = {
         'stt.modelLabel': 'Modelo de Transcripción',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韩英粤）',
         'stt.model.teleasr': 'TeleSpeechASR（60 dialectos）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra (CN/EN+60 dialectos·Industrial)',
         'stt.title': 'Voz a Texto (STT)',
         'stt.upload': 'Subir archivo de audio',
         'stt.start': 'Iniciar transcripción',
@@ -448,6 +453,7 @@ const translations = {
         'stt.modelLabel': 'Modèle de Transcription',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韩英粤）',
         'stt.model.teleasr': 'TeleSpeechASR（60 dialectes）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra (CN/EN+60 dialectes·Industriel)',
         'stt.title': 'Parole vers Texte (STT)',
         'stt.upload': 'Télécharger l\'audio',
         'stt.start': 'Démarrer la transcription',
@@ -478,6 +484,7 @@ const translations = {
         'stt.modelLabel': 'Transkriptionsmodell',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韩英粤）',
         'stt.model.teleasr': 'TeleSpeechASR（60 Dialekte）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra (CN/EN+60 Dialekte·Industriell)',
         'stt.title': 'Sprache zu Text (STT)',
         'stt.upload': 'Audiodatei hochladen',
         'stt.start': 'Transkription starten',
@@ -508,6 +515,7 @@ const translations = {
         'stt.modelLabel': 'Модель Транскрипции',
         'stt.model.sensevoice': 'SenseVoiceSmall（中日韩英粤）',
         'stt.model.teleasr': 'TeleSpeechASR（60 диалектов）',
+        'stt.model.xingchen': 'XingChen ASR V3.2 Ultra (CN/EN+60 диалектов·Промышленный)',
         'stt.title': 'Речь в Текст (STT)',
         'stt.upload': 'Загрузить аудиофайл',
         'stt.start': 'Начать транскрипцию',
@@ -568,6 +576,10 @@ function applyTranslations() {
     if (langData['page.title']) {
         document.title = langData['page.title'];
     }
+
+    // 刷新注册表驱动的 UI（下拉框标签 + 模型提示），保持当前选中值
+    renderSttModelOptions();
+    updateModelHint();
 }
 
 function updateLanguageSwitcher() {
@@ -1069,7 +1081,9 @@ document.getElementById('transcriptionForm').addEventListener('submit', async fu
     // 更新加载提示
     const loadingText = document.getElementById('transcriptionLoadingText');
     const progressInfo = document.getElementById('transcriptionProgressInfo');
-    loadingText.textContent = '正在转录音频，请稍候...';
+    const modelSelectForLoading = document.getElementById('sttModelSelect');
+    const isXingChenModel = modelSelectForLoading && modelSelectForLoading.value === 'XingChenAGI/XingChenASR-V3.2-Ultra';
+    loadingText.textContent = isXingChenModel ? '正在转录音频（高精度模型推理耗时较长，请耐心等待）...' : '正在转录音频，请稍候...';
     progressInfo.textContent = '文件: ' + selectedAudioFile.name + ' (' + formatFileSize(selectedAudioFile.size) + ')';
 
     try {
@@ -1233,46 +1247,90 @@ function initializeLanguageSwitcher() {
 // STT 模型提示 & 对比表
 // ============================================================
 
+/**
+ * STT 模型注册表（单一事实源）
+ * 下拉框选项、模型提示分支、模型选择记忆校验均由此派生。
+ *
+ * @typedef {Object} STTModel
+ * @property {string} id        — SiliconFlow 模型标识（= 上游请求 model 值）
+ * @property {string} labelKey  — translations 字典 Key（如 'stt.model.xingchen'）
+ * @property {'sensevoice'|'describe'|'xingchen'} hintKey — MODEL_HINTS 文案 Key
+ */
+const STT_MODELS = Object.freeze([
+    { id: 'FunAudioLLM/SenseVoiceSmall', labelKey: 'stt.model.sensevoice', hintKey: 'sensevoice' },
+    { id: 'TeleAI/TeleSpeechASR',        labelKey: 'stt.model.teleasr',    hintKey: 'describe' },
+    { id: 'XingChenAGI/XingChenASR-V3.2-Ultra', labelKey: 'stt.model.xingchen', hintKey: 'xingchen' },
+]);
+
+/**
+ * 按模型 ID 查找注册表项；非法 ID 返回 undefined。
+ * @param {string} id
+ * @returns {STTModel|undefined}
+ */
+function findSttModelById(id) {
+    return STT_MODELS.find(function(m) { return m.id === id; });
+}
+
+/**
+ * 校验模型 ID 是否属于支持清单。
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isSupportedSttModel(id) {
+    return !!findSttModelById(id);
+}
+
+/** localStorage 存储键：STT 模型选择记忆（仅存模型 ID，不涉及敏感数据） */
+const STT_MODEL_STORAGE_KEY = 'voicecraft-stt-model';
+
 /** STT 模型描述（按语言） */
 const MODEL_HINTS = {
     en: {
         describe: `TeleSpeechASR: Mandarin + English + 60 Chinese dialects (Sichuan, Min, Shanghainese, Hakka, Cantonese, etc.), no need to specify language manually. Optimized for phone recordings, government hotlines, multi-speaker meetings, noisy daily speech.<br><em>Does NOT support Japanese or Korean.</em>`,
         sensevoice: `SenseVoiceSmall: Mandarin, English, Cantonese, <strong>Japanese, Korean</strong>. Best for multilingual / foreign-language mixed audio.<br><em>No dialect support.</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra: Industrial-grade end-to-end ASR supporting <strong>Mandarin + English + 60 Chinese dialects</strong> mixed recognition. Features readable semantic transcription (auto-streamlines colloquial redundancy, readability 4.29/5 on test_meeting), <strong>Cantonese/Shanghainese-to-Mandarin dialect translation</strong>, hotword & context-aware enhancement. AIShell2 97.25%, librispeech_clean 98.04%, test_meeting/kespeech/WS-yue 93%+.<br><em>Ideal for customer service hotlines, government services, meeting transcription, smart devices. Does NOT support Japanese or Korean.</em>`,
         compareBtn: '📊 View Comparison',
     },
     zh: {
         describe: `TeleSpeechASR：普通话 + 英语 + 60 种国内方言（四川话、闽南话、上海话、客家话、粤语等），无需手动指定语种；对电话录音、政务热线、多人会议、日常口语嘈杂场景深度优化。<br><em>不支持日语、韩语。</em>`,
         sensevoice: `SenseVoiceSmall：普通话、英语、粤语、<strong>日语、韩语</strong>。适合外语混读、日韩语音频。<br><em>不支持方言。</em>`,
+        xingchen: `星辰 ASR V3.2 Ultra：工业级端到端语音识别大模型，支持<strong>中+英+60种方言混合识别</strong>。高可读语义转写（自动精简口语冗余、理顺表达逻辑，test_meeting 可读性 4.29 分）；<strong>粤语/上海话方言翻译</strong>（方言语音→规范普通话文本）；热词增强与上下文感知增强。AIShell2 97.25%、librispeech_clean 98.04%、test_meeting/kespeech/WS-yue 93%+。<br><em>全面覆盖客服热线、政务服务、会议转写、智能硬件等场景。不支持日语、韩语。</em>`,
         compareBtn: '📊 查看对比表',
     },
     ja: {
         describe: `TeleSpeechASR: 標準語・英語・中国方言60種類。言語手動指定不要。電話録音・多話者会議・雑音環境に最適。<br><em>日本語・韓国語は<strong>非対応</strong>。</em>`,
         sensevoice: `SenseVoiceSmall: 標準語・英語・広東語・<strong>日本語・韓国語</strong>。多言語・外国語混在音声向け。<br><em>方言は非対応。</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra: 業界級エンドツーエンドASR、<strong>標準中国語+英語+60種類の方言混在認識</strong>に対応。高可読性セマンティック転写（口語の冗長さを自動整理、test_meeting 可読性 4.29/5）、<strong>広東語/上海語→標準中国語の方言翻訳</strong>、ホットワード&コンテキスト認識強化を搭載。AIShell2 97.25%、librispeech_clean 98.04%、test_meeting/kespeech/WS-yue 93%以上。<br><em>コールセンター・政務サービス・会議転写・スマートデバイスに最適。日本語・韓国語は非対応。</em>`,
         compareBtn: '📊 比較表を表示',
     },
     ko: {
         describe: `TeleSpeechASR: 표준어·영어+중국 방언 60종. 언어 수동 지정 불필요. 전화 녹음·다화자 회의·잡음 환경 최적화.<br><em>일어·한국어는 미지원.</em>`,
         sensevoice: `SenseVoiceSmall: 표준어·영어·광둥어·<strong>일어·한국어</strong>. 다국어·외국어 혼성 음성용.<br><em>방언 미지원.</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra: 산업급 엔드투엔드 ASR, <strong>표준 중국어+영어+60종 방언 혼합 인식</strong> 지원. 고가독성 의미 전사(구어체 중복 자동 정리, test_meeting 가독성 4.29/5), <strong>광둥어/상하이어→표준 중국어 방언 번역</strong>, 핫워드&컨텍스트 인식 강화 탑재. AIShell2 97.25%, librispeech_clean 98.04%, test_meeting/kespeech/WS-yue 93% 이상.<br><em>콜센터·정무 서비스·회의 전사·스마트 기기에 최적. 일어·한국어 미지원.</em>`,
         compareBtn: '📊 비교표 보기',
     },
     es: {
         describe: `TeleSpeechASR: Mandarín + inglés + 60 dialectos chinos. Sin necesidad de especificar idioma manualmente. Optimizado para grabaciones telefónicas, reuniones multipersona y entornos ruidosos.<br><em>No soporta japonés ni coreano.</em>`,
         sensevoice: `SenseVoiceSmall: Mandarín, inglés, cantonés, <strong>japonés, coreano</strong>. Ideal para audio multilingüe.<br><em>No soporta dialectos.</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra: ASR industrial de extremo a extremo, reconoce <strong>mandarín + inglés + 60 dialectos chinos</strong> mezclados. Transcripción semántica de alta legibilidad (simplifica redundancia coloquial, legibilidad 4.29/5 en test_meeting), <strong>traducción de cantonés/shanghainés a mandarín</strong>, mejora por palabras clave y contexto. AIShell2 97.25%, librispeech_clean 98.04%, test_meeting/kespeech/WS-yue 93%+.<br><em>Ideal para call centers, servicios gubernamentales, transcripción de reuniones, dispositivos inteligentes. No soporta japonés ni coreano.</em>`,
         compareBtn: '📊 Ver comparación',
     },
     fr: {
         describe: `TeleSpeechASR : Mandarin + anglais + 60 dialectes chinois. Pas besoin de spécifier la langue. Optimisé pour enregistrements téléphoniques, réunions multipersonnes et environnements bruyants.<br><em>Pas de support japonais ou coréen.</em>`,
         sensevoice: `SenseVoiceSmall : Mandarin, anglais, cantonais, <strong>japonais, coréen</strong>. Idéal pour audio multilingue.<br><em>Pas de support dialectal.</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra : ASR industriel de bout en bout, reconnaît <strong>mandarin + anglais + 60 dialectes chinois</strong> mélangés. Transcription sémantique hautement lisible (simplifie la redondance orale, lisibilité 4.29/5 sur test_meeting), <strong>traduction cantonais/shanghaien→mandarin</strong>, amélioration par mots-clés et contexte. AIShell2 97.25%, librispeech_clean 98.04%, test_meeting/kespeech/WS-yue 93%+.<br><em>Idéal pour centres d'appels, services gouvernementaux, transcription de réunions, appareils intelligents. Ne supporte pas le japonais ni le coréen.</em>`,
         compareBtn: '📊 Voir le tableau',
     },
     de: {
         describe: `TeleSpeechASR: Mandarin + Englisch + 60 chinesische Dialekte. Keine manuelle Sprachangabe nötig. Optimiert für Telefonaufnahmen, Meetings und laute Umgebungen.<br><em>Kein Japanisch- oder Koreanisch-Support.</em>`,
         sensevoice: `SenseVoiceSmall: Mandarin, Englisch, Kantonesisch, <strong>Japanisch, Koreanisch</strong>. Ideal für mehrsprachiges Audio.<br><em>Kein Dialekt-Support.</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra: Industrie-ASR Ende-zu-Ende, erkennt <strong>Mandarin + Englisch + 60 chinesische Dialekte</strong> gemischt. Hoch lesbare semantische Transkription (vereinfacht umgangssprachliche Redundanz, Lesbarkeit 4.29/5 auf test_meeting), <strong>Kantonesisch/Shanghainisch→Mandarin-Übersetzung</strong>, Hotword- & Kontext-Enhancement. AIShell2 97.25%, librispeech_clean 98.04%, test_meeting/kespeech/WS-yue 93%+.<br><em>Ideal für Callcenter, Behördenservices, Meeting-Transkription, Smart Devices. Kein Japanisch oder Koreanisch.</em>`,
         compareBtn: '📊 Vergleich anzeigen',
     },
     ru: {
         describe: `TeleSpeechASR: Мандарин + английский + 60 китайских диалектов. Не нужно вручную указывать язык. Оптимизирован для телефонных записей, встреч и шумной речи.<br><em>Не поддерживает японский и корейский.</em>`,
         sensevoice: `SenseVoiceSmall: Мандарин, английский, кантонский, <strong>японский, корейский</strong>. Для многоязычного аудио.<br><em>Не поддерживает диалекты.</em>`,
+        xingchen: `XingChen ASR V3.2 Ultra: промышленский ASR полного цикла, распознаёт <strong>мандарин + английский + 60 китайских диалектов</strong> смешанно. Высокочитаемая семантическая транскрипция (упрощает разговорную избыточность, читаемость 4.29/5 на test_meeting), <strong>перевод кантонского/шанхайского→мандарин</strong>, улучшение горячими словами и контекстом. AIShell2 97.25%, librispeech_clean 98.04%, test_meeting/kespeech/WS-yue 93%+.<br><em>Идеален для колл-центров, госуслуг, транскрипции встреч, умных устройств. Не поддерживает японский и корейский.</em>`,
         compareBtn: '📊 Сравнение',
     },
 };
@@ -1295,7 +1353,28 @@ if (typeof window !== 'undefined') {
     window.toggleSTTCompare = toggleSTTCompare;
 }
 
-/** 根据选中的模型更新描述文字 */
+/** 渲染模型下拉框选项（由 STT_MODELS 注册表驱动，保持当前选中值） */
+function renderSttModelOptions() {
+    const select = document.getElementById('sttModelSelect');
+    if (!select) return;
+
+    const currentValue = select.value || '';
+    const langData = translations[currentLanguage] || {};
+    select.innerHTML = '';
+
+    STT_MODELS.forEach(function(model) {
+        const option = document.createElement('option');
+        option.value = model.id;
+        option.textContent = langData[model.labelKey] || model.id;
+        select.appendChild(option);
+    });
+
+    if (currentValue) {
+        select.value = currentValue;
+    }
+}
+
+/** 根据选中的模型更新描述文字（三态分支，缺失回退英文） */
 function updateModelHint() {
     const select = document.getElementById('sttModelSelect');
     const hintTextEl = document.getElementById('modelHintText');
@@ -1306,16 +1385,37 @@ function updateModelHint() {
 
     if (code === 'FunAudioLLM/SenseVoiceSmall') {
         hintTextEl.innerHTML = hint?.sensevoice || MODEL_HINTS.en.sensevoice;
+    } else if (code === 'XingChenAGI/XingChenASR-V3.2-Ultra') {
+        hintTextEl.innerHTML = hint?.xingchen || MODEL_HINTS.en.xingchen;
     } else {
         hintTextEl.innerHTML = hint?.describe || MODEL_HINTS.en.describe;
     }
 }
 
+/** 默认 STT 模型（无历史选择时） */
+const DEFAULT_STT_MODEL = 'TeleAI/TeleSpeechASR';
+
 // 初始化 STT 模型选择器
 function initializeSTTModelSelector() {
     const select = document.getElementById('sttModelSelect');
     if (select) {
-        select.addEventListener('change', updateModelHint);
+        renderSttModelOptions();
+
+        // 恢复模型选择记忆（仅接受注册表内合法 ID；非法回退默认模型）
+        const savedModel = localStorage.getItem(STT_MODEL_STORAGE_KEY);
+        if (savedModel && isSupportedSttModel(savedModel)) {
+            select.value = savedModel;
+        } else {
+            select.value = DEFAULT_STT_MODEL;
+        }
+
+        select.addEventListener('change', function() {
+            // 持久化当前选择（写入前校验值 ∈ 注册表白名单）
+            if (isSupportedSttModel(select.value)) {
+                localStorage.setItem(STT_MODEL_STORAGE_KEY, select.value);
+            }
+            updateModelHint();
+        });
     }
 
     // 初始渲染

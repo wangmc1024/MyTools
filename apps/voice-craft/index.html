@@ -361,10 +361,7 @@
 
                 <div class="form-group">
                     <label class="form-label" for="sttModelSelect">转录模型选择</label>
-                    <select class="form-select" id="sttModelSelect">
-                        <option value="FunAudioLLM/SenseVoiceSmall">SenseVoiceSmall（中日韩英粤多国语言）</option>
-                        <option value="TeleAI/TeleSpeechASR" selected>TeleSpeechASR（60种中文方言，电话/会议场景）</option>
-                    </select>
+                    <select class="form-select" id="sttModelSelect"></select>
                     <div class="model-hint" id="modelHint">
                         <strong>📌 如何选择？</strong><br>
                         <span id="modelHintText">
@@ -379,6 +376,7 @@
                                     <th></th>
                                     <th>SenseVoiceSmall</th>
                                     <th>TeleSpeechASR</th>
+                                    <th>星辰 ASR V3.2 Ultra</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -386,21 +384,25 @@
                                     <td>支持语种</td>
                                     <td>普通话、英语、粤语、<strong>日语、韩语</strong></td>
                                     <td>普通话、英语</td>
+                                    <td><strong>中 + 英 + 60 种方言混合识别</strong></td>
                                 </tr>
                                 <tr>
                                     <td>方言</td>
                                     <td>—</td>
                                     <td><strong>60 种（四川话 / 闽南话 / 上海话 / 客家话 / 粤语…）</strong></td>
+                                    <td><strong>60 种方言</strong>（含粤语/上海话→普通话翻译）</td>
                                 </tr>
                                 <tr>
                                     <td>擅长场景</td>
                                     <td>外语混读、日韩语音频</td>
                                     <td>电话录音、政务热线、多人会议、嘈杂口语</td>
+                                    <td>工业级全场景：客服热线 / 政务服务 / 会议转写 / 智能硬件（高可读语义转写 + 热词增强）</td>
                                 </tr>
                                 <tr>
                                     <td>基准准确率</td>
                                     <td>Aishell2 97% / Librispeech 98%</td>
                                     <td>普通话 97.25% / 英语 98.04% / 粤语短会 93.32%</td>
+                                    <td>AIShell2 97.25% / librispeech_clean 98.04% / test_meeting·kespeech·WS-yue 93%+ / 可读性 4.29分</td>
                                 </tr>
                             </tbody>
                         </table>

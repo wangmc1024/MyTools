@@ -11,9 +11,11 @@ const PROVIDERS = Object.freeze({
     endpoints: { chat: '/chat/completions' },
     keyEl: 'siliconflowKey',   // 修复：与HTML保持一致
     models: [
-      { id: 'deepseek-ai/DeepSeek-OCR',            label: 'DeepSeek-OCR',        blurb: 'OCR专精 · 3B · 文档/表格/公式/手写/PDF', caps: ['ocr','vision','document','table','formula','pdf','scan','extract'], params: { temperature: 0, max_tokens: 4096, top_p: 1 } },
-      { id: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B', label: 'DeepSeek-R1-8B',   blurb: '推理达人 · 8B · 思维链文档问答/总结/分析', caps: ['chat','reasoning','docs','analysis','summary','math'], params: { temperature: 0, max_tokens: 8192, thinking_budget: 4096 } },
-      { id: 'PaddlePaddle/PaddleOCR-VL-1.5',       label: 'PaddleOCR-VL',       blurb: '百度飞桨 · 0.9B超轻量 · 中文手写/票据/印章', caps: ['ocr','vision','handwriting','invoice','chinese','lightweight','document'], params: { temperature: 0, max_tokens: 16384, top_p: 1 } },
+      { id: 'deepseek-ai/DeepSeek-OCR',            label: 'DeepSeek-OCR',        blurb: 'OCR专精 · 3B · 文档/表格/公式/手写/PDF', caps: ['ocr','vision','document','table','formula','pdf','scan','extract'], params: { temperature: 0, max_tokens: 6000, top_p: 1 } },
+      { id: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B', label: 'DeepSeek-R1-8B',   blurb: '推理达人 · 8B · 思维链文档问答/总结/分析', caps: ['chat','reasoning','docs','analysis','summary','math'], params: { temperature: 0, max_tokens: 6000, thinking_budget: 4096 } },
+      { id: 'PaddlePaddle/PaddleOCR-VL-1.5',       label: 'PaddleOCR-VL',       blurb: '百度飞桨 · 0.9B超轻量 · 中文手写/票据/印章', caps: ['ocr','vision','handwriting','invoice','chinese','lightweight','document'], params: { temperature: 0, max_tokens: 8000, top_p: 1 } },
+      { id: 'Qwen/Qwen2.5-VL-72B-Instruct',        label: 'Qwen2.5-VL-72B',     blurb: '阿里千问最强视觉 · 72B · 复杂文档/表格/图表/手写', caps: ['ocr','vision','document','table','formula','handwriting','chart','analysis'], params: { temperature: 0, max_tokens: 24000, top_p: 1 } },
+      { id: 'Qwen/Qwen2.5-VL-7B-Instruct',         label: 'Qwen2.5-VL-7B',      blurb: '阿里千问轻量视觉 · 7B · 快速OCR/文档/表格/手写', caps: ['ocr','vision','document','table','formula','handwriting','fast'], params: { temperature: 0, max_tokens: 12000, top_p: 1 } },
       { id: 'tencent/Hunyuan-MT-7B',               label: 'Hunyuan-MT-7B',      blurb: '腾讯混元翻译 · 7B · 33语种/5种民汉方言互译', caps: ['translation','multilingual','dialect','language','chat'], params: { temperature: 0.1, max_tokens: 8192 } },
       { id: 'THUDM/GLM-Z1-9B-0414',                label: 'GLM-Z1-9B',          blurb: '智谱推理 · 9B · 速度比R1快8倍 · MIT开源', caps: ['chat','reasoning','fast','opensource','mit'], params: { temperature: 0, max_tokens: 8192, thinking_budget: 4096 } },
     ]
