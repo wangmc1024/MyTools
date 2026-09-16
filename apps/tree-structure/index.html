@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>树结构可视化教学平台</title>
+<link rel="stylesheet" href="../../assets/css/tokens.css">
+<link rel="stylesheet" href="../../assets/css/portal-nav.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Portal Navbar -->
+<div id="portalNavbar">
+  <a href="../../index.html">← Gizmo Galaxy</a>
+  <span>|</span>
+  <span class="nav-title">🌳 树结构全品类可视化教学平台</span>
+  <div style="flex:1"></div>
+  <button id="portalThemeToggle" onclick="toggleTheme()" title="切换主题">
+    <span id="themeIcon"></span>
+  </button>
+</div>
+
+<!-- Main Layout -->
+<div class="main-wrapper">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-group">
+      <span class="status-label">结构</span>
+      <span class="status-value" id="statusName">普通二叉树</span>
+    </div>
+    <div class="status-sep"></div>
+    <div class="status-group">
+      <span class="status-label">节点数</span>
+      <span class="status-value" id="statusNodes">0</span>
+    </div>
+    <div class="status-sep"></div>
+    <div class="status-group">
+      <span class="status-label">高度</span>
+      <span class="status-value" id="statusHeight">0</span>
+    </div>
+    <div class="status-sep"></div>
+    <div class="status-group">
+      <span class="status-label">合法性</span>
+      <span class="status-value" id="statusValid">—</span>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-type="binary">普通二叉树</button>
+    <button class="tab-btn" data-type="perfect">满二叉树</button>
+    <button class="tab-btn" data-type="complete">完全二叉树</button>
+    <button class="tab-btn" data-type="threaded">线索二叉树</button>
+    <button class="tab-btn" data-type="bst">BST</button>
+    <button class="tab-btn" data-type="heap">二叉堆</button>
+    <button class="tab-btn" data-type="avl">AVL</button>
+    <button class="tab-btn" data-type="rbtree">红黑树</button>
+    <button class="tab-btn" data-type="btree">B树</button>
+    <button class="tab-btn" data-type="bplustree">B+树</button>
+    <button class="tab-btn" data-type="bstar">B*树</button>
+    <button class="tab-btn" data-type="forest">森林</button>
+    <button class="tab-btn" data-type="disjoint">并查集</button>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-area">
+
+    <!-- Left Panel -->
+    <div class="control-panel">
+      <!-- Input -->
+      <div class="panel-card">
+        <div class="card-head">
+          <span class="card-head-icon">▶</span>
+          <span class="card-head-title">数据构建</span>
+        </div>
+        <div class="card-body">
+          <label class="field-label">输入序列（逗号分隔）</label>
+          <textarea id="inputSeq" placeholder="例: 50,30,70,20,40,60,80" spellcheck="false"></textarea>
+          <div class="btn-row">
+            <button id="btnBuild" class="btn btn-primary">▶ 构建</button>
+            <button id="btnRandom" class="btn btn-secondary">🎲 随机</button>
+            <button id="btnClear" class="btn btn-danger">清空</button>
+          </div>
+          <div class="random-row">
+            <label class="mini-label">
+              节点数
+              <input type="range" id="randomCount" min="3" max="20" value="10">
+              <span id="randomCountVal">10</span>
+            </label>
+            <label class="mini-label">
+              最大值
+              <input type="range" id="randomMax" min="10" max="200" value="100">
+              <span id="randomMaxVal">100</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation -->
+      <div class="panel-card">
+        <div class="card-head">
+          <span class="card-head-icon">◈</span>
+          <span class="card-head-title">动画控制</span>
+        </div>
+        <div class="card-body">
+          <div class="btn-row">
+            <button id="btnPlay" class="btn btn-accent">▶ 播放</button>
+            <button id="btnPause" class="btn btn-secondary">⏸</button>
+            <button id="btnStep" class="btn btn-secondary">⏭ 单步</button>
+            <button id="btnReset" class="btn btn-secondary">↺ 重置</button>
+          </div>
+          <div class="speed-row">
+            <label class="mini-label">
+              速度 <span id="speedVal">1.0x</span>
+              <input type="range" id="animSpeed" min="1" max="10" value="5">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Specific Controls -->
+      <div class="panel-card" id="specificControls">
+        <div class="card-head">
+          <span class="card-head-icon">⚙</span>
+          <span class="card-head-title">专属操作</span>
+        </div>
+        <div class="card-body" id="specificButtons"></div>
+      </div>
+
+      <!-- Traversal -->
+      <div class="panel-card">
+        <div class="card-head">
+          <span class="card-head-icon">△</span>
+          <span class="card-head-title">遍历动画</span>
+        </div>
+        <div class="card-body">
+          <div class="btn-row">
+            <button class="btn btn-traverse" data-traverse="pre">前序</button>
+            <button class="btn btn-traverse" data-traverse="in">中序</button>
+            <button class="btn btn-traverse" data-traverse="post">后序</button>
+            <button class="btn btn-traverse" data-traverse="level">层序</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- B-tree order -->
+      <div class="panel-card" id="btreeOrderSection" style="display:none;">
+        <div class="card-head">
+          <span class="card-head-icon">◇</span>
+          <span class="card-head-title">阶数调节</span>
+        </div>
+        <div class="card-body">
+          <div class="btn-row" style="justify-content:center;gap:12px;">
+            <button id="btnDecOrder" class="btn btn-secondary btn-lg">−</button>
+            <span id="orderDisplay" class="order-display">m = 3</span>
+            <button id="btnIncOrder" class="btn btn-secondary btn-lg">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heap type -->
+      <div class="panel-card" id="heapTypeSection" style="display:none;">
+        <div class="card-head">
+          <span class="card-head-icon">▲</span>
+          <span class="card-head-title">堆类型</span>
+        </div>
+        <div class="card-body">
+          <div class="btn-row" style="justify-content:center;">
+            <button id="btnMaxHeap" class="btn btn-accent">大根堆</button>
+            <button id="btnMinHeap" class="btn btn-secondary">小根堆</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Union-Find -->
+      <div class="panel-card" id="unionFindSection" style="display:none;">
+        <div class="card-head">
+          <span class="card-head-icon">⊕</span>
+          <span class="card-head-title">操作</span>
+        </div>
+        <div class="card-body">
+          <div class="btn-row">
+            <button id="btnPathComp" class="btn btn-primary">路径压缩</button>
+            <button id="btnUnionRank" class="btn btn-secondary">按秩合并</button>
+          </div>
+          <div id="unionOps" class="union-ops" style="margin-top:8px;">
+            <div class="btn-row">
+              <input type="number" id="ufX" class="num-input" placeholder="x">
+              <input type="number" id="ufY" class="num-input" placeholder="y">
+              <button id="btnUnion" class="btn btn-accent">Union</button>
+              <button id="btnFind" class="btn btn-secondary">Find</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Demo -->
+      <div class="panel-card">
+        <div class="card-head">
+          <span class="card-head-icon">!</span>
+          <span class="card-head-title">教学演示</span>
+        </div>
+        <div class="card-body">
+          <div class="btn-row">
+            <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误结构演示</button>
+            <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比模式</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: SVG Canvas -->
+    <div class="canvas-area">
+      <svg id="mainSvg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="var(--color-text-muted)"/>
+          </marker>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-strong">
+            <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g id="canvasGroup">
+          <g id="edgesLayer"></g>
+          <g id="threadsLayer"></g>
+          <g id="nodesLayer"></g>
+          <g id="labelsLayer"></g>
+        </g>
+      </svg>
+      <div class="canvas-hint">滚轮缩放 · 拖拽平移 · 双击修改 · 点击选中</div>
+    </div>
+
+    <!-- Right Panel: Knowledge -->
+    <div class="info-panel">
+      <div class="info-panel-head">
+        <span class="card-head-icon">?</span>
+        <span>知识点面板</span>
+      </div>
+      <div id="infoContent">
+        <div class="info-block">
+          <h4>结构定义</h4>
+          <p id="infoDef">—</p>
+        </div>
+        <div class="info-block">
+          <h4>核心性质</h4>
+          <ul id="infoProps"></ul>
+        </div>
+        <div class="info-block">
+          <h4>408 高频考点</h4>
+          <ul id="infoExam"></ul>
+        </div>
+        <div class="info-block">
+          <h4>时间复杂度</h4>
+          <table id="infoComplexity">
+            <thead><tr><th>操作</th><th>查找</th><th>插入</th><th>删除</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="info-block">
+          <h4>易错点</h4>
+          <p id="infoMistakes">—</p>
+        </div>
+        <div class="info-block info-block-validation">
+          <h4>结构校验</h4>
+          <div id="infoValidation"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Log Console -->
+  <div class="log-panel">
+    <div class="log-header">
+      <span class="log-title">
+        <span class="log-dot"></span>
+        算法步骤日志
+      </span>
+      <button id="btnClearLog" class="btn-log-clear">清空</button>
+    </div>
+    <div id="logConsole" class="log-console"></div>
+  </div>
+
+</div>
+
+<script src="../../assets/js/tools.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -29,7 +29,7 @@
     "name": "DeepSeek 问答一键导出 MD",
     "icon": "📝",
     "type": "浏览器脚本",
-    "category": "效率工具",
+    "category": "工具",
     "description": "Tampermonkey 用户脚本，一键导出 DeepSeek 对话内容为 Markdown 格式。自动清理代码块工具栏，提取公式。",
     "status": "online",
     "url": null,
@@ -42,7 +42,7 @@
     "name": "评教一键勾选",
     "icon": "✅",
     "type": "浏览器脚本",
-    "category": "效率工具",
+    "category": "工具",
     "description": "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。",
     "status": "online",
     "url": null,
@@ -102,5 +102,18 @@
     "version": null,
     "fileType": null,
     "updatedAt": "2026-08-11"
+  },
+  {
+    "name": "树结构可视化教学平台",
+    "icon": "🌳",
+    "type": "Web Tool",
+    "category": "学习",
+    "description": "408考研级树结构全品类可视化教学平台。涵盖二叉树/满二叉树/完全二叉树/线索二叉树/BST/堆/AVL/红黑树/B树/B+树/B*树/森林/并查集共13类结构，支持交互构建、拖拽、遍历动画、结构校验、知识点面板。",
+    "status": "online",
+    "url": "./apps/tree-structure/index.html",
+    "version": null,
+    "downloadUrl": null,
+    "fileType": null,
+    "updatedAt": "2026-09-16"
   }
 ]

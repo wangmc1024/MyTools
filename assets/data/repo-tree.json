@@ -405,6 +405,27 @@
             "path": "apps/voice-craft/index.html"
           }
         ]
+      },
+      {
+        "name": "tree-structure",
+        "type": "dir",
+        "children": [
+          {
+            "name": "app.js",
+            "type": "file",
+            "path": "apps/tree-structure/app.js"
+          },
+          {
+            "name": "index.html",
+            "type": "file",
+            "path": "apps/tree-structure/index.html"
+          },
+          {
+            "name": "style.css",
+            "type": "file",
+            "path": "apps/tree-structure/style.css"
+          }
+        ]
       }
     ]
   },
