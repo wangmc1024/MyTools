@@ -1816,40 +1816,8 @@ function bindEvents() {
     rebuildAfterOrderChange();
   });
 
-  // 堆类型
-  document.getElementById('btnMaxHeap').addEventListener('click', () => {
-    State.heapType = 'max';
-    document.getElementById('btnMaxHeap').classList.add('active');
-    document.getElementById('btnMinHeap').classList.remove('active');
-    rebuildHeap();
-  });
-  document.getElementById('btnMinHeap').addEventListener('click', () => {
-    State.heapType = 'min';
-    document.getElementById('btnMinHeap').classList.add('active');
-    document.getElementById('btnMaxHeap').classList.remove('active');
-    rebuildHeap();
-  });
-
-  // 错误演示
-  document.getElementById('btnWrongDemo').addEventListener('click', generateWrongDemo);
-
   // 清空日志
   document.getElementById('btnClearLog').addEventListener('click', clearLog);
-
-  // 对比模式
-  document.getElementById('btnCompareMode').addEventListener('click', () => {
-    log('对比模式：同时构建 BST/AVL/红黑树 对比相同序列', 'action');
-    const seq = parseInput(document.getElementById('inputSeq').value);
-    if (!seq || !seq.length) { log('请先输入序列', 'warn'); return; }
-    log(`序列 [${seq.join(',')}] 三树对比:`, 'action');
-    const bst = BSTOps.buildFromSeq(seq);
-    const avl = AVLOps.buildFromSeq(seq);
-    const rb = RBOps.buildFromSeq(seq);
-    log(`BST 高度: ${BinaryTreeOps.height(bst)}`, 'info');
-    log(`AVL 高度: ${BinaryTreeOps.height(avl)}`, 'info');
-    log(`红黑树高度: ${BinaryTreeOps.height(rb)}`, 'info');
-    log('对比结论：BST 可能退化为链表，AVL 最严格平衡，红黑树放宽平衡减少旋转', 'success');
-  });
 }
 
 function rebuildAfterOrderChange() {
@@ -1879,50 +1847,180 @@ function switchType(type) {
   document.getElementById('statusValid').className = 'value';
   document.getElementById('infoValidation').innerHTML = '';
 
-  // 显示/隐藏特定控制
-  document.getElementById('btreeOrderSection').style.display =
-    (type === 'btree' || type === 'bplustree' || type === 'bstar') ? 'block' : 'none';
-  document.getElementById('heapTypeSection').style.display =
-    (type === 'heap') ? 'block' : 'none';
-  document.getElementById('unionFindSection').style.display =
-    (type === 'disjoint') ? 'block' : 'none';
-
-  // 更新专属按钮
-  const specific = document.getElementById('specificButtons');
+  // 清空并填充专属操作区
+  const specific = document.getElementById('specificBody');
   specific.innerHTML = '';
 
   if (type === 'bst') {
     specific.innerHTML = `
-      <input type="number" id="bstOpValue" placeholder="值" class="num-input">
-      <button id="btnBstInsert" class="btn-primary">插入</button>
-      <button id="btnBstDelete" class="btn-danger">删除</button>
-      <button id="btnBstSearch" class="btn-secondary">查找</button>
+      <div class="btn-row">
+        <input type="number" id="bstOpValue" placeholder="值" class="num-input">
+        <button id="btnBstInsert" class="btn btn-accent">插入</button>
+        <button id="btnBstDelete" class="btn btn-danger">删除</button>
+        <button id="btnBstSearch" class="btn btn-secondary">查找</button>
+      </div>
+      <p class="tool-hint">BST：左小右大，插入为新叶子。删除度2节点时用后继替换值。</p>
     `;
     setTimeout(() => {
       document.getElementById('btnBstInsert').addEventListener('click', () => bstOp('insert'));
       document.getElementById('btnBstDelete').addEventListener('click', () => bstOp('delete'));
       document.getElementById('btnBstSearch').addEventListener('click', () => bstOp('search'));
     }, 0);
+
+  } else if (type === 'heap') {
+    specific.innerHTML = `
+      <div class="btn-row" style="justify-content:center;">
+        <button id="btnMaxHeap" class="btn btn-accent">大根堆</button>
+        <button id="btnMinHeap" class="btn btn-secondary">小根堆</button>
+      </div>
+      <div class="btn-row" style="justify-content:center;margin-top:6px;">
+        <input type="number" id="heapOpVal" placeholder="插入值" class="num-input" style="width:70px;">
+        <button id="btnHeapInsert" class="btn btn-primary">插入</button>
+        <button id="btnHeapDel" class="btn btn-danger">删除根</button>
+      </div>
+      <p class="tool-hint">堆：完全二叉树+堆序。数组下标1开始，父 i 左 2i 右 2i+1。</p>
+    `;
+    setTimeout(() => {
+      document.getElementById('btnMaxHeap').addEventListener('click', () => { State.heapType = 'max'; refreshHeap(); });
+      document.getElementById('btnMinHeap').addEventListener('click', () => { State.heapType = 'min'; refreshHeap(); });
+      document.getElementById('btnHeapInsert').addEventListener('click', () => {
+        const v = parseInt(document.getElementById('heapOpVal').value);
+        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+        HeapOps.insert(State.heapArr, v, State.heapType);
+        State.tree = HeapOps.arrayToTree(State.heapArr);
+        log(`堆插入 ${v}，shiftUp ${Math.log2(State.heapArr.length).toFixed(0)} 层`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+      });
+      document.getElementById('btnHeapDel').addEventListener('click', () => {
+        HeapOps.deleteRoot(State.heapArr, State.heapType);
+        State.tree = HeapOps.arrayToTree(State.heapArr);
+        log(`删除根节点，shiftDown`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+      });
+    }, 0);
+
   } else if (type === 'avl') {
-    specific.innerHTML = `<p style="font-size:11px;color:var(--color-text-secondary)">AVL 自动平衡，插入时自动旋转</p>`;
+    specific.innerHTML = `
+      <div class="btn-row">
+        <input type="number" id="avlOpValue" placeholder="插入值" class="num-input" style="width:70px;">
+        <button id="btnAvlInsert" class="btn btn-accent">插入</button>
+      </div>
+      <p class="tool-hint">AVL 自动平衡。BF = 左高 - 右高 ∈ {-1,0,1}。插入后若 |BF|>1 自动旋转修复。四种情况：LL(右旋)、RR(左旋)、LR(先左后右)、RL(先右后左)。</p>
+    `;
+    setTimeout(() => {
+      document.getElementById('btnAvlInsert').addEventListener('click', () => {
+        const v = parseInt(document.getElementById('avlOpValue').value);
+        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+        State.tree = AVLOps.insert(State.tree, v);
+        log(`AVL 插入 ${v}，自动平衡`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+      });
+    }, 0);
+
   } else if (type === 'rbtree') {
-    specific.innerHTML = `<p style="font-size:11px;color:var(--color-text-secondary)">红黑树自动修复五大性质</p>`;
+    specific.innerHTML = `
+      <div class="btn-row">
+        <input type="number" id="rbOpValue" placeholder="插入值" class="num-input" style="width:70px;">
+        <button id="btnRbInsert" class="btn btn-accent">插入</button>
+      </div>
+      <p class="tool-hint">红黑树五大性质：①红/黑 ②根黑 ③叶子黑 ④红节点子必黑 ⑤路径黑高相同。插入为红，叔红变色上溯，叔黑旋转。</p>
+    `;
+    setTimeout(() => {
+      document.getElementById('btnRbInsert').addEventListener('click', () => {
+        const v = parseInt(document.getElementById('rbOpValue').value);
+        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+        State.tree = RBOps.insert(State.tree, v);
+        log(`红黑树插入 ${v}（红色），自动修复五大性质`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+      });
+    }, 0);
+
+  } else if (type === 'btree' || type === 'bplustree' || type === 'bstar') {
+    const labels = { btree: 'B树', bplustree: 'B+树', bstar: 'B*树' };
+    specific.innerHTML = `
+      <div class="btn-row" style="justify-content:center;gap:12px;">
+        <button id="btnDecOrder" class="btn btn-secondary">−</button>
+        <span id="orderDisplay" class="order-display">m = ${State.btreeOrder}</span>
+        <button id="btnIncOrder" class="btn btn-secondary">+</button>
+      </div>
+      <p class="tool-hint">${labels[type]}阶数m=${State.btreeOrder}。关键字范围：非根 ⌈m/2⌉-1 ~ m-1，根 1 ~ m-1。满则分裂，缺则合并。</p>
+    `;
+    setTimeout(() => {
+      document.getElementById('btnIncOrder').addEventListener('click', () => {
+        State.btreeOrder = Math.min(7, State.btreeOrder + 1);
+        document.getElementById('orderDisplay').textContent = 'm = ' + State.btreeOrder;
+        rebuildAfterOrderChange();
+      });
+      document.getElementById('btnDecOrder').addEventListener('click', () => {
+        State.btreeOrder = Math.max(3, State.btreeOrder - 1);
+        document.getElementById('orderDisplay').textContent = 'm = ' + State.btreeOrder;
+        rebuildAfterOrderChange();
+      });
+    }, 0);
+
   } else if (type === 'disjoint') {
     specific.innerHTML = `
       <div class="btn-row">
         <input type="number" id="ufX" placeholder="x" class="num-input">
         <input type="number" id="ufY" placeholder="y" class="num-input">
-        <button id="btnUnion" class="btn-primary">Union</button>
-        <button id="btnFind" class="btn-secondary">Find</button>
+        <button id="btnUnion" class="btn btn-accent">Union</button>
+        <button id="btnFind" class="btn btn-secondary">Find</button>
       </div>
+      <p class="tool-hint">并查集：parent[] 数组表示森林。Union 合并两棵树，Find 查根并路径压缩。</p>
     `;
     setTimeout(() => {
       document.getElementById('btnUnion').addEventListener('click', ufUnion);
       document.getElementById('btnFind').addEventListener('click', ufFind);
     }, 0);
+
+  } else if (type === 'threaded') {
+    specific.innerHTML = `<p class="tool-hint">线索二叉树：利用 n+1 个空链域存储前驱/后继。ltag/rtag 区分孩子指针(0)与线索(1)。实线=孩子，虚线=线索。</p>`;
+
+  } else if (type === 'forest') {
+    specific.innerHTML = `<p class="tool-hint">森林：m≥0 棵互不相交树的集合。树与二叉树转换：左孩子右兄弟法。先根遍历↔二叉树先序，后根遍历↔二叉树中序。</p>`;
+
+  } else {
+    specific.innerHTML = `
+      <div class="btn-row">
+        <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误演示</button>
+        <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比</button>
+      </div>
+      <p class="tool-hint">错误演示：生成非法结构。对比模式：同序列 BST/AVL/红黑树高度对比。</p>
+    `;
+    setTimeout(() => {
+      document.getElementById('btnWrongDemo').addEventListener('click', generateWrongDemo);
+      document.getElementById('btnCompareMode').addEventListener('click', () => {
+        const seq = parseInput(document.getElementById('inputSeq').value);
+        if (!seq || !seq.length) { log('请先输入序列', 'warn'); return; }
+        log(`对比模式 [${seq.join(',')}]:`, 'action');
+        const bst = BSTOps.buildFromSeq(seq);
+        const avl = AVLOps.buildFromSeq(seq);
+        const rb = RBOps.buildFromSeq(seq);
+        log(`BST 高度: ${BinaryTreeOps.height(bst)}`, 'info');
+        log(`AVL 高度: ${BinaryTreeOps.height(avl)}`, 'info');
+        log(`红黑树高度: ${BinaryTreeOps.height(rb)}`, 'info');
+        log('BST 最差，AVL 最严格，红黑树旋转少', 'success');
+      });
+    }, 0);
   }
 
   log(`切换到 ${KNOWLEDGE[type].name}`, 'action');
+}
+
+/* ============================================================
+   面板标签页切换
+   ============================================================ */
+function bindPanelTabs() {
+  document.querySelectorAll('.ptab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      const secId = 'sec-' + btn.dataset.sec;
+      const sec = document.getElementById(secId);
+      if (sec) sec.classList.add('active');
+    });
+  });
 }
 
 function bstOp(op) {
@@ -2026,7 +2124,7 @@ function generateWrongDemo() {
 function initTheme() {
   const saved = getTheme();
   setTheme(saved);
-  const icon = document.getElementById('portalThemeIcon');
+  const icon = document.getElementById('themeIcon');
   if (icon) icon.textContent = saved === 'dark' ? '☀️' : '☽️';
 }
 
@@ -2035,6 +2133,7 @@ function init() {
   initTheme();
   updateInfoPanel();
   bindEvents();
+  bindPanelTabs();
   log('树结构可视化教学平台已加载', 'success');
   log('严蔚敏/王道 408 标准对齐，支持13类树结构', 'info');
   log('请选择Tab并输入序列构建', 'info');

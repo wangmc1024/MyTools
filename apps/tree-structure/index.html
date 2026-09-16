@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>树结构可视化教学平台</title>
+<title>树结构全品类可视化教学平台</title>
 <link rel="stylesheet" href="../../assets/css/tokens.css">
 <link rel="stylesheet" href="../../assets/css/portal-nav.css">
 <link rel="stylesheet" href="style.css">
@@ -67,149 +67,98 @@
   <!-- Content Area -->
   <div class="content-area">
 
-    <!-- Left Panel -->
-    <div class="control-panel">
-      <!-- Input -->
-      <div class="panel-card">
-        <div class="card-head">
-          <span class="card-head-icon">▶</span>
-          <span class="card-head-title">数据构建</span>
-        </div>
-        <div class="card-body">
-          <label class="field-label">输入序列（逗号分隔）</label>
-          <textarea id="inputSeq" placeholder="例: 50,30,70,20,40,60,80" spellcheck="false"></textarea>
-          <div class="btn-row">
-            <button id="btnBuild" class="btn btn-primary">▶ 构建</button>
-            <button id="btnRandom" class="btn btn-secondary">🎲 随机</button>
-            <button id="btnClear" class="btn btn-danger">清空</button>
-          </div>
-          <div class="random-row">
-            <label class="mini-label">
-              节点数
-              <input type="range" id="randomCount" min="3" max="20" value="10">
-              <span id="randomCountVal">10</span>
-            </label>
-            <label class="mini-label">
-              最大值
-              <input type="range" id="randomMax" min="10" max="200" value="100">
-              <span id="randomMaxVal">100</span>
-            </label>
-          </div>
-        </div>
-      </div>
+    <!-- ===== Unified Left Control Panel ===== -->
+    <div class="left-panel" id="leftPanel">
+      <div class="panel-frame">
 
-      <!-- Animation -->
-      <div class="panel-card">
-        <div class="card-head">
-          <span class="card-head-icon">◈</span>
-          <span class="card-head-title">动画控制</span>
-        </div>
-        <div class="card-body">
-          <div class="btn-row">
-            <button id="btnPlay" class="btn btn-accent">▶ 播放</button>
-            <button id="btnPause" class="btn btn-secondary">⏸</button>
-            <button id="btnStep" class="btn btn-secondary">⏭ 单步</button>
-            <button id="btnReset" class="btn btn-secondary">↺ 重置</button>
-          </div>
-          <div class="speed-row">
-            <label class="mini-label">
-              速度 <span id="speedVal">1.0x</span>
-              <input type="range" id="animSpeed" min="1" max="10" value="5">
-            </label>
+        <!-- Panel Header -->
+        <div class="panel-header">
+          <span class="panel-icon">⚙</span>
+          <span class="panel-title">控制面板</span>
+          <div class="panel-tabs">
+            <button class="ptab active" data-sec="build">输入</button>
+            <button class="ptab" data-sec="anim">动画</button>
+            <button class="ptab" data-sec="traverse">遍历</button>
+            <button class="ptab" data-sec="tools">工具</button>
           </div>
         </div>
-      </div>
 
-      <!-- Specific Controls -->
-      <div class="panel-card" id="specificControls">
-        <div class="card-head">
-          <span class="card-head-icon">⚙</span>
-          <span class="card-head-title">专属操作</span>
-        </div>
-        <div class="card-body" id="specificButtons"></div>
-      </div>
+        <!-- Panel Body -->
+        <div class="panel-body">
 
-      <!-- Traversal -->
-      <div class="panel-card">
-        <div class="card-head">
-          <span class="card-head-icon">△</span>
-          <span class="card-head-title">遍历动画</span>
-        </div>
-        <div class="card-body">
-          <div class="btn-row">
-            <button class="btn btn-traverse" data-traverse="pre">前序</button>
-            <button class="btn btn-traverse" data-traverse="in">中序</button>
-            <button class="btn btn-traverse" data-traverse="post">后序</button>
-            <button class="btn btn-traverse" data-traverse="level">层序</button>
-          </div>
-        </div>
-      </div>
+          <!-- Section: Build -->
+          <div class="sec active" id="sec-build">
+            <div class="sec-head">
+              <span>▶ 数据构建</span>
+            </div>
+            <div class="sec-body">
+              <label class="fld-label">输入序列（逗号分隔）</label>
+              <textarea id="inputSeq" placeholder="例: 50,30,70,20,40,60,80" spellcheck="false"></textarea>
 
-      <!-- B-tree order -->
-      <div class="panel-card" id="btreeOrderSection" style="display:none;">
-        <div class="card-head">
-          <span class="card-head-icon">◇</span>
-          <span class="card-head-title">阶数调节</span>
-        </div>
-        <div class="card-body">
-          <div class="btn-row" style="justify-content:center;gap:12px;">
-            <button id="btnDecOrder" class="btn btn-secondary btn-lg">−</button>
-            <span id="orderDisplay" class="order-display">m = 3</span>
-            <button id="btnIncOrder" class="btn btn-secondary btn-lg">+</button>
-          </div>
-        </div>
-      </div>
+              <div class="btn-row">
+                <button id="btnBuild" class="btn btn-primary">▶ 构建</button>
+                <button id="btnRandom" class="btn btn-secondary">🎲 随机</button>
+                <button id="btnClear" class="btn btn-danger">清空</button>
+              </div>
 
-      <!-- Heap type -->
-      <div class="panel-card" id="heapTypeSection" style="display:none;">
-        <div class="card-head">
-          <span class="card-head-icon">▲</span>
-          <span class="card-head-title">堆类型</span>
-        </div>
-        <div class="card-body">
-          <div class="btn-row" style="justify-content:center;">
-            <button id="btnMaxHeap" class="btn btn-accent">大根堆</button>
-            <button id="btnMinHeap" class="btn btn-secondary">小根堆</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Union-Find -->
-      <div class="panel-card" id="unionFindSection" style="display:none;">
-        <div class="card-head">
-          <span class="card-head-icon">⊕</span>
-          <span class="card-head-title">操作</span>
-        </div>
-        <div class="card-body">
-          <div class="btn-row">
-            <button id="btnPathComp" class="btn btn-primary">路径压缩</button>
-            <button id="btnUnionRank" class="btn btn-secondary">按秩合并</button>
-          </div>
-          <div id="unionOps" class="union-ops" style="margin-top:8px;">
-            <div class="btn-row">
-              <input type="number" id="ufX" class="num-input" placeholder="x">
-              <input type="number" id="ufY" class="num-input" placeholder="y">
-              <button id="btnUnion" class="btn btn-accent">Union</button>
-              <button id="btnFind" class="btn btn-secondary">Find</button>
+              <div class="slider-row">
+                <label class="slider-label">
+                  节点数 <input type="range" id="randomCount" min="3" max="20" value="10"> <span id="randomCountVal">10</span>
+                </label>
+                <label class="slider-label">
+                  最大值 <input type="range" id="randomMax" min="10" max="200" value="100"> <span id="randomMaxVal">100</span>
+                </label>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Demo -->
-      <div class="panel-card">
-        <div class="card-head">
-          <span class="card-head-icon">!</span>
-          <span class="card-head-title">教学演示</span>
-        </div>
-        <div class="card-body">
-          <div class="btn-row">
-            <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误结构演示</button>
-            <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比模式</button>
+          <!-- Section: Animation -->
+          <div class="sec" id="sec-anim">
+            <div class="sec-head">
+              <span>◈ 动画控制</span>
+            </div>
+            <div class="sec-body">
+              <div class="btn-row">
+                <button id="btnPlay" class="btn btn-accent">▶ 播放</button>
+                <button id="btnPause" class="btn btn-secondary">⏸</button>
+                <button id="btnStep" class="btn btn-secondary">⏭ 单步</button>
+                <button id="btnReset" class="btn btn-secondary">↺ 重置</button>
+              </div>
+              <div class="speed-row">
+                <label class="slider-label">
+                  速度 <span id="speedVal">1.0x</span>
+                  <input type="range" id="animSpeed" min="1" max="10" value="5">
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+
+          <!-- Section: Traverse -->
+          <div class="sec" id="sec-traverse">
+            <div class="sec-head">
+              <span>△ 遍历动画</span>
+            </div>
+            <div class="sec-body">
+              <div class="btn-row">
+                <button class="btn btn-traverse" data-traverse="pre">前序</button>
+                <button class="btn btn-traverse" data-traverse="in">中序</button>
+                <button class="btn btn-traverse" data-traverse="post">后序</button>
+                <button class="btn btn-traverse" data-traverse="level">层序</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Tools (type-specific) -->
+          <div class="sec" id="sec-tools">
+            <div class="sec-head">
+              <span>⚡ 专属操作</span>
+            </div>
+            <div class="sec-body" id="specificBody"></div>
+          </div>
+
+        </div><!-- /panel-body -->
+      </div><!-- /panel-frame -->
+    </div><!-- /left-panel -->
 
     <!-- Center: SVG Canvas -->
     <div class="canvas-area">
@@ -240,7 +189,7 @@
     <!-- Right Panel: Knowledge -->
     <div class="info-panel">
       <div class="info-panel-head">
-        <span class="card-head-icon">?</span>
+        <span class="panel-icon">?</span>
         <span>知识点面板</span>
       </div>
       <div id="infoContent">
@@ -274,7 +223,7 @@
       </div>
     </div>
 
-  </div>
+  </div><!-- /content-area -->
 
   <!-- Log Console -->
   <div class="log-panel">
@@ -288,7 +237,7 @@
     <div id="logConsole" class="log-console"></div>
   </div>
 
-</div>
+</div><!-- /main-wrapper -->
 
 <script src="../../assets/js/tools.js"></script>
 <script src="app.js"></script>
