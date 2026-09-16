@@ -1725,99 +1725,150 @@ function bindEvents() {
     });
   });
 
-  // 构建
-  document.getElementById('btnBuild').addEventListener('click', () => {
-    const seq = parseInput(document.getElementById('inputSeq').value);
-    if (seq === null) return;
-    if (State.currentType !== 'disjoint' && new Set(seq).size !== seq.length) {
-      log('警告：存在重复值，部分结构（BST/AVL/红黑树）将忽略重复', 'warn');
-    }
-    buildTree(seq);
-  });
+  // 静态按钮：统一委托到 #leftPanel
+  // 详见 bindPanelDelegation()
+  // 此处只保留非左侧面板的全局监听器
+}
 
-  // 随机生成
-  document.getElementById('btnRandom').addEventListener('click', () => {
-    const count = parseInt(document.getElementById('randomCount').value);
-    const max = parseInt(document.getElementById('randomMax').value);
-    const seq = [];
-    const used = new Set();
-    while (seq.length < count) {
-      const v = Math.floor(Math.random() * max) + 1;
-      if (!used.has(v)) { used.add(v); seq.push(v); }
-    }
-    document.getElementById('inputSeq').value = seq.join(',');
-    log(`随机生成 ${count} 个节点: [${seq.join(', ')}]`, 'info');
-    buildTree(seq);
-  });
+/* ============================================================
+   事件委托 — 统一管理左侧面板所有交互
+   ============================================================ */
+function bindPanelDelegation() {
+  const panel = document.getElementById('leftPanel');
 
-  // 清空
-  document.getElementById('btnClear').addEventListener('click', () => {
-    State.tree = null;
-    State.heapArr = null;
-    State.unionFind = null;
-    State.selectedNode = null;
-    document.getElementById('inputSeq').value = '';
-    Renderer.clear();
-    updateStatus();
-    document.getElementById('statusValid').textContent = '—';
-    document.getElementById('statusValid').className = 'value';
-    document.getElementById('infoValidation').innerHTML = '';
-    clearLog();
-    log('已清空', 'info');
-  });
+  // —— 静态按钮 ——
+  panel.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
 
-  // 随机数量显示
-  document.getElementById('randomCount').addEventListener('input', (e) => {
-    document.getElementById('randomCountVal').textContent = e.target.value;
-  });
-  document.getElementById('randomMax').addEventListener('input', (e) => {
-    document.getElementById('randomMaxVal').textContent = e.target.value;
-  });
-
-  // 动画控制
-  document.getElementById('btnPlay').addEventListener('click', () => {
-    if (!Animator.steps.length) {
-      log('请先选择遍历方式或操作', 'warn');
-      return;
-    }
-    Animator.play();
-    log('动画播放', 'action');
-  });
-  document.getElementById('btnPause').addEventListener('click', () => Animator.pause());
-  document.getElementById('btnStep').addEventListener('click', () => Animator.step());
-  document.getElementById('btnReset').addEventListener('click', () => Animator.reset());
-
-  // 速度
-  document.getElementById('animSpeed').addEventListener('input', (e) => {
-    State.animSpeed = parseInt(e.target.value) / 5;
-    document.getElementById('speedVal').textContent = State.animSpeed.toFixed(1) + 'x';
-  });
-
-  // 遍历
-  document.querySelectorAll('.btn-traverse').forEach(btn => {
-    btn.addEventListener('click', () => {
+    // 遍历按钮
+    if (btn.classList.contains('btn-traverse')) {
       const steps = generateTraversalSteps(btn.dataset.traverse);
       if (steps.length) {
         Animator.setSteps(steps);
         log(`生成 ${steps.length} 步动画，点击播放`, 'action');
       }
+      return;
+    }
+  });
+
+  // —— 动态按钮区 ——
+  const spec = document.getElementById('specificBody');
+  if (spec) {
+    spec.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      const inp = e.target.closest('input[type="number"]');
+      if (!btn && !inp) return;
+
+      // BST 操作
+      if (btn.id === 'btnBstInsert') { bstOp('insert'); return; }
+      if (btn.id === 'btnBstDelete')  { bstOp('delete');  return; }
+      if (btn.id === 'btnBstSearch')  { bstOp('search');  return; }
+
+      // 堆操作
+      if (btn.id === 'btnMaxHeap') {
+        State.heapType = 'max';
+        btn.classList.add('btn-accent'); btn.classList.remove('btn-secondary');
+        document.getElementById('btnMinHeap')?.classList.add('btn-secondary');
+        document.getElementById('btnMinHeap')?.classList.remove('btn-accent');
+        rebuildHeap();
+        return;
+      }
+      if (btn.id === 'btnMinHeap') {
+        State.heapType = 'min';
+        btn.classList.add('btn-accent'); btn.classList.remove('btn-secondary');
+        document.getElementById('btnMaxHeap')?.classList.add('btn-secondary');
+        document.getElementById('btnMaxHeap')?.classList.remove('btn-accent');
+        rebuildHeap();
+        return;
+      }
+      if (btn.id === 'btnHeapInsert') {
+        const v = parseInt(document.getElementById('heapOpVal')?.value);
+        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+        HeapOps.insert(State.heapArr, v, State.heapType);
+        State.tree = HeapOps.arrayToTree(State.heapArr);
+        log(`堆插入 ${v}，shiftUp ${Math.log2(State.heapArr.length).toFixed(0)} 层`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+        return;
+      }
+      if (btn.id === 'btnHeapDel') {
+        HeapOps.deleteRoot(State.heapArr, State.heapType);
+        State.tree = HeapOps.arrayToTree(State.heapArr);
+        log(`删除根节点，shiftDown`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+        return;
+      }
+
+      // AVL / 红黑树插入
+      if (btn.id === 'btnAvlInsert') {
+        const v = parseInt(document.getElementById('avlOpValue')?.value);
+        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+        State.tree = AVLOps.insert(State.tree, v);
+        log(`AVL 插入 ${v}，自动平衡`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+        return;
+      }
+      if (btn.id === 'btnRbInsert') {
+        const v = parseInt(document.getElementById('rbOpValue')?.value);
+        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+        State.tree = RBOps.insert(State.tree, v);
+        log(`红黑树插入 ${v}（红色），自动修复五大性质`, 'action');
+        Renderer.render(); updateStatus(); updateValidation();
+        return;
+      }
+
+      // B树阶数
+      if (btn.id === 'btnIncOrder') {
+        State.btreeOrder = Math.min(7, State.btreeOrder + 1);
+        const disp = document.getElementById('orderDisplay');
+        if (disp) disp.textContent = 'm = ' + State.btreeOrder;
+        rebuildAfterOrderChange();
+        return;
+      }
+      if (btn.id === 'btnDecOrder') {
+        State.btreeOrder = Math.max(3, State.btreeOrder - 1);
+        const disp = document.getElementById('orderDisplay');
+        if (disp) disp.textContent = 'm = ' + State.btreeOrder;
+        rebuildAfterOrderChange();
+        return;
+      }
+
+      // 并查集
+      if (btn.id === 'btnUnion') { ufUnion(); return; }
+      if (btn.id === 'btnFind')  { ufFind();  return; }
+
+      // 教学演示
+      if (btn.id === 'btnWrongDemo') { generateWrongDemo(); return; }
+      if (btn.id === 'btnCompareMode') {
+        const seq = parseInput(document.getElementById('inputSeq').value);
+        if (!seq || !seq.length) { log('请先输入序列', 'warn'); return; }
+        log(`对比模式 [${seq.join(',')}]`, 'action');
+        const bst = BSTOps.buildFromSeq(seq);
+        const avl = AVLOps.buildFromSeq(seq);
+        const rb  = RBOps.buildFromSeq(seq);
+        log(`BST 高度: ${BinaryTreeOps.height(bst)}`, 'info');
+        log(`AVL 高度: ${BinaryTreeOps.height(avl)}`, 'info');
+        log(`红黑树高度: ${BinaryTreeOps.height(rb)}`, 'info');
+        log('BST 最差，AVL 最严格，红黑树旋转最少', 'success');
+        return;
+      }
     });
-  });
+  }
 
-  // B树阶数
-  document.getElementById('btnIncOrder').addEventListener('click', () => {
-    State.btreeOrder = Math.min(7, State.btreeOrder + 1);
-    document.getElementById('orderDisplay').textContent = State.btreeOrder;
-    rebuildAfterOrderChange();
-  });
-  document.getElementById('btnDecOrder').addEventListener('click', () => {
-    State.btreeOrder = Math.max(3, State.btreeOrder - 1);
-    document.getElementById('orderDisplay').textContent = State.btreeOrder;
-    rebuildAfterOrderChange();
-  });
-
-  // 清空日志
-  document.getElementById('btnClearLog').addEventListener('click', clearLog);
+  // —— 输入框事件委托 ——
+  const buildArea = document.querySelector('#sec-build');
+  if (buildArea) {
+    buildArea.addEventListener('input', (e) => {
+      if (e.target.id === 'randomCount')
+        document.getElementById('randomCountVal').textContent = e.target.value;
+      else if (e.target.id === 'randomMax')
+        document.getElementById('randomMaxVal').textContent = e.target.value;
+      else if (e.target.id === 'animSpeed') {
+        State.animSpeed = parseInt(e.target.value) / 5;
+        document.getElementById('speedVal').textContent = State.animSpeed.toFixed(1) + 'x';
+      }
+    });
+  }
 }
 
 function rebuildAfterOrderChange() {
@@ -1861,11 +1912,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">BST：左小右大，插入为新叶子。删除度2节点时用后继替换值。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnBstInsert').addEventListener('click', () => bstOp('insert'));
-      document.getElementById('btnBstDelete').addEventListener('click', () => bstOp('delete'));
-      document.getElementById('btnBstSearch').addEventListener('click', () => bstOp('search'));
-    }, 0);
 
   } else if (type === 'heap') {
     specific.innerHTML = `
@@ -1880,24 +1926,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">堆：完全二叉树+堆序。数组下标1开始，父 i 左 2i 右 2i+1。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnMaxHeap').addEventListener('click', () => { State.heapType = 'max'; refreshHeap(); });
-      document.getElementById('btnMinHeap').addEventListener('click', () => { State.heapType = 'min'; refreshHeap(); });
-      document.getElementById('btnHeapInsert').addEventListener('click', () => {
-        const v = parseInt(document.getElementById('heapOpVal').value);
-        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
-        HeapOps.insert(State.heapArr, v, State.heapType);
-        State.tree = HeapOps.arrayToTree(State.heapArr);
-        log(`堆插入 ${v}，shiftUp ${Math.log2(State.heapArr.length).toFixed(0)} 层`, 'action');
-        Renderer.render(); updateStatus(); updateValidation();
-      });
-      document.getElementById('btnHeapDel').addEventListener('click', () => {
-        HeapOps.deleteRoot(State.heapArr, State.heapType);
-        State.tree = HeapOps.arrayToTree(State.heapArr);
-        log(`删除根节点，shiftDown`, 'action');
-        Renderer.render(); updateStatus(); updateValidation();
-      });
-    }, 0);
 
   } else if (type === 'avl') {
     specific.innerHTML = `
@@ -1907,15 +1935,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">AVL 自动平衡。BF = 左高 - 右高 ∈ {-1,0,1}。插入后若 |BF|>1 自动旋转修复。四种情况：LL(右旋)、RR(左旋)、LR(先左后右)、RL(先右后左)。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnAvlInsert').addEventListener('click', () => {
-        const v = parseInt(document.getElementById('avlOpValue').value);
-        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
-        State.tree = AVLOps.insert(State.tree, v);
-        log(`AVL 插入 ${v}，自动平衡`, 'action');
-        Renderer.render(); updateStatus(); updateValidation();
-      });
-    }, 0);
 
   } else if (type === 'rbtree') {
     specific.innerHTML = `
@@ -1925,15 +1944,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">红黑树五大性质：①红/黑 ②根黑 ③叶子黑 ④红节点子必黑 ⑤路径黑高相同。插入为红，叔红变色上溯，叔黑旋转。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnRbInsert').addEventListener('click', () => {
-        const v = parseInt(document.getElementById('rbOpValue').value);
-        if (isNaN(v)) { log('请输入数值', 'warn'); return; }
-        State.tree = RBOps.insert(State.tree, v);
-        log(`红黑树插入 ${v}（红色），自动修复五大性质`, 'action');
-        Renderer.render(); updateStatus(); updateValidation();
-      });
-    }, 0);
 
   } else if (type === 'btree' || type === 'bplustree' || type === 'bstar') {
     const labels = { btree: 'B树', bplustree: 'B+树', bstar: 'B*树' };
@@ -1945,18 +1955,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">${labels[type]}阶数m=${State.btreeOrder}。关键字范围：非根 ⌈m/2⌉-1 ~ m-1，根 1 ~ m-1。满则分裂，缺则合并。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnIncOrder').addEventListener('click', () => {
-        State.btreeOrder = Math.min(7, State.btreeOrder + 1);
-        document.getElementById('orderDisplay').textContent = 'm = ' + State.btreeOrder;
-        rebuildAfterOrderChange();
-      });
-      document.getElementById('btnDecOrder').addEventListener('click', () => {
-        State.btreeOrder = Math.max(3, State.btreeOrder - 1);
-        document.getElementById('orderDisplay').textContent = 'm = ' + State.btreeOrder;
-        rebuildAfterOrderChange();
-      });
-    }, 0);
 
   } else if (type === 'disjoint') {
     specific.innerHTML = `
@@ -1968,10 +1966,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">并查集：parent[] 数组表示森林。Union 合并两棵树，Find 查根并路径压缩。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnUnion').addEventListener('click', ufUnion);
-      document.getElementById('btnFind').addEventListener('click', ufFind);
-    }, 0);
 
   } else if (type === 'threaded') {
     specific.innerHTML = `<p class="tool-hint">线索二叉树：利用 n+1 个空链域存储前驱/后继。ltag/rtag 区分孩子指针(0)与线索(1)。实线=孩子，虚线=线索。</p>`;
@@ -1987,21 +1981,6 @@ function switchType(type) {
       </div>
       <p class="tool-hint">错误演示：生成非法结构。对比模式：同序列 BST/AVL/红黑树高度对比。</p>
     `;
-    setTimeout(() => {
-      document.getElementById('btnWrongDemo').addEventListener('click', generateWrongDemo);
-      document.getElementById('btnCompareMode').addEventListener('click', () => {
-        const seq = parseInput(document.getElementById('inputSeq').value);
-        if (!seq || !seq.length) { log('请先输入序列', 'warn'); return; }
-        log(`对比模式 [${seq.join(',')}]:`, 'action');
-        const bst = BSTOps.buildFromSeq(seq);
-        const avl = AVLOps.buildFromSeq(seq);
-        const rb = RBOps.buildFromSeq(seq);
-        log(`BST 高度: ${BinaryTreeOps.height(bst)}`, 'info');
-        log(`AVL 高度: ${BinaryTreeOps.height(avl)}`, 'info');
-        log(`红黑树高度: ${BinaryTreeOps.height(rb)}`, 'info');
-        log('BST 最差，AVL 最严格，红黑树旋转少', 'success');
-      });
-    }, 0);
   }
 
   log(`切换到 ${KNOWLEDGE[type].name}`, 'action');
@@ -2133,7 +2112,8 @@ function init() {
   initTheme();
   updateInfoPanel();
   bindEvents();
-  bindPanelTabs();
+  bindPanelDelegation();  // 委托处理左侧面板所有按钮
+  bindPanelTabs();        // 面板标签页切换
   log('树结构可视化教学平台已加载', 'success');
   log('严蔚敏/王道 408 标准对齐，支持13类树结构', 'info');
   log('请选择Tab并输入序列构建', 'info');
