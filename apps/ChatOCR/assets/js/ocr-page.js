@@ -1237,16 +1237,6 @@ async function switchCamera() {
   }
 }
 
-/* ---------- 侧栏抽屉（移动端） ---------- */
-function bindRailToggle() {
-  const btn = $('#railToggleBtn');
-  const rail = $('#ocrRail');
-  if (!btn || !rail) return;
-  btn.onclick = () => {
-    rail.classList.toggle('open');
-  };
-}
-
 /* ---------- 示例点击 ---------- */
 function bindExamples() {
   $$('.ex-item').forEach(item => {
@@ -1268,7 +1258,6 @@ function initOcrPage() {
   bindThemeToggle();
   bindInnerTabs();
   bindKeySave();
-  bindRailToggle();
   bindExamples();
 
   // 模式切换 Tab

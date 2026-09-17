@@ -98,20 +98,6 @@
   color: var(--accent);
 }
 
-/* 设置按钮 */
-.rail-toggle-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  transition: all 0.15s;
-  display: inline-flex;
-  align-items: center;
-}
-.rail-toggle-btn:hover { color: var(--accent); background: var(--bg-secondary); }
-
 /* ---------- 识别按钮栏 ---------- */
 .ocr-run-bar {
   display: flex;
@@ -737,10 +723,8 @@
   /* 隐藏拖拽区（移动端无拖拽交互） */
   .upload-zone { display: none !important; }
 
-  /* 输入面板：减小内边距，去掉多余间距 */
+  /* 输入面板：减小内边距 */
   .ocr-input-panel { padding: 8px 10px; }
-  .ocr-input-panel .panel-hd { margin-bottom: 6px; }
-  .ocr-input-panel .panel-title { font-size: 12.5px; }
 
   /* 模式切换 Tab：紧凑 */
   .input-mode-tabs {
