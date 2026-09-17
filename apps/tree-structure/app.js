@@ -24,6 +24,8 @@ const State = {
   btreeOrder: 3,
   // 堆类型
   heapType: 'max',
+  // 当前遍历模式
+  traverseMode: null,
   // 并查集
   unionFind: null,
   // 日志
@@ -1615,8 +1617,10 @@ function switchType(type) {
   State.heapArr = null;
   State.unionFind = null;
   State.selectedNode = null;
+  State.traverseMode = null;
   Animator.reset();
   Renderer.clear();
+  document.querySelectorAll('.btn-traverse').forEach(b => b.classList.remove('active'));
   updateInfoPanel();
   updateStatus();
   document.getElementById('statusValid').textContent = '—';
@@ -1935,8 +1939,18 @@ function bindPanelDelegation() {
 
     // 遍历
     if (btn.classList.contains('btn-traverse')) {
-      const steps = generateTraversalSteps(btn.dataset.traverse);
-      if (steps.length) { Animator.setSteps(steps); log(`生成 ${steps.length} 步动画，点击播放`, 'action'); }
+      const mode = btn.dataset.traverse;
+      document.querySelectorAll('.btn-traverse').forEach(b => b.classList.remove('active'));
+      if (State.traverseMode === mode) {
+        State.traverseMode = null;
+        Animator.reset();
+        log('已取消遍历模式', 'info');
+      } else {
+        btn.classList.add('active');
+        State.traverseMode = mode;
+        const steps = generateTraversalSteps(mode);
+        if (steps.length) { Animator.setSteps(steps); log(`${mode}遍历已选定，共 ${steps.length} 步，点击播放`, 'action'); }
+      }
       return;
     }
 
@@ -2017,8 +2031,7 @@ function generateRandom() {
     if (!used.has(v)) { used.add(v); seq.push(v); }
   }
   document.getElementById('inputSeq').value = seq.join(',');
-  log(`随机生成 ${count} 个节点: [${seq.join(', ')}]`, 'info');
-  buildTree(seq);
+  log(`随机生成 ${count} 个节点: [${seq.join(', ')}]，请点「构建」生成树`, 'info');
 }
 function doClear() {
   State.tree = null; State.heapArr = null; State.unionFind = null; State.selectedNode = null;

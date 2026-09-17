@@ -410,6 +410,12 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
   padding: 5px 4px;
 }
 .btn-traverse:hover { border-color: var(--accent); color: var(--accent); }
+.btn-traverse.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
 
 /* Sliders */
 .slider-row {
