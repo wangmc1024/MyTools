@@ -11,7 +11,8 @@
    ============================================================ */
 const State = {
   currentType: 'binary',      // 当前树类型
-  tree: null,                 // 当前树数据结构
+  tree: null,                 // 当前树数据结构（兼容旧逻辑）
+  trees: [],                  // 多树并存列表 [{type, tree, treeIdx}]
   selectedNode: null,         // 选中的节点
   animSteps: [],              // 动画步骤队列
   animIndex: 0,
@@ -36,6 +37,8 @@ const State = {
   wrongDemoIndex: 0,
   // 对比模式：'compare'|null
   compareMode: null,
+  // 当前选中的树（多树并存时）
+  selectedTreeIdx: null,
   // 画布全屏
   fullscreen: false,
 };
@@ -1134,11 +1137,15 @@ const Renderer = {
   // 计算二叉树布局（层次布局）
   layoutBinary(node, depth = 0, pos = { x: 0 }) {
     if (!node) return;
-    this.layoutBinary(node.left, depth + 1, pos);
+
+    // threaded 模式下 node.left/node.right 可能是线索（ltag/rtag=1），跳过线索避免死循环
+    if (node.ltag === 0) this.layoutBinary(node.left, depth + 1, pos);
+
     node.x = pos.x * 60;
     node.y = depth * 70 + 40;
     pos.x++;
-    this.layoutBinary(node.right, depth + 1, pos);
+
+    if (node.rtag === 0) this.layoutBinary(node.right, depth + 1, pos);
   },
 
   // 渲染二叉树（通用）
@@ -1171,7 +1178,12 @@ const Renderer = {
     line.setAttribute('y1', from.y);
     line.setAttribute('x2', to.x);
     line.setAttribute('y2', to.y);
-    line.setAttribute('class', 'edge-line' + (to.state === 'visited' || from.state === 'visited' ? ' active' : ''));
+    const cls = [
+      'edge-line',
+      options && options.edgeColorKey ? 'edge-type-' + options.edgeColorKey : '',
+      (to.state === 'visited' || from.state === 'visited') ? 'active' : ''
+    ].filter(Boolean).join(' ');
+    line.setAttribute('class', cls);
     this.edgesLayer.appendChild(line);
   },
 
@@ -1206,7 +1218,7 @@ const Renderer = {
     if (options.redBlack && node.color === 'red') cls = 'node-circle rb-red';
     if (options.redBlack && node.color === 'black') cls = 'node-circle rb-black';
     // 类型着色（对比模式或普通模式）
-    if (options.colorKey && !options.redBlack) cls += ' tree-color-' + options.colorKey;
+    if (options.colorKey) cls += ' tree-color-' + options.colorKey;
 
     circle.setAttribute('class', cls);
     circle.setAttribute('data-id', node.id);
@@ -1250,7 +1262,9 @@ const Renderer = {
     g.appendChild(tipText);
     g.style.cursor = 'pointer';
     g.addEventListener('mouseenter', () => {
-      const label = options.treeLabel || `节点 ${node.value}`;
+      const label = options.treeLabel
+        ? `${options.treeLabel}：${node.value}`
+        : `节点 ${node.value}`;
       tipText.textContent = label;
       const tw = label.length * 7.5 + 8;
       tipRect.setAttribute('width', tw);
@@ -1428,8 +1442,89 @@ const Renderer = {
     this.labelsLayer.appendChild(g);
   },
 
+  // 多树并存渲染：并排展示；点击节点可切换「仅操控选中树」的遍历/动画目标
+  renderMultiTrees(trees) {
+    this.clear();
+    if (!trees || !trees.length) return;
+
+    const groupW = 360;
+    const groupGap = 60;
+
+    const traverseChildren = (n, fn) => {
+      if (!n) return;
+      fn(n);
+      if (n.ltag === 0) traverseChildren(n.left, fn);
+      if (n.rtag === 0) traverseChildren(n.right, fn);
+    };
+
+    const layoutAndMark = (root, dx, dy, treeIdx, treeType) => {
+      this.layoutBinary(root, 0, { x: 0 });
+      traverseChildren(root, (n) => {
+        n.x += dx;
+        n.y += dy;
+        n._treeIdx = treeIdx;
+        n._treeType = treeType;
+      });
+    };
+
+    trees.forEach((item, treeIdx) => {
+      if (!item) return;
+      const treeType = item.type;
+
+      // B树系列：为了避免清屏式 B树渲染相互覆盖，暂不参与多树并存绘制
+      if (treeType === 'btree' || treeType === 'bplustree' || treeType === 'bstar') return;
+
+      const dx = 20 + treeIdx * (groupW + groupGap);
+      const dy = 20;
+      const label = KNOWLEDGE[treeType]?.name || treeType;
+
+      if (treeType === 'disjoint') {
+        const forest = item.unionFind ? UnionFindOps.buildForest(item.unionFind) : [];
+        forest.forEach((r, j) => {
+          if (!r) return;
+          layoutAndMark(r, dx + j * 180, dy, treeIdx, treeType);
+          const opts = { colorKey: treeType, treeLabel: label };
+          this.drawBinary(r, opts);
+        });
+        return;
+      }
+
+      if (treeType === 'forest') {
+        const roots = Array.isArray(item.tree) ? item.tree : (item.tree ? [item.tree] : []);
+        roots.forEach((r, j) => {
+          layoutAndMark(r, dx + j * 180, dy, treeIdx, treeType);
+          const opts = { colorKey: treeType, treeLabel: label };
+          this.drawBinary(r, opts);
+        });
+        return;
+      }
+
+      const root = item.tree;
+      if (!root) return;
+      layoutAndMark(root, dx, dy, treeIdx, treeType);
+      const opts = { colorKey: treeType, treeLabel: label };
+      if (treeType === 'avl') opts.showBF = true;
+      if (treeType === 'rbtree') opts.redBlack = true;
+      if (treeType === 'threaded') opts.threaded = true;
+      this.drawBinary(root, opts);
+    });
+
+    // 自动居中
+    const totalW = trees.length * (groupW + groupGap) - groupGap + 40;
+    State.view.x = Math.max(0, -(totalW / 2 - this.svg.clientWidth / 2));
+    State.view.y = 0;
+    State.view.scale = 1;
+    this.applyTransform();
+  },
+
   // 主渲染入口
   render() {
+    // 多树并存渲染
+    if (State.trees && State.trees.length) {
+      this.renderMultiTrees(State.trees);
+      return;
+    }
+
     const type = State.currentType;
     const tree = State.tree;
     const colorKey = type;
@@ -1463,6 +1558,12 @@ const Interaction = {
     if (State.selectedNode) State.selectedNode.state = 'normal';
     State.selectedNode = node;
     node.state = 'selected';
+
+    // 多树：根据节点所属组选择对应树
+    if (typeof node._treeIdx === 'number') {
+      State.selectedTreeIdx = node._treeIdx;
+    }
+
     Renderer.render();
     log(`选中节点 ${node.value}`, 'action');
   },
@@ -1496,6 +1597,8 @@ function parseInput(str) {
 }
 
 function buildTree(seq) {
+  // 单次构建模式：清空多树并存
+  State.trees = [];
   const type = State.currentType;
   log(`开始构建 ${KNOWLEDGE[type].name}，序列: [${seq.join(', ')}]`, 'action');
 
@@ -1685,6 +1788,7 @@ function switchType(type) {
   State.heapArr = null;
   State.unionFind = null;
   State.selectedNode = null;
+  // State.trees 保持多树并存；切换类型只重置「当前激活树/动画/对比」状态
   State.traverseMode = null;
   State.compareMode = null;
   State._compareTrees = null;
@@ -2205,15 +2309,34 @@ const Animator = {
     this.index = 0;
     this.pause();
     this.steps = [];
-    if (State.tree) {
-      const clearStates = (n) => {
-        if (!n) return;
-        n.state = 'normal';
-        clearStates(n.left); clearStates(n.right);
-      };
+
+    const clearStates = (n) => {
+      if (!n) return;
+      n.state = 'normal';
+      if (n.ltag === 0) clearStates(n.left);
+      if (n.rtag === 0) clearStates(n.right);
+    };
+
+    if (State.trees && State.trees.length) {
+      const idx = typeof State.selectedTreeIdx === 'number' ? State.selectedTreeIdx : (State.trees.length - 1);
+      const item = State.trees[idx];
+      if (item) {
+        if (item.type === 'disjoint') {
+          const forest = item.unionFind ? UnionFindOps.buildForest(item.unionFind) : [];
+          forest.forEach(root => clearStates(root));
+        } else if (item.type === 'forest') {
+          const roots = Array.isArray(item.tree) ? item.tree : (item.tree ? [item.tree] : []);
+          roots.forEach(root => clearStates(root));
+        } else {
+          clearStates(item.tree);
+        }
+      }
+      Renderer.render();
+    } else if (State.tree) {
       clearStates(State.tree);
       Renderer.render();
     }
+
     log('动画重置', 'info');
   },
 
@@ -2240,13 +2363,37 @@ const Animator = {
    遍历动画生成
    ============================================================ */
 function generateTraversalSteps(traverseType) {
-  const type = State.currentType;
-  let root = State.tree;
-  if (type === 'heap') root = HeapOps.arrayToTree(State.heapArr);
-  if (type === 'disjoint') {
-    const forest = UnionFindOps.buildForest(State.unionFind);
-    root = forest[0] || null;
+  let root = null;
+
+  // 多树并存：只对「选中树」生成遍历步骤
+  if (State.trees && State.trees.length) {
+    const idx = typeof State.selectedTreeIdx === 'number' ? State.selectedTreeIdx : (State.trees.length - 1);
+    const item = State.trees[idx];
+    if (item) {
+      if (item.type === 'heap') root = item.tree || HeapOps.arrayToTree(item.heapArr || State.heapArr);
+      else if (item.type === 'disjoint') {
+        const forest = item.unionFind ? UnionFindOps.buildForest(item.unionFind) : [];
+        root = forest[0] || null;
+      } else if (item.type === 'forest') {
+        const roots = Array.isArray(item.tree) ? item.tree : (item.tree ? [item.tree] : []);
+        root = roots[0] || null;
+      } else {
+        root = item.tree;
+      }
+    }
   }
+
+  // 单树回退
+  if (!root) {
+    const type = State.currentType;
+    root = State.tree;
+    if (type === 'heap') root = HeapOps.arrayToTree(State.heapArr);
+    if (type === 'disjoint') {
+      const forest = UnionFindOps.buildForest(State.unionFind);
+      root = forest[0] || null;
+    }
+  }
+
   if (!root) { log('请先构建树', 'warn'); return []; }
 
   let sequence = [];
@@ -2283,7 +2430,8 @@ function bindPanelDelegation() {
     if (!btn) return;
 
     // 静态按钮
-    if (btn.id === 'btnBuild')       { buildFromInput(); return; }
+    if (btn.id === 'btnBuild')       { buildFromInput(false); return; }
+    if (btn.id === 'btnBuildAppend') { buildFromInput(true);  return; }
     if (btn.id === 'btnRandom')      { generateRandom(); return; }
     if (btn.id === 'btnClear')       { doClear();        return; }
     if (btn.id === 'btnPlay')        { doPlay();         return; }
@@ -2369,13 +2517,65 @@ function bindPanelDelegation() {
 /* ============================================================
    辅助函数
    ============================================================ */
-function buildFromInput() {
+function buildFromInput(appendMode = false) {
   const seq = parseInput(document.getElementById('inputSeq').value);
   if (seq === null) return;
   if (State.currentType !== 'disjoint' && new Set(seq).size !== seq.length) {
     log('警告：存在重复值，部分结构（BST/AVL/红黑树）将忽略重复', 'warn');
   }
-  buildTree(seq);
+  if (appendMode) {
+    buildTreeAppend(seq);
+  } else {
+    buildTree(seq);
+  }
+}
+
+function buildTreeAppend(seq) {
+  const type = State.currentType;
+  let tree = null;
+  switch (type) {
+    case 'binary': case 'perfect': case 'complete': case 'forest':
+      tree = BinaryTreeOps.buildFromSeq(seq); break;
+    case 'threaded':
+      tree = ThreadedOps.buildFromSeq(seq); log('已完成中序线索化', 'success'); break;
+    case 'bst': tree = BSTOps.buildFromSeq(seq); break;
+    case 'avl': tree = AVLOps.buildFromSeq(seq); break;
+    case 'rbtree': tree = RBOps.buildFromSeq(seq); log('红黑树插入完成，根为黑', 'success'); break;
+    case 'heap':
+      State.heapArr = HeapOps.buildFromSeq(seq, State.heapType);
+      tree = HeapOps.arrayToTree(State.heapArr);
+      log(`${State.heapType === 'max' ? '大' : '小'}根堆建堆完成`, 'success'); break;
+    case 'btree':
+      tree = BTreeOps.buildFromSeq(seq, State.btreeOrder);
+      log(`B树阶数 m=${State.btreeOrder}`, 'info'); break;
+    case 'bplustree':
+      tree = BPlusOps.buildFromSeq(seq, State.btreeOrder);
+      log(`B+树阶数 m=${State.btreeOrder}`, 'info'); break;
+    case 'bstar':
+      tree = BStarOps.buildFromSeq(seq, State.btreeOrder);
+      log(`B*树阶数 m=${State.btreeOrder}`, 'info'); break;
+    case 'disjoint':
+      State.unionFind = UnionFindOps.init(seq);
+      log(`并查集初始化 ${seq.length} 个元素`, 'success'); break;
+  }
+  if (!tree) return;
+  const idx = State.trees.length;
+  // 给节点打标，方便 tooltip 显示所属组
+  if (type !== 'disjoint') {
+    const markNodes = (n) => {
+      if (!n) return;
+      n._treeIdx = idx; n._treeType = type;
+      markNodes(n.left); markNodes(n.right);
+    };
+    if (Array.isArray(tree)) tree.forEach(t => markNodes(t));
+    else markNodes(tree);
+  }
+  State.trees.push({ type, tree, heapArr: State.heapArr && type === 'heap' ? State.heapArr : null, unionFind: State.unionFind && type === 'disjoint' ? State.unionFind : null });
+  State.selectedTreeIdx = State.trees.length - 1;
+  State.tree = tree;
+  log(`追加 [${idx + 1}/${type}] 成功，共 ${State.trees.length} 棵树`, 'action');
+  Renderer.render();
+  updateStatus();
 }
 function generateRandom() {
   const count = parseInt(document.getElementById('randomCount').value);
@@ -2390,6 +2590,7 @@ function generateRandom() {
 }
 function doClear() {
   State.tree = null; State.heapArr = null; State.unionFind = null; State.selectedNode = null;
+  State.trees = [];
   document.getElementById('inputSeq').value = '';
   Renderer.clear(); updateStatus();
   const el = document.getElementById('statusValid');
@@ -2733,15 +2934,18 @@ function init() {
   const leftPanel  = document.getElementById('leftPanel');
   const infoPanel  = document.querySelector('.info-panel');
   const logPanel   = document.querySelector('.log-panel');
+  const mainWrapper = document.querySelector('.main-wrapper');
   if (btnCL) btnCL.addEventListener('click', () => {
     leftPanel.classList.toggle('collapsed');
     btnCL.textContent = leftPanel.classList.contains('collapsed') ? '▶' : '◀';
     btnCL.title = leftPanel.classList.contains('collapsed') ? '展开面板' : '收起面板';
+    if (mainWrapper) mainWrapper.classList.toggle('left-collapsed', leftPanel.classList.contains('collapsed'));
   });
   if (btnCI) btnCI.addEventListener('click', () => {
     infoPanel.classList.toggle('collapsed');
     btnCI.textContent = infoPanel.classList.contains('collapsed') ? '◀' : '▶';
     btnCI.title = infoPanel.classList.contains('collapsed') ? '展开面板' : '收起面板';
+    if (mainWrapper) mainWrapper.classList.toggle('right-collapsed', infoPanel.classList.contains('collapsed'));
   });
   if (btnCLo) btnCLo.addEventListener('click', () => {
     logPanel.classList.toggle('collapsed');

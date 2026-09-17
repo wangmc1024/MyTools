@@ -182,10 +182,20 @@ html, body {
 /* ===== Content Area ===== */
 .content-area {
   display: grid;
-  grid-template-columns: 310px 1fr 290px;
+  grid-template-columns: minmax(0, 310px) 1fr minmax(0, 290px);
   flex: 1;
   min-height: 0;
   background: var(--bg-deep);
+}
+
+.main-wrapper.left-collapsed .content-area {
+  grid-template-columns: 0 1fr minmax(0, 290px);
+}
+.main-wrapper.right-collapsed .content-area {
+  grid-template-columns: minmax(0, 310px) 1fr 0;
+}
+.main-wrapper.left-collapsed.right-collapsed .content-area {
+  grid-template-columns: 0 1fr 0;
 }
 
 /* ============================================================
@@ -629,9 +639,9 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
   pointer-events: none;
   fill: var(--text);
 }
-.rb-red  { fill: #f05252; stroke: #b91c1c; }
-.rb-black { fill: #1e2735; stroke: #3b4a5c; }
-.rb-red .node-text, .rb-black .node-text { fill: #fff; }
+.rb-red  { fill: #fee2e2; stroke: #ef4444; }
+.rb-black { fill: #e5e7eb; stroke: #6b7280; }
+.rb-red .node-text, .rb-black .node-text { fill: #0f172a; }
 
 /* ============================================================
    RIGHT INFO PANEL
@@ -802,18 +812,32 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
 }
 
 /* ============================================================
-   树类型着色
+   树类型着色（明亮淡色填充）
    ============================================================ */
-.tree-color-bst    { stroke: #3b82f6 !important; fill: #1e3a5f !important; }
-.tree-color-heap   { stroke: #f59e0b !important; fill: #451a03 !important; }
-.tree-color-avl    { stroke: #10b981 !important; fill: #022c22 !important; }
-.tree-color-rbtree { stroke: #ef4444 !important; fill: #450a0a !important; }
-.tree-color-btree  { stroke: #8b5cf6 !important; fill: #1e0a4a !important; }
-.tree-color-bplustree { stroke: #8b5cf6 !important; fill: #1e0a4a !important; }
-.tree-color-bstar  { stroke: #a855f7 !important; fill: #2e0a5e !important; }
-.tree-color-forest { stroke: #06b6d4 !important; fill: #083344 !important; }
-.tree-color-disjoint { stroke: #ec4899 !important; fill: #4a0a2e !important; }
-.tree-color-threaded { stroke: #6b7280 !important; fill: #111827 !important; }
+
+/* ============================================================
+   边线颜色（用于多树并存/对比模式）
+   ============================================================ */
+.edge-type-bst    { stroke: #3b82f6 !important; }
+.edge-type-avl    { stroke: #10b981 !important; }
+.edge-type-rbtree { stroke: #ef4444 !important; }
+.edge-type-heap   { stroke: #f59e0b !important; }
+.edge-type-btree  { stroke: #8b5cf6 !important; }
+.edge-type-forest { stroke: #06b6d4 !important; }
+.edge-type-disjoint { stroke: #ec4899 !important; }
+.edge-type-threaded { stroke: #6b7280 !important; }
+.edge-type-bplustree { stroke: #8b5cf6 !important; }
+.edge-type-bstar { stroke: #a855f7 !important; }
+.tree-color-bst     { stroke: #3b82f6 !important; fill: #dbeafe !important; }
+.tree-color-heap    { stroke: #f59e0b !important; fill: #fef3c7 !important; }
+.tree-color-avl     { stroke: #10b981 !important; fill: #d1fae5 !important; }
+.tree-color-rbtree  { stroke: #ef4444 !important; fill: #fee2e2 !important; }
+.tree-color-btree   { stroke: #8b5cf6 !important; fill: #ede9fe !important; }
+.tree-color-bplustree { stroke: #8b5cf6 !important; fill: #ede9fe !important; }
+.tree-color-bstar   { stroke: #a855f7 !important; fill: #e9d5ff !important; }
+.tree-color-forest  { stroke: #06b6d4 !important; fill: #cffafe !important; }
+.tree-color-disjoint { stroke: #ec4899 !important; fill: #fce7f3 !important; }
+.tree-color-threaded { stroke: #6b7280 !important; fill: #f3f4f6 !important; }
 
 /* ============================================================
    对比标签
