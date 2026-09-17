@@ -693,28 +693,28 @@
 .preview-row .preview-remove:hover { color: var(--danger); }
 
 /* ---------- 响应式 ---------- */
-/* 平板及以下：单列布局，上下两个独立滚动容器均分剩余高度 */
+/* 平板及以下：单列布局，上半内容自适应高度一次性呈现，下半占满剩余 */
 @media (max-width: 900px) {
   .ocr-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;   /* 上下均分，避免 max-height: 50vh 造成的不稳定 */
+    /* 上半 auto：按内容自适应高度，一次性呈现全部；下半 1fr：占满剩余 */
+    grid-template-rows: auto 1fr;
     gap: 10px;
     padding: 10px;
-    height: 100%;                  /* 撑满父级 flex 剩余空间 */
+    height: 100%;
     overflow: hidden;
   }
 
-  /* 上半部分：图像输入栏（独立局部滚动） */
+  /* 上半部分：图像输入栏——内容一次性呈现，不滚动 */
   .ocr-rail {
-    max-height: none;              /* 取消 50vh 限制，交给 grid 行高控制 */
-    min-height: 0;                 /* 允许在 grid/flex 中收缩 */
-    overflow-y: auto;
-    overscroll-behavior: contain;  /* 防止滚动穿透到外层 */
-    -webkit-overflow-scrolling: touch;
+    max-height: none;
+    min-height: 0;
+    overflow-y: visible;           /* 不需要内部滚动 */
+    overscroll-behavior: contain;
     padding-right: 4px;
   }
 
-  /* 下半部分：结果区（独立局部滚动） */
+  /* 下半部分：结果区——占满剩余空间，内部结果可滚动 */
   .ocr-center {
     min-height: 0;
     overflow: hidden;
@@ -729,9 +729,12 @@
   #filePreviewWrap { flex-shrink: 0; }
 }
 
-/* 手机：进一步紧凑，但保持控件最小可用尺寸，避免挤压 */
+/* 手机：隐藏拖拽区；紧凑布局，内容一次性呈现 */
 @media (max-width: 640px) {
   .ocr-shell { padding: 8px; gap: 8px; }
+
+  /* 隐藏拖拽区（移动端无拖拽交互，改用拍照/上传按钮） */
+  .upload-zone { display: none !important; }
 
   /* 输入模式 Tab：保证最小高度与可点击区域 */
   .input-mode-tab {
@@ -744,7 +747,7 @@
     padding: 9px 8px;
     font-size: 12px;
     min-height: 38px;
-    flex-basis: 0;          /* 配合 flex:1 真正均分 */
+    flex-basis: 0;
     white-space: nowrap;
   }
   /* 自定义指令输入框：保证最小高度 */

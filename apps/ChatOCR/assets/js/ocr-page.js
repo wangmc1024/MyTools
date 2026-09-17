@@ -1107,12 +1107,11 @@ async function openCamera() {
   const hint = $('#cameraHint');
   if (!modal || !video) return;
 
-  // 移动端优先尝试原生相机捕获
+  // 移动端：直接调用系统原生相机，不显示 WebRTC 拍照模态框
+  // 无论用户拍照成功还是取消，都不再回退到 WebRTC UI
   if (isMobileDevice()) {
-    hint.textContent = '';
-    const ok = await captureViaNativeCamera();
-    if (ok) return;
-    // 原生捕获失败（用户取消或不支持），回退到 WebRTC
+    await captureViaNativeCamera();
+    return;
   }
 
   modal.classList.add('active');
