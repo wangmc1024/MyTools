@@ -1607,6 +1607,202 @@ function updateInfoPanel() {
 }
 
 /* ============================================================
+   切换树类型 & 填充专属操作区
+   ============================================================ */
+function switchType(type) {
+  State.currentType = type;
+  State.tree = null;
+  State.heapArr = null;
+  State.unionFind = null;
+  State.selectedNode = null;
+  Animator.reset();
+  Renderer.clear();
+  updateInfoPanel();
+  updateStatus();
+  document.getElementById('statusValid').textContent = '—';
+  document.getElementById('statusValid').className = 'value';
+  document.getElementById('infoValidation').innerHTML = '';
+
+  // 清空并填充专属操作区
+  const specific = document.getElementById('specificBody');
+  specific.innerHTML = '';
+
+  if (type === 'bst') {
+    specific.innerHTML = `
+      <div class="btn-row">
+        <input type="number" id="bstOpValue" placeholder="值" class="num-input">
+        <button id="btnBstInsert" class="btn btn-accent">插入</button>
+        <button id="btnBstDelete" class="btn btn-danger">删除</button>
+        <button id="btnBstSearch" class="btn btn-secondary">查找</button>
+      </div>
+      <p class="tool-hint">BST：左小右大，插入为新叶子。删除度2节点时用后继替换值。</p>
+    `;
+
+  } else if (type === 'heap') {
+    specific.innerHTML = `
+      <div class="btn-row" style="justify-content:center;">
+        <button id="btnMaxHeap" class="btn btn-accent">大根堆</button>
+        <button id="btnMinHeap" class="btn btn-secondary">小根堆</button>
+      </div>
+      <div class="btn-row" style="justify-content:center;margin-top:6px;">
+        <input type="number" id="heapOpVal" placeholder="插入值" class="num-input" style="width:70px;">
+        <button id="btnHeapInsert" class="btn btn-primary">插入</button>
+        <button id="btnHeapDel" class="btn btn-danger">删除根</button>
+      </div>
+      <p class="tool-hint">堆：完全二叉树+堆序。数组下标1开始，父 i 左 2i 右 2i+1。</p>
+    `;
+
+  } else if (type === 'avl') {
+    specific.innerHTML = `
+      <div class="btn-row">
+        <input type="number" id="avlOpValue" placeholder="插入值" class="num-input" style="width:70px;">
+        <button id="btnAvlInsert" class="btn btn-accent">插入</button>
+      </div>
+      <p class="tool-hint">AVL 自动平衡。BF = 左高 - 右高 ∈ {-1,0,1}。插入后若 |BF|>1 自动旋转修复。四种情况：LL(右旋)、RR(左旋)、LR(先左后右)、RL(先右后左)。</p>
+    `;
+
+  } else if (type === 'rbtree') {
+    specific.innerHTML = `
+      <div class="btn-row">
+        <input type="number" id="rbOpValue" placeholder="插入值" class="num-input" style="width:70px;">
+        <button id="btnRbInsert" class="btn btn-accent">插入</button>
+      </div>
+      <p class="tool-hint">红黑树五大性质：①红/黑 ②根黑 ③叶子黑 ④红节点子必黑 ⑤路径黑高相同。插入为红，叔红变色上溯，叔黑旋转。</p>
+    `;
+
+  } else if (type === 'btree' || type === 'bplustree' || type === 'bstar') {
+    const labels = { btree: 'B树', bplustree: 'B+树', bstar: 'B*树' };
+    specific.innerHTML = `
+      <div class="btn-row" style="justify-content:center;gap:12px;">
+        <button id="btnDecOrder" class="btn btn-secondary">−</button>
+        <span id="orderDisplay" class="order-display">m = ${State.btreeOrder}</span>
+        <button id="btnIncOrder" class="btn btn-secondary">+</button>
+      </div>
+      <p class="tool-hint">${labels[type]}阶数m=${State.btreeOrder}。关键字范围：非根 ⌈m/2⌉-1 ~ m-1，根 1 ~ m-1。满则分裂，缺则合并。</p>
+    `;
+
+  } else if (type === 'disjoint') {
+    specific.innerHTML = `
+      <div class="btn-row">
+        <input type="number" id="ufX" placeholder="x" class="num-input">
+        <input type="number" id="ufY" placeholder="y" class="num-input">
+        <button id="btnUnion" class="btn btn-accent">Union</button>
+        <button id="btnFind" class="btn btn-secondary">Find</button>
+      </div>
+      <p class="tool-hint">并查集：parent[] 数组表示森林。Union 合并两棵树，Find 查根并路径压缩。</p>
+    `;
+
+  } else if (type === 'threaded') {
+    specific.innerHTML = `<p class="tool-hint">线索二叉树：利用 n+1 个空链域存储前驱/后继。ltag/rtag 区分孩子指针(0)与线索(1)。实线=孩子，虚线=线索。</p>`;
+
+  } else if (type === 'forest') {
+    specific.innerHTML = `<p class="tool-hint">森林：m≥0 棵互不相交树的集合。树与二叉树转换：左孩子右兄弟法。先根遍历↔二叉树先序，后根遍历↔二叉树中序。</p>`;
+
+  } else {
+    specific.innerHTML = `
+      <div class="btn-row">
+        <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误演示</button>
+        <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比</button>
+      </div>
+      <p class="tool-hint">错误演示：生成非法结构。对比模式：同序列 BST/AVL/红黑树高度对比。</p>
+    `;
+  }
+
+  log(`切换到 ${KNOWLEDGE[type].name}`, 'action');
+}
+
+function rebuildAfterOrderChange() {
+  const seq = parseInput(document.getElementById('inputSeq').value);
+  if (seq && seq.length) buildTree(seq);
+}
+
+function bstOp(op) {
+  const v = parseInt(document.getElementById('bstOpValue').value);
+  if (isNaN(v)) { log('请输入数值', 'warn'); return; }
+  if (op === 'insert') {
+    State.tree = BSTOps.insert(State.tree, v);
+    log(`BST 插入 ${v}`, 'action');
+  } else if (op === 'delete') {
+    State.tree = BSTOps.delete(State.tree, v);
+    log(`BST 删除 ${v}（度2用后继替换）`, 'action');
+  } else if (op === 'search') {
+    const found = BSTOps.search(State.tree, v);
+    log(found ? `查找 ${v} 成功` : `查找 ${v} 失败`, found ? 'success' : 'warn');
+    if (found) {
+      if (State.selectedNode) State.selectedNode.state = 'normal';
+      found.state = 'visited';
+      State.selectedNode = found;
+    }
+  }
+  Renderer.render();
+  updateStatus();
+  updateValidation();
+}
+
+function ufUnion() {
+  const x = parseInt(document.getElementById('ufX').value);
+  const y = parseInt(document.getElementById('ufY').value);
+  if (isNaN(x) || isNaN(y)) { log('请输入 x 和 y', 'warn'); return; }
+  if (!State.unionFind) { log('请先构建并查集', 'warn'); return; }
+  const result = UnionFindOps.union(State.unionFind, x, y, true);
+  log(result ? `Union(${x}, ${y}) 合并成功（按秩合并）` : `Union(${x}, ${y}) 已属同集合`, result ? 'success' : 'warn');
+  Renderer.render();
+}
+
+function ufFind() {
+  const x = parseInt(document.getElementById('ufX').value);
+  if (isNaN(x)) { log('请输入 x', 'warn'); return; }
+  if (!State.unionFind) { log('请先构建并查集', 'warn'); return; }
+  const root = UnionFindOps.find(State.unionFind, x, true);
+  log(`Find(${x}) → 根为 ${root}（路径压缩）`, 'success');
+  Renderer.render();
+}
+
+function generateWrongDemo() {
+  const type = State.currentType;
+  log('【错误演示】生成非法结构让学生识别', 'action');
+
+  if (type === 'bst') {
+    const root = makeNode(50);
+    root.left = makeNode(70);  // 错！70 > 50
+    root.right = makeNode(30); // 错！30 < 50
+    root.left.parent = root; root.right.parent = root;
+    State.tree = root;
+    log('生成错误BST：左孩子70 > 根50，违反左小右大', 'error');
+  } else if (type === 'avl') {
+    const root = makeNode(10);
+    root.left = makeNode(8);
+    root.left.left = makeNode(5);
+    root.left.left.left = makeNode(2);
+    State.tree = root;
+    log('生成失衡AVL：左子树过高，BF>1', 'error');
+  } else if (type === 'complete') {
+    const root = makeNode(1);
+    root.left = makeNode(2);
+    root.right = makeNode(3);
+    root.left.left = null;
+    root.left.right = makeNode(5);
+    State.tree = root;
+    log('生成非完全二叉树：最后一层不连续', 'error');
+  } else if (type === 'heap') {
+    State.heapArr = [null, 3, 10, 5, 20];
+    State.tree = HeapOps.arrayToTree(State.heapArr);
+    log('生成错误大根堆：节点3的子节点10>3', 'error');
+  } else if (type === 'rbtree') {
+    const root = makeNode(10); root.color = 'black';
+    root.left = makeNode(5); root.left.color = 'red';
+    root.left.left = makeNode(2); root.left.left.color = 'red';
+    State.tree = root;
+    log('生成错误红黑树：连续红节点（违反性质④）', 'error');
+  } else {
+    log('当前结构无错误演示模板，可手动双击节点修改制造错误', 'warn');
+  }
+  Renderer.render();
+  updateStatus();
+  updateValidation();
+}
+
+/* ============================================================
    动画系统
    ============================================================ */
 const Animator = {
