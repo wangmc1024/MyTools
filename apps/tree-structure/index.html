@@ -78,7 +78,6 @@
           <div class="panel-tabs">
             <button class="ptab active" data-sec="build">输入</button>
             <button class="ptab" data-sec="anim">动画</button>
-            <button class="ptab" data-sec="traverse">遍历</button>
             <button class="ptab" data-sec="tools">工具</button>
           </div>
         </div>
@@ -112,12 +111,21 @@
             </div>
           </div>
 
-          <!-- Section: Animation -->
+          <!-- Section: Animation + Traverse -->
           <div class="sec" id="sec-anim">
             <div class="sec-head">
-              <span>◈ 动画控制</span>
+              <span>◈ 遍历 &amp; 动画</span>
             </div>
             <div class="sec-body">
+              <label class="fld-label">遍历模式</label>
+              <div class="btn-row">
+                <button class="btn btn-traverse" data-traverse="pre">前序</button>
+                <button class="btn btn-traverse" data-traverse="in">中序</button>
+                <button class="btn btn-traverse" data-traverse="post">后序</button>
+                <button class="btn btn-traverse" data-traverse="level">层序</button>
+              </div>
+              <div style="height:8px"></div>
+              <label class="fld-label">动画控制</label>
               <div class="btn-row">
                 <button id="btnPlay" class="btn btn-accent">▶ 播放</button>
                 <button id="btnPause" class="btn btn-secondary">⏸</button>
@@ -129,21 +137,6 @@
                   速度 <span id="speedVal">1.0x</span>
                   <input type="range" id="animSpeed" min="1" max="10" value="5">
                 </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Section: Traverse -->
-          <div class="sec" id="sec-traverse">
-            <div class="sec-head">
-              <span>△ 遍历动画</span>
-            </div>
-            <div class="sec-body">
-              <div class="btn-row">
-                <button class="btn btn-traverse" data-traverse="pre">前序</button>
-                <button class="btn btn-traverse" data-traverse="in">中序</button>
-                <button class="btn btn-traverse" data-traverse="post">后序</button>
-                <button class="btn btn-traverse" data-traverse="level">层序</button>
               </div>
             </div>
           </div>

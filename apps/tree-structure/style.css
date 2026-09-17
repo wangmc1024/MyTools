@@ -417,6 +417,9 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
   gap: 12px;
   margin-top: 10px;
 }
+.speed-row {
+  margin-top: 8px;
+}
 .slider-label {
   display: flex;
   align-items: center;
