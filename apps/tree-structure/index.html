@@ -80,6 +80,7 @@
             <button class="ptab" data-sec="anim">动画</button>
             <button class="ptab" data-sec="tools">工具</button>
           </div>
+          <button id="btnCollapseLeft" class="panel-collapse-btn" title="收起面板">◀</button>
         </div>
 
         <!-- Panel Body -->
@@ -174,8 +175,15 @@
           <g id="threadsLayer"></g>
           <g id="nodesLayer"></g>
           <g id="labelsLayer"></g>
+          <g id="tooltipLayer"></g>
         </g>
       </svg>
+      <div class="canvas-toolbar">
+        <button id="btnCanvasZoomIn" class="btn-canvas-tool" title="放大">+</button>
+        <button id="btnCanvasZoomOut" class="btn-canvas-tool" title="缩小">−</button>
+        <button id="btnCanvasReset" class="btn-canvas-tool" title="重置视图">⟲</button>
+        <button id="btnCanvasFullscreen" class="btn-canvas-tool" title="全屏">⛶</button>
+      </div>
       <div class="canvas-hint">滚轮缩放 · 拖拽平移 · 双击修改 · 点击选中</div>
     </div>
 
@@ -184,6 +192,7 @@
       <div class="info-panel-head">
         <span class="panel-icon">?</span>
         <span>知识点面板</span>
+        <button id="btnCollapseInfo" class="panel-collapse-btn" title="收起面板">▶</button>
       </div>
       <div id="infoContent">
         <div class="info-block">
@@ -225,7 +234,10 @@
         <span class="log-dot"></span>
         算法步骤日志
       </span>
-      <button id="btnClearLog" class="btn-log-clear">清空</button>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button id="btnCollapseLog" class="panel-collapse-btn" title="收起日志">▼</button>
+        <button id="btnClearLog" class="btn-log-clear">清空</button>
+      </div>
     </div>
     <div id="logConsole" class="log-console"></div>
   </div>

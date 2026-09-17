@@ -32,6 +32,12 @@ const State = {
   logCounter: 0,
   // 节点ID计数器
   idCounter: 0,
+  // 错误演示索引（循环切换）
+  wrongDemoIndex: 0,
+  // 对比模式：'compare'|null
+  compareMode: null,
+  // 画布全屏
+  fullscreen: false,
 };
 
 /* ============================================================
@@ -184,6 +190,27 @@ const KNOWLEDGE = {
     mistakes: '路径压缩改变树形态。按秩合并的 rank 不等于实际高度（压缩后）。α 是阿克曼反函数。',
   },
 };
+
+/* ============================================================
+   树类型配色表
+   ============================================================ */
+const TREE_COLORS = {
+  binary: '#6b7280',    // gray
+  perfect: '#6b7280',   // gray
+  complete: '#6b7280',  // gray
+  threaded: '#6b7280',  // gray
+  bst: '#3b82f6',       // blue
+  heap: '#f59e0b',      // amber
+  avl: '#10b981',       // emerald
+  rbtree: '#ef4444',    // red
+  btree: '#8b5cf6',     // violet
+  bplustree: '#8b5cf6', // violet
+  bstar: '#a855f7',     // purple
+  forest: '#06b6d4',    // cyan
+  disjoint: '#ec4899',  // pink
+};
+// 对比模式配色
+const COMPARE_COLORS = { bst: '#3b82f6', avl: '#10b981', rbtree: '#ef4444' };
 
 /* ============================================================
    算法层 — 二叉树基础
@@ -1049,6 +1076,7 @@ const Renderer = {
   edgesLayer: null,
   threadsLayer: null,
   labelsLayer: null,
+  tooltipLayer: null,
   canvasGroup: null,
 
   init() {
@@ -1057,6 +1085,7 @@ const Renderer = {
     this.edgesLayer = document.getElementById('edgesLayer');
     this.threadsLayer = document.getElementById('threadsLayer');
     this.labelsLayer = document.getElementById('labelsLayer');
+    this.tooltipLayer = document.getElementById('tooltipLayer');
     this.canvasGroup = document.getElementById('canvasGroup');
     this.setupPanZoom();
   },
@@ -1099,6 +1128,7 @@ const Renderer = {
     this.edgesLayer.innerHTML = '';
     this.threadsLayer.innerHTML = '';
     this.labelsLayer.innerHTML = '';
+    this.tooltipLayer.innerHTML = '';
   },
 
   // 计算二叉树布局（层次布局）
@@ -1175,6 +1205,8 @@ const Renderer = {
     // 红黑树颜色
     if (options.redBlack && node.color === 'red') cls = 'node-circle rb-red';
     if (options.redBlack && node.color === 'black') cls = 'node-circle rb-black';
+    // 类型着色（对比模式或普通模式）
+    if (options.colorKey && !options.redBlack) cls += ' tree-color-' + options.colorKey;
 
     circle.setAttribute('class', cls);
     circle.setAttribute('data-id', node.id);
@@ -1198,6 +1230,41 @@ const Renderer = {
     }
 
     this.nodesLayer.appendChild(g);
+
+    // 悬浮提示
+    const tipNS = 'http://www.w3.org/2000/svg';
+    const tipRect = document.createElementNS(tipNS, 'rect');
+    const tipText = document.createElementNS(tipNS, 'text');
+    tipRect.setAttribute('rx', '4');
+    tipRect.setAttribute('ry', '4');
+    tipRect.setAttribute('fill', 'rgba(0,0,0,0.75)');
+    tipRect.setAttribute('width', '0');
+    tipRect.setAttribute('height', '0');
+    tipText.setAttribute('fill', '#fff');
+    tipText.setAttribute('font-size', '11');
+    tipText.setAttribute('font-family', 'JetBrains Mono, Consolas, monospace');
+    tipText.setAttribute('text-anchor', 'middle');
+    tipText.setAttribute('y', '4');
+    tipText.textContent = '';
+    g.appendChild(tipRect);
+    g.appendChild(tipText);
+    g.style.cursor = 'pointer';
+    g.addEventListener('mouseenter', () => {
+      const label = options.treeLabel || `节点 ${node.value}`;
+      tipText.textContent = label;
+      const tw = label.length * 7.5 + 8;
+      tipRect.setAttribute('width', tw);
+      tipRect.setAttribute('height', '16');
+      tipRect.setAttribute('x', -tw / 2);
+      tipRect.setAttribute('y', '-34');
+      tipText.setAttribute('x', '0');
+      tipText.setAttribute('y', '-22');
+    });
+    g.addEventListener('mouseleave', () => {
+      tipRect.setAttribute('width', '0');
+      tipRect.setAttribute('height', '0');
+      tipText.textContent = '';
+    });
 
     // 点击选中
     g.addEventListener('click', (e) => {
@@ -1365,24 +1432,25 @@ const Renderer = {
   render() {
     const type = State.currentType;
     const tree = State.tree;
+    const colorKey = type;
     if (type === 'btree') {
-      this.renderBTree(tree);
+      this.renderBTree(tree, { colorKey });
     } else if (type === 'bplustree' || type === 'bstar') {
-      this.renderBTree(tree); // 复用矩形渲染
+      this.renderBTree(tree, { colorKey });
     } else if (type === 'heap') {
-      this.renderHeap(State.heapArr || [null]);
+      this.renderHeap(State.heapArr || [null], { colorKey });
     } else if (type === 'disjoint') {
-      this.renderForest(State.unionFind ? UnionFindOps.buildForest(State.unionFind) : []);
+      this.renderForest(State.unionFind ? UnionFindOps.buildForest(State.unionFind) : [], { colorKey });
     } else if (type === 'forest') {
-      this.renderForest(Array.isArray(tree) ? tree : (tree ? [tree] : []));
+      this.renderForest(Array.isArray(tree) ? tree : (tree ? [tree] : []), { colorKey });
     } else if (type === 'avl') {
-      this.renderBinary(tree, { showBF: true });
+      this.renderBinary(tree, { showBF: true, colorKey });
     } else if (type === 'rbtree') {
-      this.renderBinary(tree, { redBlack: true });
+      this.renderBinary(tree, { redBlack: true, colorKey });
     } else if (type === 'threaded') {
-      this.renderBinary(tree, { threaded: true });
+      this.renderBinary(tree, { threaded: true, colorKey });
     } else {
-      this.renderBinary(tree);
+      this.renderBinary(tree, { colorKey });
     }
   },
 };
@@ -1618,6 +1686,9 @@ function switchType(type) {
   State.unionFind = null;
   State.selectedNode = null;
   State.traverseMode = null;
+  State.compareMode = null;
+  State._compareTrees = null;
+  State.wrongDemoIndex = 0;
   Animator.reset();
   Renderer.clear();
   document.querySelectorAll('.btn-traverse').forEach(b => b.classList.remove('active'));
@@ -1831,100 +1902,260 @@ function ufFind() {
   Renderer.render();
 }
 
+/* 各类型错误演示模板（多种模式，循环切换） */
+const WRONG_DEMOS = {
+  binary: [
+    () => {
+      // 模式A：左右值颠倒
+      const r = makeNode(50);
+      r.left = makeNode(70); r.right = makeNode(30);
+      r.left.parent = r; r.right.parent = r;
+      return { tree: r, msg: '左右子树值颠倒（左70 > 根50，若这是BST则非法）' };
+    },
+    () => {
+      // 模式B：只有左子树，没有右子树（退化形态）
+      const r = makeNode(1);
+      r.left = makeNode(2); r.left.left = makeNode(3);
+      r.left.parent = r; r.left.left.parent = r.left;
+      return { tree: r, msg: '右子树为空，退化为单链表形态' };
+    },
+  ],
+  perfect: [
+    () => {
+      // 缺少一个叶子
+      const r = makeNode(1);
+      r.left = makeNode(2); r.right = makeNode(3);
+      r.left.left = makeNode(4); r.left.right = makeNode(5);
+      r.right.left = makeNode(6);
+      r.left.parent = r; r.right.parent = r;
+      r.left.left.parent = r.left; r.left.right.parent = r.left; r.right.left.parent = r.right;
+      return { tree: r, msg: '右子节点3缺少右孩子，叶子不在同一层' };
+    },
+    () => {
+      // 多一个叶子
+      const r = makeNode(1);
+      r.left = makeNode(2); r.right = makeNode(3);
+      r.left.left = makeNode(4); r.left.right = makeNode(5);
+      r.right.left = makeNode(6); r.right.right = makeNode(7);
+      r.left.left.left = makeNode(8); // 多出一层
+      r.left.left.parent = r.left; r.left.right.parent = r.left;
+      r.right.left.parent = r.right; r.right.right.parent = r.right;
+      r.left.left.left.parent = r.left.left;
+      return { tree: r, msg: '最深层出现第4层叶子，破坏满二叉树定义' };
+    },
+  ],
+  complete: [
+    () => {
+      // 最后一层不连续（左空右有）
+      const r = makeNode(1);
+      r.left = makeNode(2); r.right = makeNode(3);
+      r.left.left = null; r.left.right = makeNode(5);
+      r.right.left = makeNode(6); r.right.right = makeNode(7);
+      r.left.parent = r; r.right.parent = r;
+      r.right.left.parent = r.right; r.right.right.parent = r.right;
+      return { tree: r, msg: '最后一层不连续：节点5前有空位（完全二叉树必须从左到右连续）' };
+    },
+    () => {
+      // 中间层有空缺
+      const r = makeNode(1);
+      r.left = makeNode(2);
+      // r.right 缺失
+      r.left.left = makeNode(4); r.left.right = makeNode(5);
+      r.left.parent = r; r.left.left.parent = r.left; r.left.right.parent = r.left;
+      return { tree: r, msg: '第二层右侧空缺，违反完全二叉树从左到右连续填充规则' };
+    },
+  ],
+  bst: [
+    () => {
+      // 模式A：左大右小
+      const r = makeNode(50);
+      r.left = makeNode(70); r.right = makeNode(30);
+      r.left.parent = r; r.right.parent = r;
+      return { tree: r, msg: '左孩子70 > 根50，违反左小右大' };
+    },
+    () => {
+      // 模式B：右子树中出现更小的值
+      const r = makeNode(50);
+      r.right = makeNode(70);
+      r.right.left = makeNode(40); // 40 < 50，应在左子树
+      r.right.left.parent = r.right; r.right.parent = r;
+      return { tree: r, msg: '右子树70的左孩子40 < 根50，违反BST全局有序性' };
+    },
+    () => {
+      // 模式C：重复值
+      const r = makeNode(50);
+      r.left = makeNode(30); r.right = makeNode(70);
+      r.left.right = makeNode(50); // 重复值
+      r.left.parent = r; r.right.parent = r; r.left.right.parent = r.left;
+      return { tree: r, msg: '右子树中出现与根相同的值50，BST不应有重复值' };
+    },
+  ],
+  avl: [
+    () => {
+      // 左重失衡
+      const r = makeNode(10);
+      r.left = makeNode(8); r.left.left = makeNode(5); r.left.left.left = makeNode(2);
+      return { tree: r, msg: '左子树过高，BF=3，未做右旋修复' };
+    },
+    () => {
+      // 右重失衡
+      const r = makeNode(10);
+      r.right = makeNode(20); r.right.right = makeNode(30); r.right.right.right = makeNode(40);
+      return { tree: r, msg: '右子树过高，BF=-3，未做左旋修复' };
+    },
+    () => {
+      // LR型失衡
+      const r = makeNode(30);
+      r.left = makeNode(10); r.left.right = makeNode(20);
+      r.left.right.left = makeNode(15); r.left.right.right = makeNode(25);
+      r.left.parent = r; r.left.right.parent = r.left;
+      r.left.right.left.parent = r.left.right; r.left.right.right.parent = r.left.right;
+      return { tree: r, msg: 'LR型失衡：左孩子的右子树过高，需先左旋后右旋' };
+    },
+  ],
+  heap: [
+    () => {
+      // 大根堆违规：父小于子
+      State.heapArr = [null, 3, 10, 5, 20];
+      State.tree = HeapOps.arrayToTree(State.heapArr);
+      return { tree: State.tree, msg: '节点3的子节点10>3，违反大根堆序（父 ≥ 子）' };
+    },
+    () => {
+      // 大根堆违规：根不是最大
+      State.heapArr = [null, 5, 20, 10, 30];
+      State.tree = HeapOps.arrayToTree(State.heapArr);
+      return { tree: State.tree, msg: '根5不是最大值30，违反堆序性质' };
+    },
+  ],
+  rbtree: [
+    () => {
+      // 连续红节点
+      const r = makeNode(10); r.color = 'black';
+      r.left = makeNode(5); r.left.color = 'red';
+      r.left.left = makeNode(2); r.left.left.color = 'red';
+      return { tree: r, msg: '连续两个红节点（5→2），违反性质④' };
+    },
+    () => {
+      // 根不是黑色
+      const r = makeNode(10); r.color = 'red'; // 根应为黑
+      r.left = makeNode(5); r.left.color = 'black';
+      r.right = makeNode(15); r.right.color = 'black';
+      return { tree: r, msg: '根节点10为红色，违反性质②（根必为黑）' };
+    },
+    () => {
+      // 黑高不一致
+      const r = makeNode(10); r.color = 'black';
+      r.left = makeNode(5); r.left.color = 'black';
+      r.right = makeNode(15); r.right.color = 'black';
+      r.left.left = makeNode(2); r.left.left.color = 'black';
+      // r.right 无子节点（NIL黑高不同）
+      return { tree: r, msg: '左路径黑高3，右路径黑高2，违反性质⑤（路径黑高相同）' };
+    },
+  ],
+  threaded: [
+    () => {
+      // 线索方向错误
+      const r = makeNode(50);
+      const l = makeNode(30), ri = makeNode(70);
+      r.left = l; r.right = ri; l.parent = r; ri.parent = r;
+      l.state = 'threaded'; l.right = ri; l.rtag = 1;
+      ri.state = 'threaded'; ri.left = l; ri.ltag = 1;
+      return { tree: r, msg: '线索方向错误：30的后继指向70，跳过中序中间节点50' };
+    },
+    () => {
+      // 线索标签错误（孩子指针被标为线索）
+      const r = makeNode(50);
+      const l = makeNode(30), ri = makeNode(70);
+      r.left = l; r.right = ri; l.parent = r; ri.parent = r;
+      l.ltag = 1; ri.rtag = 1; // 错误：这些是真实孩子，不是线索
+      return { tree: r, msg: 'ltag/rtag标签错误：真实孩子被标记为线索（应为0）' };
+    },
+  ],
+  btree: [
+    () => {
+      // 关键字过多
+      const m = State.btreeOrder;
+      const keys = []; for (let i = 0; i < m; i++) keys.push(i + 1);
+      State.tree = { keyCount: keys.length, maxKeys: m - 1, keys, children: [] };
+      State.tree.keys = keys;
+      return { tree: State.tree, msg: `关键字数${keys.length} > 上限${m - 1}，应触发分裂` };
+    },
+    () => {
+      // 关键字过少（非根节点）
+      const m = State.btreeOrder;
+      State.tree = { keyCount: 0, maxKeys: m - 1, minKeys: Math.ceil(m / 2) - 1, keys: [], children: [] };
+      return { tree: State.tree, msg: `关键字数0 < 下限${Math.ceil(m / 2) - 1}，应触发合并` };
+    },
+  ],
+  bplustree: [
+    () => {
+      const m = State.btreeOrder;
+      const keys = []; for (let i = 0; i < m; i++) keys.push(i + 1);
+      State.tree = { keyCount: keys.length, maxKeys: m - 1, keys, children: [], isLeaf: true };
+      return { tree: State.tree, msg: 'B+树内部节点关键字过多，非叶子节点应只作索引' };
+    },
+    () => {
+      // 叶子节点间缺少链接
+      State.tree = { keys: [1, 2, 3], next: null, isLeaf: true };
+      return { tree: State.tree, msg: '叶子节点next指针为null，B+树叶节点应链接成有序链表' };
+    },
+  ],
+  bstar: [
+    () => {
+      const m = State.btreeOrder;
+      const keys = []; for (let i = 0; i < Math.ceil(m * 2 / 3); i++) keys.push(i + 1);
+      State.tree = { keyCount: keys.length, maxKeys: m - 1, minKeys: Math.ceil(3 * m / 4) - 1, keys, children: [] };
+      return { tree: State.tree, msg: `B*树关键字数${keys.length}低于下限${Math.ceil(3 * m / 4) - 1}，违反紧密填充要求` };
+    },
+    () => {
+      const m = State.btreeOrder;
+      const keys = []; for (let i = 0; i < m; i++) keys.push(i + 1);
+      State.tree = { keyCount: keys.length, maxKeys: m - 1, minKeys: Math.ceil(3 * m / 4) - 1, keys, children: [] };
+      return { tree: State.tree, msg: `B*树关键字数${keys.length}达到上限，应尝试与兄弟合并而非分裂` };
+    },
+  ],
+  forest: [
+    () => {
+      // 森林中两棵树相连
+      const t1 = makeNode(1);
+      const t2 = makeNode(10);
+      t1.right = t2; // 错误连接
+      t1.right.parent = t1;
+      return { tree: [t1, t2], msg: '两棵树通过右指针相连，破坏森林互不相交定义' };
+    },
+    () => {
+      // 森林为空（0棵树，但用户认为有树）
+      State.tree = null;
+      return { tree: null, msg: '森林为空（0棵树），但状态栏仍显示结构信息' };
+    },
+  ],
+  disjoint: [
+    () => {
+      // 应合并但未合并
+      State.unionFind = { elements: [1, 2, 3, 4, 5], parent: [0, 1, 2, 3, 4, 5] };
+      return { tree: State.unionFind, msg: '元素1-5各自为根，本应通过Union合并为同一集合' };
+    },
+    () => {
+      // 环路错误（parent形成环）
+      State.unionFind = { elements: [1, 2, 3], parent: [0, 2, 1, 3] }; // 1→2→1 形成环
+      return { tree: State.unionFind, msg: 'parent[1]=2, parent[2]=1，形成环路，find无法终止' };
+    },
+  ],
+};
+
 function generateWrongDemo() {
   const type = State.currentType;
-  log('【错误演示】生成非法结构让学生识别', 'action');
-
-  if (type === 'binary') {
-    // 普通二叉树：左右子树值颠倒（左大右小，违反直觉）
-    const root = makeNode(50);
-    root.left = makeNode(70);
-    root.right = makeNode(30);
-    root.left.parent = root; root.right.parent = root;
-    State.tree = root;
-    log('生成错误二叉树：左子70 > 根50 > 右子30，左右子树值颠倒（普通二叉树虽无排序性质，但此布局易与BST混淆）', 'error');
-  } else if (type === 'perfect') {
-    // 满二叉树：缺少一个叶子，不是满二叉树
-    const root = makeNode(1);
-    root.left = makeNode(2); root.right = makeNode(3);
-    root.left.left = makeNode(4); root.left.right = makeNode(5);
-    root.right.left = makeNode(6);
-    // right.right 缺失 → 不是满二叉树
-    root.left.parent = root; root.right.parent = root;
-    root.left.left.parent = root.left; root.left.right.parent = root.left;
-    root.right.left.parent = root.right;
-    State.tree = root;
-    log('生成非满二叉树：右子节点3缺少右孩子，叶子不在同一层（满二叉树要求所有叶子同层）', 'error');
-  } else if (type === 'complete') {
-    // 非完全二叉树：最后一层右侧有节点但左侧空缺
-    const root = makeNode(1);
-    root.left = makeNode(2); root.right = makeNode(3);
-    root.left.left = null;
-    root.left.right = makeNode(5);
-    root.right.left = makeNode(6); root.right.right = makeNode(7);
-    root.left.parent = root; root.right.parent = root;
-    root.right.left.parent = root.right; root.right.right.parent = root.right;
-    State.tree = root;
-    log('生成非完全二叉树：最后一层不连续，节点5前有空位（完全二叉树要求从左到右连续填充）', 'error');
-  } else if (type === 'bst') {
-    const root = makeNode(50);
-    root.left = makeNode(70);
-    root.right = makeNode(30);
-    root.left.parent = root; root.right.parent = root;
-    State.tree = root;
-    log('生成错误BST：左孩子70 > 根50，违反左小右大', 'error');
-  } else if (type === 'avl') {
-    const root = makeNode(10);
-    root.left = makeNode(8);
-    root.left.left = makeNode(5);
-    root.left.left.left = makeNode(2);
-    State.tree = root;
-    log('生成失衡AVL：左子树过高，BF = 3 > 1', 'error');
-  } else if (type === 'heap') {
-    State.heapArr = [null, 3, 10, 5, 20];
-    State.tree = HeapOps.arrayToTree(State.heapArr);
-    log('生成错误大根堆：节点3的子节点10>3，违反堆序', 'error');
-  } else if (type === 'rbtree') {
-    const root = makeNode(10); root.color = 'black';
-    root.left = makeNode(5); root.left.color = 'red';
-    root.left.left = makeNode(2); root.left.left.color = 'red';
-    State.tree = root;
-    log('生成错误红黑树：连续红节点（违反性质④：红节点子必黑）', 'error');
-  } else if (type === 'threaded') {
-    // 线索二叉树：线索方向错误
-    const root = makeNode(50);
-    const left = makeNode(30);
-    const right = makeNode(70);
-    root.left = left; root.right = right;
-    left.parent = root; right.parent = root;
-    // 错误：中序遍历应为 30→50→70，但30的rthread直接指向70（跳过50）
-    left.state = 'threaded'; left.right = right; left.rtag = 1;
-    right.state = 'threaded'; right.left = left; left.ltag = 1;
-    State.tree = root;
-    log('生成错误线索二叉树：30的后继线索错误指向70，跳过中序中间节点50', 'error');
-  } else if (type === 'btree' || type === 'bplustree' || type === 'bstar') {
-    const labels = { btree: 'B树', bplustree: 'B+树', bstar: 'B*树' };
-    const m = State.btreeOrder;
-    // 构建关键字数超标的节点（关键字数 = m，上限应为 m-1）
-    const keys = [];
-    for (let i = 0; i < m; i++) keys.push(i + 1);
-    State.tree = { keyCount: keys.length, maxKeys: m - 1, keys, children: [] };
-    State.tree.keys = keys;
-    log(`生成错误${labels[type]}：节点含${keys.length}个关键字，超过阶数m=${m}的上限${m - 1}，应触发分裂`, 'error');
-  } else if (type === 'forest') {
-    // 森林：两棵树之间建立了连接
-    const t1 = makeNode(1);
-    const t2 = makeNode(10);
-    t1.right = null; // 左孩子右兄弟法中右兄弟不应存在
-    State.tree = [t1, t2];
-    log('生成错误森林：两棵树间存在连接，破坏森林定义（互不相交）', 'error');
-  } else if (type === 'disjoint') {
-    // 并查集：部分元素孤立，本应合并
-    State.unionFind = { elements: [1, 2, 3, 4, 5], parent: [0, 1, 2, 3, 4, 5] };
-    log('生成错误并查集：元素2、3各自为根未合并，但本应属于同一集合', 'error');
-  } else {
+  const demos = WRONG_DEMOS[type];
+  if (!demos || !demos.length) {
     log('当前结构无错误演示模板，可手动双击节点修改制造错误', 'warn');
+    return;
   }
+  // 循环切换错误模式
+  State.wrongDemoIndex = (State.wrongDemoIndex + 1) % demos.length;
+  const demo = demos[State.wrongDemoIndex];
+  const result = demo();
+  log(`【错误演示 #${State.wrongDemoIndex + 1}/${demos.length}】${result.msg}`, 'action');
+  if (result.tree !== undefined) State.tree = result.tree;
   Renderer.render();
   updateStatus();
   updateValidation();
@@ -2206,13 +2437,224 @@ function rbInsert() {
 function doCompare() {
   const seq = parseInput(document.getElementById('inputSeq').value);
   if (!seq || !seq.length) { log('请先输入序列', 'warn'); return; }
-  log(`对比模式 [${seq.join(',')}]:`, 'action');
+  log(`对比模式 [${seq.join(',')}]: 绘制 BST / AVL / 红黑树`, 'action');
   const bst = BSTOps.buildFromSeq(seq), avl = AVLOps.buildFromSeq(seq), rb = RBOps.buildFromSeq(seq);
-  log(`BST 高度: ${BinaryTreeOps.height(bst)}`, 'info');
-  log(`AVL 高度: ${BinaryTreeOps.height(avl)}`, 'info');
-  log(`红黑树高度: ${BinaryTreeOps.height(rb)}`, 'info');
-  log('BST 最差，AVL 最严格，红黑树旋转最少', 'success');
+  const hBst = BinaryTreeOps.height(bst), hAvl = BinaryTreeOps.height(avl), hRb = BinaryTreeOps.height(rb);
+  log(`BST 高度: ${hBst} | AVL 高度: ${hAvl} | 红黑树高度: ${hRb}`, 'info');
+  // 保存对比状态
+  State.compareMode = 'compare';
+  State._compareTrees = { bst, avl, rb };
+  State._compareLabels = ['BST', 'AVL', '红黑树'];
+  // 清除当前类型状态，避免干扰
+  State.tree = null;
+  // 用自定义方法渲染对比图
+  Renderer.renderCompare();
 }
+
+/* 对比模式渲染：三棵树并排 */
+const CompareRender = {
+  layoutSideBySide(trees, labels, options = {}) {
+    // 对每棵树独立布局，然后水平平铺
+    const W = 320, H = 480, gap = 60;
+    trees.forEach((root, i) => {
+      if (!root) return;
+      const ox = i * (W + gap) + gap / 2;
+      const pos = { x: ox + W / 2 };
+      Renderer.layoutBinary(root, 0, pos);
+      // 记录偏移量
+      root._cmpOffsetX = ox;
+      root._cmpOffsetY = 60;
+      root._cmpLabel = labels[i];
+      root._cmpColorKey = options.colors ? options.colors[i] : TREE_COLORS[labels[i].toLowerCase().replace(/\s/g, '')];
+    });
+    return trees;
+  },
+  drawBinaryWithOffset(node, offsetX, offsetY, colorKey, label) {
+    const NS = 'http://www.w3.org/2000/svg';
+    node.x += offsetX; node.y += offsetY;
+    // 边
+    if (node.left) {
+      this.drawEdgeWithOffset(node, node.left, offsetX, offsetY);
+      this.drawBinaryWithOffset(node.left, offsetX, offsetY, colorKey, label);
+    }
+    if (node.right) {
+      this.drawEdgeWithOffset(node, node.right, offsetX, offsetY);
+      this.drawBinaryWithOffset(node.right, offsetX, offsetY, colorKey, label);
+    }
+    // 节点
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform', `translate(${node.x},${node.y})`);
+    const circle = document.createElementNS(NS, 'circle');
+    circle.setAttribute('r', '18');
+    let cls = 'node-circle';
+    if (colorKey) cls += ' tree-color-' + colorKey;
+    circle.setAttribute('class', cls);
+    const text = document.createElementNS(NS, 'text');
+    text.setAttribute('class', 'node-text');
+    text.textContent = node.value;
+    g.appendChild(circle);
+    g.appendChild(text);
+    // tooltip
+    const tipNS = 'http://www.w3.org/2000/svg';
+    const tipRect = document.createElementNS(tipNS, 'rect');
+    const tipText = document.createElementNS(tipNS, 'text');
+    tipRect.setAttribute('rx', '4'); tipRect.setAttribute('ry', '4');
+    tipRect.setAttribute('fill', 'rgba(0,0,0,0.75)');
+    tipRect.setAttribute('width', '0'); tipRect.setAttribute('height', '0');
+    tipText.setAttribute('fill', '#fff');
+    tipText.setAttribute('font-size', '11');
+    tipText.setAttribute('font-family', 'JetBrains Mono, Consolas, monospace');
+    tipText.setAttribute('text-anchor', 'middle');
+    tipText.setAttribute('y', '4');
+    tipText.textContent = '';
+    g.appendChild(tipRect); g.appendChild(tipText);
+    g.style.cursor = 'pointer';
+    g.addEventListener('mouseenter', () => {
+      const lbl = `${label}: ${node.value}`;
+      tipText.textContent = lbl;
+      const tw = lbl.length * 7.5 + 8;
+      tipRect.setAttribute('width', tw); tipRect.setAttribute('height', '16');
+      tipRect.setAttribute('x', -tw / 2); tipRect.setAttribute('y', '-34');
+      tipText.setAttribute('x', '0'); tipText.setAttribute('y', '-22');
+    });
+    g.addEventListener('mouseleave', () => {
+      tipRect.setAttribute('width', '0'); tipRect.setAttribute('height', '0');
+      tipText.textContent = '';
+    });
+    g.addEventListener('click', (e) => { e.stopPropagation(); Interaction.selectNode(node); });
+    g.addEventListener('dblclick', (e) => { e.stopPropagation(); Interaction.editNode(node); });
+    Renderer.nodesLayer.appendChild(g);
+    // 标签
+    const lg = document.createElementNS(NS, 'g');
+    lg.setAttribute('transform', `translate(${node.x},${offsetY - 8})`);
+    const lt = document.createElementNS(NS, 'text');
+    lt.setAttribute('class', 'cmp-label');
+    lt.textContent = label;
+    lg.appendChild(lt);
+    Renderer.labelsLayer.appendChild(lg);
+  },
+  drawEdgeWithOffset(from, to, ox, oy) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', from.x + ox); line.setAttribute('y1', from.y + oy);
+    line.setAttribute('x2', to.x + ox); line.setAttribute('y2', to.y + oy);
+    line.setAttribute('class', 'edge-line');
+    Renderer.edgesLayer.appendChild(line);
+  },
+  drawTreeLabel(text, x, y) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform', `translate(${x},${y})`);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('class', 'cmp-label');
+    t.textContent = text;
+    g.appendChild(t);
+    Renderer.labelsLayer.appendChild(g);
+  },
+};
+
+Renderer.renderCompare = function() {
+  this.clear();
+  if (!State._compareTrees) return;
+  const { bst, avl, rb } = State._compareTrees;
+  const trees = [bst, avl, rb];
+  const labels = ['BST', 'AVL', '红黑树'];
+  const colors = ['#3b82f6', '#10b981', '#ef4444'];
+  // 布局
+  const W = 320, H = 440, gap = 60;
+  trees.forEach((root, i) => {
+    if (!root) return;
+    const ox = i * (W + gap) + gap / 2;
+    const pos = { x: ox + W / 2 };
+    this.layoutBinary(root, 0, pos);
+    root._cmpOx = ox; root._cmpOy = 60;
+  });
+  // 绘制每棵树
+  trees.forEach((root, i) => {
+    if (!root) return;
+    // 遍历绘制
+    const draw = (node) => {
+      if (!node) return;
+      node.x += root._cmpOx; node.y += root._cmpOy;
+      // 边
+      if (node.left) {
+        const NS = 'http://www.w3.org/2000/svg';
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', node.x); line.setAttribute('y1', node.y);
+        const lx = node.left.x + root._cmpOx, ly = node.left.y + root._cmpOy;
+        node.left.x = lx; node.left.y = ly;
+        line.setAttribute('x2', lx); line.setAttribute('y2', ly);
+        line.setAttribute('class', 'edge-line');
+        this.edgesLayer.appendChild(line);
+        draw(node.left);
+      }
+      if (node.right) {
+        const NS = 'http://www.w3.org/2000/svg';
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', node.x); line.setAttribute('y1', node.y);
+        const rx = node.right.x + root._cmpOx, ry = node.right.y + root._cmpOy;
+        node.right.x = rx; node.right.y = ry;
+        line.setAttribute('x2', rx); line.setAttribute('y2', ry);
+        line.setAttribute('class', 'edge-line');
+        this.edgesLayer.appendChild(line);
+        draw(node.right);
+      }
+      // 节点
+      const NS = 'http://www.w3.org/2000/svg';
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform', `translate(${node.x},${node.y})`);
+      const circle = document.createElementNS(NS, 'circle');
+      circle.setAttribute('r', '18');
+      circle.setAttribute('class', 'node-circle tree-color-' + colors[i]);
+      const text = document.createElementNS(NS, 'text');
+      text.setAttribute('class', 'node-text');
+      text.textContent = node.value;
+      g.appendChild(circle); g.appendChild(text);
+      // tooltip
+      const tipNS = 'http://www.w3.org/2000/svg';
+      const tipRect = document.createElementNS(tipNS, 'rect');
+      const tipTxt = document.createElementNS(tipNS, 'text');
+      tipRect.setAttribute('rx', '4'); tipRect.setAttribute('ry', '4');
+      tipRect.setAttribute('fill', 'rgba(0,0,0,0.75)');
+      tipRect.setAttribute('width', '0'); tipRect.setAttribute('height', '0');
+      tipTxt.setAttribute('fill', '#fff'); tipTxt.setAttribute('font-size', '11');
+      tipTxt.setAttribute('font-family', 'JetBrains Mono, Consolas, monospace');
+      tipTxt.setAttribute('text-anchor', 'middle'); tipTxt.setAttribute('y', '4'); tipTxt.textContent = '';
+      g.appendChild(tipRect); g.appendChild(tipTxt);
+      g.style.cursor = 'pointer';
+      g.addEventListener('mouseenter', () => {
+        const lbl = `${labels[i]}: ${node.value}`;
+        tipTxt.textContent = lbl;
+        const tw = lbl.length * 7.5 + 8;
+        tipRect.setAttribute('width', tw); tipRect.setAttribute('height', '16');
+        tipRect.setAttribute('x', -tw / 2); tipRect.setAttribute('y', '-34');
+        tipTxt.setAttribute('x', '0'); tipTxt.setAttribute('y', '-22');
+      });
+      g.addEventListener('mouseleave', () => {
+        tipRect.setAttribute('width', '0'); tipRect.setAttribute('height', '0');
+        tipTxt.textContent = '';
+      });
+      g.addEventListener('click', (e) => { e.stopPropagation(); Interaction.selectNode(node); });
+      g.addEventListener('dblclick', (e) => { e.stopPropagation(); Interaction.editNode(node); });
+      this.nodesLayer.appendChild(g);
+    };
+    draw(root);
+    // 标签
+    const lg = document.createElementNS(NS, 'g');
+    lg.setAttribute('transform', `translate(${root._cmpOx + W / 2},48)`);
+    const lt = document.createElementNS(NS, 'text');
+    lt.setAttribute('class', 'cmp-label');
+    lt.textContent = labels[i];
+    lg.appendChild(lt);
+    this.labelsLayer.appendChild(lg);
+  });
+  // 自动居中
+  const totalW = trees.length * (W + gap) - gap;
+  State.view.x = Math.max(0, -(totalW / 2 - this.svg.clientWidth / 2));
+  State.view.y = 20;
+  State.view.scale = 1;
+  this.applyTransform();
+};
 
 /* ============================================================
    面板标签页切换
@@ -2256,6 +2698,57 @@ function init() {
       switchType(btn.dataset.type);
     });
   });
+
+  // ——— 画布工具栏 ———
+  const btnZoomIn  = document.getElementById('btnCanvasZoomIn');
+  const btnZoomOut = document.getElementById('btnCanvasZoomOut');
+  const btnReset   = document.getElementById('btnCanvasReset');
+  const btnFs      = document.getElementById('btnCanvasFullscreen');
+  if (btnZoomIn)  btnZoomIn.addEventListener('click',  () => { State.view.scale = Math.min(3, State.view.scale * 1.3); Renderer.applyTransform(); });
+  if (btnZoomOut) btnZoomOut.addEventListener('click', () => { State.view.scale = Math.max(0.2, State.view.scale / 1.3); Renderer.applyTransform(); });
+  if (btnReset)   btnReset.addEventListener('click',   () => { State.view = { x: 0, y: 0, scale: 1 }; Renderer.applyTransform(); });
+  if (btnFs) {
+    btnFs.addEventListener('click', () => {
+      const wrapper = document.querySelector('.main-wrapper');
+      State.fullscreen = !State.fullscreen;
+      wrapper.classList.toggle('fullscreen', State.fullscreen);
+      btnFs.textContent = State.fullscreen ? '⛶' : '⛶';
+      btnFs.title = State.fullscreen ? '退出全屏 (Esc)' : '全屏';
+      if (State.fullscreen) log('画布已全屏（按 Esc 退出）', 'action');
+      else log('退出全屏', 'info');
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && State.fullscreen) {
+        State.fullscreen = false;
+        document.querySelector('.main-wrapper').classList.remove('fullscreen');
+        log('退出全屏', 'info');
+      }
+    });
+  }
+
+  // ——— 面板折叠 ———
+  const btnCL = document.getElementById('btnCollapseLeft');
+  const btnCI = document.getElementById('btnCollapseInfo');
+  const btnCLo = document.getElementById('btnCollapseLog');
+  const leftPanel  = document.getElementById('leftPanel');
+  const infoPanel  = document.querySelector('.info-panel');
+  const logPanel   = document.querySelector('.log-panel');
+  if (btnCL) btnCL.addEventListener('click', () => {
+    leftPanel.classList.toggle('collapsed');
+    btnCL.textContent = leftPanel.classList.contains('collapsed') ? '▶' : '◀';
+    btnCL.title = leftPanel.classList.contains('collapsed') ? '展开面板' : '收起面板';
+  });
+  if (btnCI) btnCI.addEventListener('click', () => {
+    infoPanel.classList.toggle('collapsed');
+    btnCI.textContent = infoPanel.classList.contains('collapsed') ? '◀' : '▶';
+    btnCI.title = infoPanel.classList.contains('collapsed') ? '展开面板' : '收起面板';
+  });
+  if (btnCLo) btnCLo.addEventListener('click', () => {
+    logPanel.classList.toggle('collapsed');
+    btnCLo.textContent = logPanel.classList.contains('collapsed') ? '▲' : '▼';
+    btnCLo.title = logPanel.classList.contains('collapsed') ? '展开日志' : '收起日志';
+  });
+
   log('树结构可视化教学平台已加载', 'success');
   log('严蔚敏/王道 408 标准对齐，支持13类树结构', 'info');
   log('请选择Tab，输入序列后点「构建」生成树', 'info');

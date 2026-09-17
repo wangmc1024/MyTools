@@ -800,3 +800,112 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
   }
   .left-panel, .info-panel { max-height: 200px; }
 }
+
+/* ============================================================
+   树类型着色
+   ============================================================ */
+.tree-color-bst    { stroke: #3b82f6 !important; fill: #1e3a5f !important; }
+.tree-color-heap   { stroke: #f59e0b !important; fill: #451a03 !important; }
+.tree-color-avl    { stroke: #10b981 !important; fill: #022c22 !important; }
+.tree-color-rbtree { stroke: #ef4444 !important; fill: #450a0a !important; }
+.tree-color-btree  { stroke: #8b5cf6 !important; fill: #1e0a4a !important; }
+.tree-color-bplustree { stroke: #8b5cf6 !important; fill: #1e0a4a !important; }
+.tree-color-bstar  { stroke: #a855f7 !important; fill: #2e0a5e !important; }
+.tree-color-forest { stroke: #06b6d4 !important; fill: #083344 !important; }
+.tree-color-disjoint { stroke: #ec4899 !important; fill: #4a0a2e !important; }
+.tree-color-threaded { stroke: #6b7280 !important; fill: #111827 !important; }
+
+/* ============================================================
+   对比标签
+   ============================================================ */
+.cmp-label {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  fill: var(--text);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ============================================================
+   画布工具栏
+   ============================================================ */
+.canvas-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+}
+.btn-canvas-tool {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--trans);
+  line-height: 1;
+}
+.btn-canvas-tool:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+.btn-canvas-tool:active { transform: scale(0.92); }
+.btn-canvas-tool.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ============================================================
+   全屏模式
+   ============================================================ */
+.main-wrapper.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  height: 100vh !important;
+}
+.main-wrapper.fullscreen .status-bar,
+.main-wrapper.fullscreen .tab-bar { display: none; }
+.main-wrapper.fullscreen .content-area {
+  grid-template-columns: 1fr !important;
+}
+.main-wrapper.fullscreen .left-panel,
+.main-wrapper.fullscreen .info-panel,
+.main-wrapper.fullscreen .log-panel { display: none; }
+.main-wrapper.fullscreen .canvas-area {
+  border: none;
+  flex: 1;
+}
+
+/* ============================================================
+   面板折叠
+   ============================================================ */
+.panel-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: all var(--trans);
+  line-height: 1;
+}
+.panel-collapse-btn:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+.left-panel.collapsed { width: 0 !important; min-width: 0 !important; overflow: hidden; border: none; }
+.info-panel.collapsed { width: 0 !important; min-width: 0 !important; overflow: hidden; border: none; }
+.log-panel.collapsed { height: 0 !important; min-height: 0 !important; overflow: hidden; border: none; }
