@@ -1941,8 +1941,8 @@ function bindPanelDelegation() {
     }
 
     // 堆类型
-    if (btn.id === 'btnMaxHeap') { State.heapType = 'max'; refreshHeapClasses(); rebuildHeap(); return; }
-    if (btn.id === 'btnMinHeap') { State.heapType = 'min'; refreshHeapClasses(); rebuildHeap(); return; }
+    if (btn.id === 'btnMaxHeap') { State.heapType = 'max'; refreshHeapClasses(); Renderer.render(); return; }
+    if (btn.id === 'btnMinHeap') { State.heapType = 'min'; refreshHeapClasses(); Renderer.render(); return; }
 
     // BST
     if (btn.id === 'btnBstInsert') { bstOp('insert'); return; }
@@ -2091,6 +2091,16 @@ function bindPanelTabs() {
       if (sec) sec.classList.add('active');
     });
   });
+}
+
+/* ============================================================
+   主题初始化
+   ============================================================ */
+function initTheme() {
+  const saved = localStorage.getItem('portal-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  const icon = document.getElementById('themeIcon');
+  if (icon) icon.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☽️' : '☀️';
 }
 
 /* ============================================================
