@@ -693,14 +693,14 @@
 .preview-row .preview-remove:hover { color: var(--danger); }
 
 /* ---------- 响应式 ---------- */
-/* 平板及以下：单列布局，上半内容自适应高度一次性呈现，下半占满剩余 */
+/* 平板及以下：单列布局，上半极致紧凑，下半占满剩余 */
 @media (max-width: 900px) {
   .ocr-shell {
     grid-template-columns: 1fr;
-    /* 上半 auto：按内容自适应高度，一次性呈现全部；下半 1fr：占满剩余 */
+    /* 上半 auto：按内容自适应；下半 1fr：占满剩余 */
     grid-template-rows: auto 1fr;
-    gap: 10px;
-    padding: 10px;
+    gap: 8px;
+    padding: 8px;
     height: 100%;
     overflow: hidden;
   }
@@ -709,12 +709,13 @@
   .ocr-rail {
     max-height: none;
     min-height: 0;
-    overflow-y: visible;           /* 不需要内部滚动 */
+    overflow-y: visible;
     overscroll-behavior: contain;
-    padding-right: 4px;
+    padding-right: 2px;
+    gap: 6px;
   }
 
-  /* 下半部分：结果区——占满剩余空间，内部结果可滚动 */
+  /* 下半部分：结果区——占满剩余空间 */
   .ocr-center {
     min-height: 0;
     overflow: hidden;
@@ -729,60 +730,103 @@
   #filePreviewWrap { flex-shrink: 0; }
 }
 
-/* 手机：隐藏拖拽区；紧凑布局，内容一次性呈现 */
+/* 手机：重构为紧凑移动端布局 */
 @media (max-width: 640px) {
-  .ocr-shell { padding: 8px; gap: 8px; }
+  .ocr-shell { padding: 6px; gap: 6px; }
 
-  /* 隐藏拖拽区（移动端无拖拽交互，改用拍照/上传按钮） */
+  /* 隐藏拖拽区（移动端无拖拽交互） */
   .upload-zone { display: none !important; }
 
-  /* 输入模式 Tab：保证最小高度与可点击区域 */
+  /* 输入面板：减小内边距，去掉多余间距 */
+  .ocr-input-panel { padding: 8px 10px; }
+  .ocr-input-panel .panel-hd { margin-bottom: 6px; }
+  .ocr-input-panel .panel-title { font-size: 12.5px; }
+
+  /* 模式切换 Tab：紧凑 */
+  .input-mode-tabs {
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+  }
   .input-mode-tab {
-    padding: 8px 8px;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    min-height: 30px;
+  }
+
+  /* 拍照/上传按钮：紧凑但保证可点击 */
+  .capture-buttons { margin-bottom: 6px; gap: 6px; }
+  .capture-btn {
+    padding: 8px 6px;
     font-size: 12px;
     min-height: 36px;
-  }
-  /* 拍照/上传按钮：保证最小高度，避免图标与文字挤压 */
-  .capture-btn {
-    padding: 9px 8px;
-    font-size: 12px;
-    min-height: 38px;
     flex-basis: 0;
     white-space: nowrap;
+    gap: 4px;
   }
-  /* 自定义指令输入框：保证最小高度 */
+
+  /* 预览缩略图：更小 */
+  #filePreviewWrap { margin-top: 6px; gap: 5px; }
+  .preview-thumb { width: 44px; height: 44px; }
+
+  /* 识别按钮栏：紧凑 */
+  .ocr-run-bar { padding: 7px 8px; gap: 6px; }
   .prompt-input {
-    min-height: 38px;
-    font-size: 12px;
+    min-height: 34px;
+    font-size: 11.5px;
+    padding: 6px 8px;
   }
-  /* 开始识别按钮：保证最小高度 */
   .run-ocr-btn {
-    padding: 10px 12px;
+    padding: 9px 12px;
     font-size: 12.5px;
-    min-height: 42px;
+    min-height: 38px;
   }
-  /* 内部 Tab：保证最小可点击区域 */
+
+  /* ===== 下半部分：结果区 ===== */
+  /* 状态栏：紧凑 */
+  .ribbon { padding: 5px 10px; min-height: 32px; margin: 2px 0 4px; }
+
+  /* 内容区：去掉外边框圆角过度 */
+  .ocr-content-area { border-radius: 10px; }
+
+  /* 内部 Tab：紧凑 */
+  .inner-tabs { padding: 5px 6px; }
   .inner-tab {
-    padding: 8px 10px;
-    font-size: 11.5px;
-    min-height: 34px;
-  }
-  /* 结果视图 Tab */
-  .result-view-tab {
-    padding: 8px 10px;
-    font-size: 11.5px;
-    min-height: 34px;
-  }
-  /* 结果操作按钮：保证最小高度 */
-  .result-action-btn {
     padding: 6px 10px;
     font-size: 11.5px;
     min-height: 30px;
   }
 
-  .result-wrapper { padding: 12px; }
-  .params-wrapper, .settings-wrapper { padding: 12px; }
-  .empty-examples { grid-template-columns: 1fr; }
+  /* 结果区：减小内边距 */
+  .result-wrapper { padding: 10px; }
+
+  /* 空状态：大幅缩小 padding，让示例一次性可见 */
+  .ocr-empty { padding: 16px 10px; height: auto; min-height: 0; }
+  .ocr-empty .empty-icon { font-size: 32px; margin-bottom: 6px; }
+  .ocr-empty h3 { font-size: 13px; margin-bottom: 4px; }
+  .ocr-empty p { font-size: 11px; margin-bottom: 10px; max-width: 100%; }
+  /* 示例网格：2 列紧凑，一次性呈现 */
+  .empty-examples {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    max-width: 100%;
+  }
+  .ex-item { padding: 6px 8px; font-size: 11px; gap: 4px; }
+  .ex-icon { font-size: 14px; }
+
+  /* 结果视图 Tab */
+  .result-view-tab {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    min-height: 30px;
+  }
+  /* 结果操作按钮 */
+  .result-action-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+    min-height: 28px;
+  }
+
+  .params-wrapper, .settings-wrapper { padding: 10px; }
   .param-table { font-size: 10.5px; }
   .param-code { font-size: 10px; }
   .doc-preview-name { font-size: 11px; }
@@ -790,7 +834,8 @@
 
 /* 超窄屏：进一步防挤压 */
 @media (max-width: 380px) {
-  .capture-btn { font-size: 11px; padding: 8px 6px; }
-  .input-mode-tab { font-size: 11px; padding: 8px 6px; }
-  .inner-tab { font-size: 11px; padding: 7px 8px; }
+  .capture-btn { font-size: 11px; padding: 7px 4px; }
+  .input-mode-tab { font-size: 11px; padding: 6px 6px; }
+  .inner-tab { font-size: 11px; padding: 5px 8px; }
+  .ex-item { padding: 5px 6px; font-size: 10.5px; }
 }
