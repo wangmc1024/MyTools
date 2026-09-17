@@ -2134,7 +2134,6 @@ function init() {
   });
   log('树结构可视化教学平台已加载', 'success');
   log('严蔚敏/王道 408 标准对齐，支持13类树结构', 'info');
-  log('请选择Tab并输入序列构建', 'info');
-  document.getElementById('inputSeq').value = '50,30,70,20,40,60,80';
+  log('请选择Tab，输入序列后点「构建」生成树', 'info');
 }
 document.addEventListener('DOMContentLoaded', init);
