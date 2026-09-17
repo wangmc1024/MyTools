@@ -457,13 +457,43 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
 }
 
 /* Info in tools section */
+.tool-section {
+  margin-bottom: 10px;
+}
+.tool-section:last-child {
+  margin-bottom: 0;
+}
+.tool-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tool-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
 .tool-hint {
   font-size: 11px;
   color: var(--text3);
   line-height: 1.65;
   padding: 6px 0;
-  border-top: 1px solid var(--border);
-  margin-top: 8px;
+}
+.tool-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 0;
 }
 
 /* ============================================================

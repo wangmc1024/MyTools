@@ -1631,20 +1631,18 @@ function switchType(type) {
   const specific = document.getElementById('specificBody');
   specific.innerHTML = '';
 
-  if (type === 'bst') {
-    specific.innerHTML = `
-      <div class="btn-row">
+  const TOOL_CONFIG = {
+    bst: {
+      ops: `<div class="btn-row">
         <input type="number" id="bstOpValue" placeholder="值" class="num-input">
         <button id="btnBstInsert" class="btn btn-accent">插入</button>
         <button id="btnBstDelete" class="btn btn-danger">删除</button>
         <button id="btnBstSearch" class="btn btn-secondary">查找</button>
-      </div>
-      <p class="tool-hint">BST：左小右大，插入为新叶子。删除度2节点时用后继替换值。</p>
-    `;
-
-  } else if (type === 'heap') {
-    specific.innerHTML = `
-      <div class="btn-row" style="justify-content:center;">
+      </div>`,
+      hint: 'BST：左小右大，插入为新叶子。删除度2节点时用后继替换值。',
+    },
+    heap: {
+      ops: `<div class="btn-row" style="justify-content:center;">
         <button id="btnMaxHeap" class="btn btn-accent">大根堆</button>
         <button id="btnMinHeap" class="btn btn-secondary">小根堆</button>
       </div>
@@ -1652,64 +1650,123 @@ function switchType(type) {
         <input type="number" id="heapOpVal" placeholder="插入值" class="num-input" style="width:70px;">
         <button id="btnHeapInsert" class="btn btn-primary">插入</button>
         <button id="btnHeapDel" class="btn btn-danger">删除根</button>
-      </div>
-      <p class="tool-hint">堆：完全二叉树+堆序。数组下标1开始，父 i 左 2i 右 2i+1。</p>
-    `;
-
-  } else if (type === 'avl') {
-    specific.innerHTML = `
-      <div class="btn-row">
+      </div>`,
+      hint: '堆：完全二叉树+堆序。数组下标1开始，父 i 左 2i 右 2i+1。',
+    },
+    avl: {
+      ops: `<div class="btn-row">
         <input type="number" id="avlOpValue" placeholder="插入值" class="num-input" style="width:70px;">
         <button id="btnAvlInsert" class="btn btn-accent">插入</button>
-      </div>
-      <p class="tool-hint">AVL 自动平衡。BF = 左高 - 右高 ∈ {-1,0,1}。插入后若 |BF|>1 自动旋转修复。四种情况：LL(右旋)、RR(左旋)、LR(先左后右)、RL(先右后左)。</p>
-    `;
-
-  } else if (type === 'rbtree') {
-    specific.innerHTML = `
-      <div class="btn-row">
+      </div>`,
+      hint: 'AVL 自动平衡。BF = 左高 - 右高 ∈ {-1,0,1}。插入后若 |BF|>1 自动旋转修复。四种情况：LL(右旋)、RR(左旋)、LR(先左后右)、RL(先右后左)。',
+    },
+    rbtree: {
+      ops: `<div class="btn-row">
         <input type="number" id="rbOpValue" placeholder="插入值" class="num-input" style="width:70px;">
         <button id="btnRbInsert" class="btn btn-accent">插入</button>
-      </div>
-      <p class="tool-hint">红黑树五大性质：①红/黑 ②根黑 ③叶子黑 ④红节点子必黑 ⑤路径黑高相同。插入为红，叔红变色上溯，叔黑旋转。</p>
-    `;
-
-  } else if (type === 'btree' || type === 'bplustree' || type === 'bstar') {
-    const labels = { btree: 'B树', bplustree: 'B+树', bstar: 'B*树' };
-    specific.innerHTML = `
-      <div class="btn-row" style="justify-content:center;gap:12px;">
+      </div>`,
+      hint: '红黑树五大性质：①红/黑 ②根黑 ③叶子黑 ④红节点子必黑 ⑤路径黑高相同。插入为红，叔红变色上溯，叔黑旋转。',
+    },
+    btree: {
+      ops: `<div class="btn-row" style="justify-content:center;gap:12px;">
         <button id="btnDecOrder" class="btn btn-secondary">−</button>
         <span id="orderDisplay" class="order-display">m = ${State.btreeOrder}</span>
         <button id="btnIncOrder" class="btn btn-secondary">+</button>
-      </div>
-      <p class="tool-hint">${labels[type]}阶数m=${State.btreeOrder}。关键字范围：非根 ⌈m/2⌉-1 ~ m-1，根 1 ~ m-1。满则分裂，缺则合并。</p>
-    `;
-
-  } else if (type === 'disjoint') {
-    specific.innerHTML = `
-      <div class="btn-row">
+      </div>`,
+      hint: `B树阶数m=${State.btreeOrder}。关键字范围：非根 ⌈m/2⌉-1 ~ m-1，根 1 ~ m-1。满则分裂，缺则合并。`,
+    },
+    bplustree: {
+      ops: `<div class="btn-row" style="justify-content:center;gap:12px;">
+        <button id="btnDecOrder" class="btn btn-secondary">−</button>
+        <span id="orderDisplay" class="order-display">m = ${State.btreeOrder}</span>
+        <button id="btnIncOrder" class="btn btn-secondary">+</button>
+      </div>`,
+      hint: `B+树阶数m=${State.btreeOrder}。所有关键字存储在叶子节点，叶子节点用指针链接。非叶子节点仅作为索引。`,
+    },
+    bstar: {
+      ops: `<div class="btn-row" style="justify-content:center;gap:12px;">
+        <button id="btnDecOrder" class="btn btn-secondary">−</button>
+        <span id="orderDisplay" class="order-display">m = ${State.btreeOrder}</span>
+        <button id="btnIncOrder" class="btn btn-secondary">+</button>
+      </div>`,
+      hint: `B*树阶数m=${State.btreeOrder}。节点关键字数下限为 ⌈3m/2⌉-1（B树为 ⌈m/2⌉-1），更紧密填充，减少分裂概率。`,
+    },
+    disjoint: {
+      ops: `<div class="btn-row">
         <input type="number" id="ufX" placeholder="x" class="num-input">
         <input type="number" id="ufY" placeholder="y" class="num-input">
         <button id="btnUnion" class="btn btn-accent">Union</button>
         <button id="btnFind" class="btn btn-secondary">Find</button>
-      </div>
-      <p class="tool-hint">并查集：parent[] 数组表示森林。Union 合并两棵树，Find 查根并路径压缩。</p>
-    `;
+      </div>`,
+      hint: '并查集：parent[] 数组表示森林。Union 合并两棵树，Find 查根并路径压缩。',
+    },
+    threaded: {
+      ops: null,
+      hint: '线索二叉树：利用 n+1 个空链域存储前驱/后继。ltag/rtag 区分孩子指针(0)与线索(1)。实线=孩子，虚线=线索。',
+    },
+    forest: {
+      ops: null,
+      hint: '森林：m≥0 棵互不相交树的集合。树与二叉树转换：左孩子右兄弟法。先根遍历↔二叉树先序，后根遍历↔二叉树中序。',
+    },
+  };
 
-  } else if (type === 'threaded') {
-    specific.innerHTML = `<p class="tool-hint">线索二叉树：利用 n+1 个空链域存储前驱/后继。ltag/rtag 区分孩子指针(0)与线索(1)。实线=孩子，虚线=线索。</p>`;
+  // 通用操作（所有类型可用）
+  const commonOps = `
+    <div class="btn-row">
+      <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误演示</button>
+      <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比</button>
+    </div>`;
+  const commonHint = '错误演示：生成非法结构让学生识别。对比模式：同序列 BST/AVL/红黑树高度对比。';
 
-  } else if (type === 'forest') {
-    specific.innerHTML = `<p class="tool-hint">森林：m≥0 棵互不相交树的集合。树与二叉树转换：左孩子右兄弟法。先根遍历↔二叉树先序，后根遍历↔二叉树中序。</p>`;
+  // 获取当前类型的工具配置
+  const cfg = TOOL_CONFIG[type] || { ops: null, hint: '' };
 
+  // 渲染「可用操作」区块
+  const opsSection = document.createElement('div');
+  opsSection.className = 'tool-section';
+  const opsTitle = document.createElement('div');
+  opsTitle.className = 'tool-section-title';
+  opsTitle.textContent = '可用操作';
+  opsSection.appendChild(opsTitle);
+  const opsBody = document.createElement('div');
+  opsBody.className = 'sec-body';
+  opsBody.style.padding = '0';
+  if (cfg.ops) {
+    opsBody.innerHTML = cfg.ops;
   } else {
-    specific.innerHTML = `
-      <div class="btn-row">
-        <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误演示</button>
-        <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比</button>
-      </div>
-      <p class="tool-hint">错误演示：生成非法结构。对比模式：同序列 BST/AVL/红黑树高度对比。</p>
-    `;
+    opsBody.innerHTML = `<p class="tool-empty">此结构无专属操作按钮，通过输入序列构建后在画布上交互。</p>`;
+  }
+  opsSection.appendChild(opsBody);
+  specific.appendChild(opsSection);
+
+  // 渲染「知识点提示」区块
+  const hintSection = document.createElement('div');
+  hintSection.className = 'tool-section';
+  const hintTitle = document.createElement('div');
+  hintTitle.className = 'tool-section-title';
+  hintTitle.textContent = '知识点提示';
+  hintSection.appendChild(hintTitle);
+  const hintBody = document.createElement('div');
+  hintBody.className = 'sec-body';
+  hintBody.style.padding = '0';
+  hintBody.innerHTML = `<p class="tool-hint">${cfg.hint}</p>`;
+  hintSection.appendChild(hintBody);
+  specific.appendChild(hintSection);
+
+  // 通用操作区块（仅在配置中没有 hint 时才显示）
+  if (cfg.hint !== commonHint) {
+    const genSection = document.createElement('div');
+    genSection.className = 'tool-section';
+    const genTitle = document.createElement('div');
+    genTitle.className = 'tool-section-title';
+    genTitle.textContent = '通用演示';
+    genSection.appendChild(genTitle);
+    const genBody = document.createElement('div');
+    genBody.className = 'sec-body';
+    genBody.style.padding = '0';
+    genBody.innerHTML = `<div class="btn-row">${commonOps}</div><p class="tool-hint">${commonHint}</p>`;
+    genSection.appendChild(genBody);
+    specific.appendChild(genSection);
   }
 
   log(`切换到 ${KNOWLEDGE[type].name}`, 'action');
