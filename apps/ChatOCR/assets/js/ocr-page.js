@@ -1031,26 +1031,122 @@ function bindInnerTabs() {
 }
 
 /* ---------- 摄像头 ---------- */
+/**
+ * 检测是否为移动端（用于决定是否优先调用原生相机）
+ */
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 900px)').matches);
+}
+
+/**
+ * 调用移动端原生相机捕获（通过 <input capture>）
+ * 优点：系统原生相机 UI，方向/旋转由系统自动处理，无镜像/倒置问题
+ * @returns {Promise<boolean>} 是否成功触发原生捕获
+ */
+function captureViaNativeCamera() {
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    // capture 属性：'environment' 后置 / 'user' 前置
+    input.setAttribute('capture', ocrState.currentFacing === 'user' ? 'user' : 'environment');
+
+    let settled = false;
+    const cleanup = () => {
+      input.remove();
+      window.removeEventListener('focus', onFocus);
+    };
+    // 用户取消时（焦点回到窗口但没选文件）
+    const onFocus = () => {
+      setTimeout(() => {
+        if (!settled && !input.files?.length) {
+          settled = true;
+          cleanup();
+          resolve(false);
+        }
+      }, 300);
+    };
+
+    input.onchange = () => {
+      settled = true;
+      cleanup();
+      const file = input.files?.[0];
+      if (!file) { resolve(false); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        ocrState.pendingImage = {
+          dataUrl: reader.result,
+          name: `camera-${Date.now()}.jpg`,
+          size: file.size,
+          mime: file.type || 'image/jpeg'
+        };
+        renderFilePreview();
+        toast('已拍照');
+        resolve(true);
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsDataURL(file);
+    };
+
+    // 必须挂到 DOM 才能在部分浏览器触发
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    window.addEventListener('focus', onFocus);
+    input.click();
+  });
+}
+
+/**
+ * 打开 WebRTC 摄像头预览（桌面端或原生捕获不可用时使用）
+ */
 async function openCamera() {
   const modal = $('#cameraModal');
   const video = $('#cameraVideo');
   const select = $('#cameraSelect');
   const hint = $('#cameraHint');
   if (!modal || !video) return;
+
+  // 移动端优先尝试原生相机捕获
+  if (isMobileDevice()) {
+    hint.textContent = '';
+    const ok = await captureViaNativeCamera();
+    if (ok) return;
+    // 原生捕获失败（用户取消或不支持），回退到 WebRTC
+  }
+
   modal.classList.add('active');
   hint.textContent = '正在请求摄像头权限…';
 
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter(d => d.kind === 'videoinput');
-    select.innerHTML = videoDevices.map((d, i) =>
-      `<option value="${i}">${d.label || '摄像头 ' + (i + 1)}</option>`).join('');
+    if (select) {
+      select.innerHTML = videoDevices.map((d, i) =>
+        `<option value="${i}">${d.label || '摄像头 ' + (i + 1)}</option>`).join('');
+    }
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: ocrState.currentFacing }
+      video: {
+        facingMode: ocrState.currentFacing,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
     });
     ocrState.cameraStream = stream;
     video.srcObject = stream;
+    await video.play().catch(() => {});
+
+    // 根据实际摄像头方向决定是否镜像
+    // 仅前置摄像头（user）镜像以符合自拍习惯；后置（environment）保持原始方向
+    const track = stream.getVideoTracks()[0];
+    const settings = track?.getSettings?.() || {};
+    const actualFacing = settings.facingMode || ocrState.currentFacing;
+    video.classList.toggle('mirror', actualFacing === 'user');
+    // 记入实际方向，供 captureShot 使用
+    ocrState._actualFacing = actualFacing;
+
     hint.textContent = '';
   } catch (e) {
     hint.textContent = '无法访问摄像头：' + (e.message || '权限被拒绝');
@@ -1063,21 +1159,34 @@ function closeCamera() {
     ocrState.cameraStream.getTracks().forEach(t => t.stop());
     ocrState.cameraStream = null;
   }
+  const video = $('#cameraVideo');
+  if (video) {
+    video.srcObject = null;
+    video.classList.remove('mirror');
+  }
   if (modal) modal.classList.remove('active');
 }
 
+/**
+ * 从 video 元素捕获一帧到 canvas
+ * 处理：仅前置摄像头镜像翻转；后置摄像头保持原始方向
+ */
 async function captureShot() {
   const video = $('#cameraVideo');
   const canvas = $('#cameraCanvas');
   if (!video || !canvas) return;
   const w = video.videoWidth;
   const h = video.videoHeight;
+  if (!w || !h) { toast('视频未就绪'); return; }
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  // 镜像翻转（与预览一致）
-  ctx.translate(w, 0);
-  ctx.scale(-1, 1);
+  // 仅前置摄像头（自拍）才镜像绘制，与预览的 .mirror class 保持一致
+  const isMirror = video.classList.contains('mirror');
+  if (isMirror) {
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+  }
   ctx.drawImage(video, 0, 0, w, h);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
   ocrState.pendingImage = { dataUrl, name: `camera-${Date.now()}.jpg`, size: Math.round(dataUrl.length * 0.75), mime: 'image/jpeg' };
@@ -1086,10 +1195,47 @@ async function captureShot() {
   toast('已拍照');
 }
 
+/**
+ * 切换前后摄像头
+ * 注意：不关闭模态框，避免闪烁；只切换流
+ */
 async function switchCamera() {
   ocrState.currentFacing = ocrState.currentFacing === 'environment' ? 'user' : 'environment';
-  closeCamera();
-  await openCamera();
+  // 移动端原生捕获模式：直接重新调用原生相机
+  if (isMobileDevice() && !ocrState.cameraStream) {
+    await captureViaNativeCamera();
+    return;
+  }
+  // WebRTC 模式：只切换流，不关闭模态框
+  if (ocrState.cameraStream) {
+    ocrState.cameraStream.getTracks().forEach(t => t.stop());
+    ocrState.cameraStream = null;
+  }
+  const video = $('#cameraVideo');
+  const hint = $('#cameraHint');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: ocrState.currentFacing,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
+    });
+    ocrState.cameraStream = stream;
+    if (video) {
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      const track = stream.getVideoTracks()[0];
+      const settings = track?.getSettings?.() || {};
+      const actualFacing = settings.facingMode || ocrState.currentFacing;
+      video.classList.toggle('mirror', actualFacing === 'user');
+      ocrState._actualFacing = actualFacing;
+    }
+    if (hint) hint.textContent = '';
+  } catch (e) {
+    if (hint) hint.textContent = '切换摄像头失败：' + (e.message || '权限被拒绝');
+  }
 }
 
 /* ---------- 侧栏抽屉（移动端） ---------- */

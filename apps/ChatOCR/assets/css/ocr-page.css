@@ -22,8 +22,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 0;
+  min-height: 0;          /* 允许在 flex/grid 中收缩，使 overflow-y 生效 */
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding-right: 2px;
 }
 .ocr-rail::-webkit-scrollbar { width: 6px; }
@@ -531,8 +533,11 @@
   max-width: 560px;
   border-radius: 10px;
   background: #000;
-  transform: scaleX(-1);
+  object-fit: cover;
+  /* 不再强制 scaleX(-1)；镜像由 .mirror class 按前置/后置动态添加 */
 }
+/* 仅前置摄像头（自拍）才镜像，符合用户习惯；后置摄像头保持原始方向 */
+#cameraVideo.mirror { transform: scaleX(-1); }
 .camera-controls {
   display: flex;
   align-items: center;
@@ -688,27 +693,101 @@
 .preview-row .preview-remove:hover { color: var(--danger); }
 
 /* ---------- 响应式 ---------- */
+/* 平板及以下：单列布局，上下两个独立滚动容器均分剩余高度 */
 @media (max-width: 900px) {
   .ocr-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;   /* 上下均分，避免 max-height: 50vh 造成的不稳定 */
     gap: 10px;
     padding: 10px;
+    height: 100%;                  /* 撑满父级 flex 剩余空间 */
+    overflow: hidden;
   }
+
+  /* 上半部分：图像输入栏（独立局部滚动） */
   .ocr-rail {
-    max-height: 50vh;
+    max-height: none;              /* 取消 50vh 限制，交给 grid 行高控制 */
+    min-height: 0;                 /* 允许在 grid/flex 中收缩 */
+    overflow-y: auto;
+    overscroll-behavior: contain;  /* 防止滚动穿透到外层 */
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
   }
+
+  /* 下半部分：结果区（独立局部滚动） */
+  .ocr-center {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* 输入栏内部：所有控件保持固有尺寸，不被压缩 */
+  .ocr-input-panel { flex-shrink: 0; }
+  .ocr-run-bar { flex-shrink: 0; }
+  .input-mode-tabs { flex-shrink: 0; }
+  .capture-buttons { flex-shrink: 0; }
+  .upload-zone { flex-shrink: 0; }
+  #filePreviewWrap { flex-shrink: 0; }
 }
 
+/* 手机：进一步紧凑，但保持控件最小可用尺寸，避免挤压 */
 @media (max-width: 640px) {
   .ocr-shell { padding: 8px; gap: 8px; }
-  .input-mode-tab { padding: 6px 8px; font-size: 11.5px; }
-  .capture-btn { padding: 8px; font-size: 11.5px; }
-  .run-ocr-btn { padding: 9px 12px; font-size: 12.5px; }
-  .inner-tab { padding: 5px 9px; font-size: 11px; }
+
+  /* 输入模式 Tab：保证最小高度与可点击区域 */
+  .input-mode-tab {
+    padding: 8px 8px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+  /* 拍照/上传按钮：保证最小高度，避免图标与文字挤压 */
+  .capture-btn {
+    padding: 9px 8px;
+    font-size: 12px;
+    min-height: 38px;
+    flex-basis: 0;          /* 配合 flex:1 真正均分 */
+    white-space: nowrap;
+  }
+  /* 自定义指令输入框：保证最小高度 */
+  .prompt-input {
+    min-height: 38px;
+    font-size: 12px;
+  }
+  /* 开始识别按钮：保证最小高度 */
+  .run-ocr-btn {
+    padding: 10px 12px;
+    font-size: 12.5px;
+    min-height: 42px;
+  }
+  /* 内部 Tab：保证最小可点击区域 */
+  .inner-tab {
+    padding: 8px 10px;
+    font-size: 11.5px;
+    min-height: 34px;
+  }
+  /* 结果视图 Tab */
+  .result-view-tab {
+    padding: 8px 10px;
+    font-size: 11.5px;
+    min-height: 34px;
+  }
+  /* 结果操作按钮：保证最小高度 */
+  .result-action-btn {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    min-height: 30px;
+  }
+
   .result-wrapper { padding: 12px; }
   .params-wrapper, .settings-wrapper { padding: 12px; }
   .empty-examples { grid-template-columns: 1fr; }
   .param-table { font-size: 10.5px; }
   .param-code { font-size: 10px; }
   .doc-preview-name { font-size: 11px; }
+}
+
+/* 超窄屏：进一步防挤压 */
+@media (max-width: 380px) {
+  .capture-btn { font-size: 11px; padding: 8px 6px; }
+  .input-mode-tab { font-size: 11px; padding: 8px 6px; }
+  .inner-tab { font-size: 11px; padding: 7px 8px; }
 }
