@@ -1178,9 +1178,10 @@ const Renderer = {
     line.setAttribute('y1', from.y);
     line.setAttribute('x2', to.x);
     line.setAttribute('y2', to.y);
+    const colorKey = options && (options.edgeColorKey || options.colorKey);
     const cls = [
       'edge-line',
-      options && options.edgeColorKey ? 'edge-type-' + options.edgeColorKey : '',
+      colorKey ? 'edge-type-' + colorKey : '',
       (to.state === 'visited' || from.state === 'visited') ? 'active' : ''
     ].filter(Boolean).join(' ');
     line.setAttribute('class', cls);
