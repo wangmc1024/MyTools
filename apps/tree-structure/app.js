@@ -1823,10 +1823,41 @@ function generateWrongDemo() {
   const type = State.currentType;
   log('【错误演示】生成非法结构让学生识别', 'action');
 
-  if (type === 'bst') {
+  if (type === 'binary') {
+    // 普通二叉树：左右子树值颠倒（左大右小，违反直觉）
     const root = makeNode(50);
-    root.left = makeNode(70);  // 错！70 > 50
-    root.right = makeNode(30); // 错！30 < 50
+    root.left = makeNode(70);
+    root.right = makeNode(30);
+    root.left.parent = root; root.right.parent = root;
+    State.tree = root;
+    log('生成错误二叉树：左子70 > 根50 > 右子30，左右子树值颠倒（普通二叉树虽无排序性质，但此布局易与BST混淆）', 'error');
+  } else if (type === 'perfect') {
+    // 满二叉树：缺少一个叶子，不是满二叉树
+    const root = makeNode(1);
+    root.left = makeNode(2); root.right = makeNode(3);
+    root.left.left = makeNode(4); root.left.right = makeNode(5);
+    root.right.left = makeNode(6);
+    // right.right 缺失 → 不是满二叉树
+    root.left.parent = root; root.right.parent = root;
+    root.left.left.parent = root.left; root.left.right.parent = root.left;
+    root.right.left.parent = root.right;
+    State.tree = root;
+    log('生成非满二叉树：右子节点3缺少右孩子，叶子不在同一层（满二叉树要求所有叶子同层）', 'error');
+  } else if (type === 'complete') {
+    // 非完全二叉树：最后一层右侧有节点但左侧空缺
+    const root = makeNode(1);
+    root.left = makeNode(2); root.right = makeNode(3);
+    root.left.left = null;
+    root.left.right = makeNode(5);
+    root.right.left = makeNode(6); root.right.right = makeNode(7);
+    root.left.parent = root; root.right.parent = root;
+    root.right.left.parent = root.right; root.right.right.parent = root.right;
+    State.tree = root;
+    log('生成非完全二叉树：最后一层不连续，节点5前有空位（完全二叉树要求从左到右连续填充）', 'error');
+  } else if (type === 'bst') {
+    const root = makeNode(50);
+    root.left = makeNode(70);
+    root.right = makeNode(30);
     root.left.parent = root; root.right.parent = root;
     State.tree = root;
     log('生成错误BST：左孩子70 > 根50，违反左小右大', 'error');
@@ -1836,25 +1867,49 @@ function generateWrongDemo() {
     root.left.left = makeNode(5);
     root.left.left.left = makeNode(2);
     State.tree = root;
-    log('生成失衡AVL：左子树过高，BF>1', 'error');
-  } else if (type === 'complete') {
-    const root = makeNode(1);
-    root.left = makeNode(2);
-    root.right = makeNode(3);
-    root.left.left = null;
-    root.left.right = makeNode(5);
-    State.tree = root;
-    log('生成非完全二叉树：最后一层不连续', 'error');
+    log('生成失衡AVL：左子树过高，BF = 3 > 1', 'error');
   } else if (type === 'heap') {
     State.heapArr = [null, 3, 10, 5, 20];
     State.tree = HeapOps.arrayToTree(State.heapArr);
-    log('生成错误大根堆：节点3的子节点10>3', 'error');
+    log('生成错误大根堆：节点3的子节点10>3，违反堆序', 'error');
   } else if (type === 'rbtree') {
     const root = makeNode(10); root.color = 'black';
     root.left = makeNode(5); root.left.color = 'red';
     root.left.left = makeNode(2); root.left.left.color = 'red';
     State.tree = root;
-    log('生成错误红黑树：连续红节点（违反性质④）', 'error');
+    log('生成错误红黑树：连续红节点（违反性质④：红节点子必黑）', 'error');
+  } else if (type === 'threaded') {
+    // 线索二叉树：线索方向错误
+    const root = makeNode(50);
+    const left = makeNode(30);
+    const right = makeNode(70);
+    root.left = left; root.right = right;
+    left.parent = root; right.parent = root;
+    // 错误：中序遍历应为 30→50→70，但30的rthread直接指向70（跳过50）
+    left.state = 'threaded'; left.right = right; left.rtag = 1;
+    right.state = 'threaded'; right.left = left; left.ltag = 1;
+    State.tree = root;
+    log('生成错误线索二叉树：30的后继线索错误指向70，跳过中序中间节点50', 'error');
+  } else if (type === 'btree' || type === 'bplustree' || type === 'bstar') {
+    const labels = { btree: 'B树', bplustree: 'B+树', bstar: 'B*树' };
+    const m = State.btreeOrder;
+    // 构建关键字数超标的节点（关键字数 = m，上限应为 m-1）
+    const keys = [];
+    for (let i = 0; i < m; i++) keys.push(i + 1);
+    State.tree = { keyCount: keys.length, maxKeys: m - 1, keys, children: [] };
+    State.tree.keys = keys;
+    log(`生成错误${labels[type]}：节点含${keys.length}个关键字，超过阶数m=${m}的上限${m - 1}，应触发分裂`, 'error');
+  } else if (type === 'forest') {
+    // 森林：两棵树之间建立了连接
+    const t1 = makeNode(1);
+    const t2 = makeNode(10);
+    t1.right = null; // 左孩子右兄弟法中右兄弟不应存在
+    State.tree = [t1, t2];
+    log('生成错误森林：两棵树间存在连接，破坏森林定义（互不相交）', 'error');
+  } else if (type === 'disjoint') {
+    // 并查集：部分元素孤立，本应合并
+    State.unionFind = { elements: [1, 2, 3, 4, 5], parent: [0, 1, 2, 3, 4, 5] };
+    log('生成错误并查集：元素2、3各自为根未合并，但本应属于同一集合', 'error');
   } else {
     log('当前结构无错误演示模板，可手动双击节点修改制造错误', 'warn');
   }
