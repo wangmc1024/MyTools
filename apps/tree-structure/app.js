@@ -1281,6 +1281,9 @@ const Renderer = {
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('transform', `translate(${node.x},${node.y})`);
     g.setAttribute('data-node-id', node.id);
+    // 错误示例节点：加 error-node 类（红色高亮）
+    if (options.isError || node._isErrorNode) g.setAttribute('class', 'node-group error-node');
+    else g.setAttribute('class', 'node-group');
 
     const circle = document.createElementNS(NS, 'circle');
     circle.setAttribute('r', '18');
@@ -1708,25 +1711,28 @@ const Renderer = {
     trees.forEach((item, treeIdx) => {
       if (!item) return;
       const treeType = item.type;
+      const isError = !!item.isError;
 
       // B树系列：暂不参与多树并存绘制（避免清屏式覆盖）
       if (treeType === 'btree' || treeType === 'bplustree' || treeType === 'bstar') return;
 
       const dx = 20 + treeIdx * (groupW + groupGap);
       const dy = 20;
-      const label = KNOWLEDGE[treeType]?.name || treeType;
-      // 每棵树分配不同淡色
-      const palette = MULTI_TREE_PALETTE[treeIdx % MULTI_TREE_PALETTE.length];
+      const label = isError ? `✗ ${KNOWLEDGE[treeType]?.name || treeType}（错误）` : (KNOWLEDGE[treeType]?.name || treeType);
+      // 错误树用红色系，正常树用多树淡色
+      const palette = isError
+        ? { stroke: '#f05252', fill: 'rgba(240,82,82,0.15)' }
+        : MULTI_TREE_PALETTE[treeIdx % MULTI_TREE_PALETTE.length];
 
       if (treeType === 'disjoint') {
         const forest = item.unionFind ? UnionFindOps.buildForest(item.unionFind) : [];
         forest.forEach((r, j) => {
           if (!r) return;
           layoutAndMark(r, dx + j * 180, dy, treeIdx, treeType);
-          const opts = { colorKey: treeType, palette, treeLabel: label };
+          const opts = { colorKey: treeType, palette, treeLabel: label, isError };
           this.drawBinary(r, opts);
         });
-        this._drawTreeLabel(label, dx, dy - 8, palette);
+        this._drawTreeLabel(label, dx, dy - 8, palette, treeIdx, isError);
         return;
       }
 
@@ -1734,23 +1740,23 @@ const Renderer = {
         const roots = Array.isArray(item.tree) ? item.tree : (item.tree ? [item.tree] : []);
         roots.forEach((r, j) => {
           layoutAndMark(r, dx + j * 180, dy, treeIdx, treeType);
-          const opts = { colorKey: treeType, palette, treeLabel: label };
+          const opts = { colorKey: treeType, palette, treeLabel: label, isError };
           this.drawBinary(r, opts);
         });
-        this._drawTreeLabel(label, dx, dy - 8, palette);
+        this._drawTreeLabel(label, dx, dy - 8, palette, treeIdx, isError);
         return;
       }
 
       const root = item.tree;
       if (!root) return;
       layoutAndMark(root, dx, dy, treeIdx, treeType);
-      const opts = { colorKey: treeType, palette, treeLabel: label };
+      const opts = { colorKey: treeType, palette, treeLabel: label, isError };
       if (treeType === 'avl') opts.showBF = true;
       if (treeType === 'rbtree') opts.redBlack = true;
       if (treeType === 'threaded') opts.threaded = true;
       this.drawBinary(root, opts);
       // 树标签
-      this._drawTreeLabel(label, dx, dy - 8, palette);
+      this._drawTreeLabel(label, dx, dy - 8, palette, treeIdx, isError);
     });
 
     // 自动居中
@@ -1759,35 +1765,216 @@ const Renderer = {
     State.view.y = 0;
     State.view.scale = 1;
     this.applyTransform();
+
+    // 渲染完成后，为所有错误树补画错误标注
+    trees.forEach((item, treeIdx) => {
+      if (item && item.isError && item.errorMsg) {
+        this._drawErrorAnnotation(treeIdx, item.errorMsg);
+      }
+    });
   },
 
-  /* 绘制多树并存时的树标签（带淡色背景药丸） */
-  _drawTreeLabel(text, x, y, palette) {
+  /* 绘制多树并存时的树标签（带淡色背景药丸，可拖拽移动整棵树） */
+  _drawTreeLabel(text, x, y, palette, treeIdx, isError) {
     const NS = 'http://www.w3.org/2000/svg';
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('transform', `translate(${x},${y})`);
-    // 背景药丸
-    const tw = text.length * 8 + 16;
+    g.setAttribute('class', 'tree-legend-group' + (isError ? ' error-legend' : ''));
+    g.setAttribute('data-tree-idx', treeIdx);
+    g.style.cursor = 'move';
+    // 背景药丸：用 getBBox 精确测量后回填，先用估算值
+    // 中文字符约 13px，英文约 8px，取加权平均
+    const cjkCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const otherCount = text.length - cjkCount;
+    const tw = cjkCount * 14 + otherCount * 8 + 24;
     const rect = document.createElementNS(NS, 'rect');
-    rect.setAttribute('x', -4);
-    rect.setAttribute('y', -12);
+    rect.setAttribute('x', -6);
+    rect.setAttribute('y', -14);
     rect.setAttribute('width', tw);
-    rect.setAttribute('height', 18);
-    rect.setAttribute('rx', 9);
-    rect.setAttribute('ry', 9);
+    rect.setAttribute('height', 22);
+    rect.setAttribute('rx', 11);
+    rect.setAttribute('ry', 11);
     rect.setAttribute('fill', palette.fill);
     rect.setAttribute('stroke', palette.stroke);
-    rect.setAttribute('stroke-width', 1);
+    rect.setAttribute('stroke-width', 1.2);
     g.appendChild(rect);
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('class', 'multi-tree-label');
-    t.setAttribute('x', tw / 2 - 4);
-    t.setAttribute('y', 1);
+    t.setAttribute('x', tw / 2 - 6);
+    t.setAttribute('y', 0);
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dominant-baseline', 'central');
     t.setAttribute('fill', palette.stroke);
     t.textContent = text;
     g.appendChild(t);
+    // 绑定拖拽：按住图例移动整棵树
+    this._bindLegendDrag(g, treeIdx);
+    this.labelsLayer.appendChild(g);
+    // 入列后用 getBBox 精确回填宽度，确保背景框完全覆盖文字
+    try {
+      const bbox = t.getBBox();
+      const padX = 10, padY = 4;
+      rect.setAttribute('x', bbox.x - padX);
+      rect.setAttribute('y', bbox.y - padY);
+      rect.setAttribute('width', bbox.width + padX * 2);
+      rect.setAttribute('height', bbox.height + padY * 2);
+      rect.setAttribute('rx', (bbox.height + padY * 2) / 2);
+      rect.setAttribute('ry', (bbox.height + padY * 2) / 2);
+      t.setAttribute('x', bbox.x + bbox.width / 2);
+    } catch (e) { /* getBBox 在未渲染时可能失败，保留估算值 */ }
+  },
+
+  /* 绑定图例拖拽：拖动图例平移整棵树（含所有节点、边、图例自身） */
+  _bindLegendDrag(g, treeIdx) {
+    let dragging = false, startMouse = null, startNodePositions = null, startLegendX = 0, startLegendY = 0;
+    const onDown = (e) => {
+      // 仅响应主键
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      dragging = true;
+      const pt = this._svgPoint(e.clientX, e.clientY);
+      startMouse = { x: pt.x, y: pt.y };
+      // 记入当前 view 缩放
+      startMouse.x /= State.view.scale || 1;
+      startMouse.y /= State.view.scale || 1;
+      const tr = g.getAttribute('transform').match(/translate\(([-\d.]+),([-\d.]+)\)/);
+      startLegendX = parseFloat(tr[1]); startLegendY = parseFloat(tr[2]);
+      // 收集该树所有节点的起始坐标
+      startNodePositions = new Map();
+      const item = State.trees && State.trees[treeIdx];
+      if (!item) return;
+      const collect = (n) => {
+        if (!n) return;
+        startNodePositions.set(n, { x: n.x, y: n.y });
+        if (n.ltag === 0) collect(n.left);
+        if (n.rtag === 0) collect(n.right);
+      };
+      if (item.type === 'disjoint' && item.unionFind) {
+        UnionFindOps.buildForest(item.unionFind).forEach(r => collect(r));
+      } else if (item.type === 'forest') {
+        const roots = Array.isArray(item.tree) ? item.tree : (item.tree ? [item.tree] : []);
+        roots.forEach(r => collect(r));
+      } else {
+        collect(item.tree);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const pt = this._svgPoint(e.clientX, e.clientY);
+      pt.x /= State.view.scale || 1; pt.y /= State.view.scale || 1;
+      const dx = pt.x - startMouse.x, dy = pt.y - startMouse.y;
+      // 更新所有节点坐标
+      for (const [n, p] of startNodePositions) {
+        n.x = p.x + dx; n.y = p.y + dy;
+      }
+      // 移动图例自身
+      g.setAttribute('transform', `translate(${startLegendX + dx},${startLegendY + dy})`);
+      // 重画（只重绘边和节点，不重新 layout）
+      this._redrawAfterTreeMove();
+    };
+    const onUp = () => {
+      dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    g.addEventListener('mousedown', onDown);
+  },
+
+  /* 树被拖动后，仅重绘边和节点（不重新 layout，保留新坐标） */
+  _redrawAfterTreeMove() {
+    // 清空边和节点层，保留 labelsLayer（图例自身已手动移动）
+    this.edgesLayer.innerHTML = '';
+    this.nodesLayer.innerHTML = '';
+    this.threadsLayer.innerHTML = '';
+    // 重新绘制所有树（用节点当前坐标，不调 layoutBinary）
+    const trees = State.trees;
+    if (!trees || !trees.length) return;
+    trees.forEach((item, treeIdx) => {
+      if (!item) return;
+      const treeType = item.type;
+      if (treeType === 'btree' || treeType === 'bplustree' || treeType === 'bstar') return;
+      const isError = !!item.isError;
+      const palette = isError
+        ? { stroke: '#f05252', fill: 'rgba(240,82,82,0.15)' }
+        : MULTI_TREE_PALETTE[treeIdx % MULTI_TREE_PALETTE.length];
+      const label = isError ? `✗ ${KNOWLEDGE[treeType]?.name || treeType}（错误）` : (KNOWLEDGE[treeType]?.name || treeType);
+      const opts = { colorKey: treeType, palette, treeLabel: label, isError };
+      if (treeType === 'avl') opts.showBF = true;
+      if (treeType === 'rbtree') opts.redBlack = true;
+      if (treeType === 'threaded') opts.threaded = true;
+      if (treeType === 'disjoint') {
+        const forest = item.unionFind ? UnionFindOps.buildForest(item.unionFind) : [];
+        forest.forEach(r => { if (r) this.drawBinary(r, opts); });
+      } else if (treeType === 'forest') {
+        const roots = Array.isArray(item.tree) ? item.tree : (item.tree ? [item.tree] : []);
+        roots.forEach(r => { if (r) this.drawBinary(r, opts); });
+      } else {
+        if (item.tree) this.drawBinary(item.tree, opts);
+      }
+    });
+  },
+
+  /* 将屏幕坐标转换为 SVG 内容坐标（考虑 view transform） */
+  _svgPoint(clientX, clientY) {
+    const pt = this.svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const ctm = this.svg.getScreenCTM();
+    if (ctm) {
+      const inv = ctm.inverse();
+      const p = pt.matrixTransform(inv);
+      return { x: p.x - State.view.x, y: p.y - State.view.y };
+    }
+    return { x: clientX, y: clientY };
+  },
+
+  /* 在画布上绘制错误说明标注（红色文字 + 淡红背景） */
+  _drawErrorAnnotation(treeIdx, msg) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const item = State.trees[treeIdx];
+    if (!item) return;
+    // 找到该树的边界（取所有节点坐标的最小 y 作为标注位置）
+    let minX = Infinity, minY = Infinity, maxX = -Infinity;
+    const collect = (n) => {
+      if (!n) return;
+      if (n.x < minX) minX = n.x;
+      if (n.x > maxX) maxX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.ltag === 0) collect(n.left);
+      if (n.rtag === 0) collect(n.right);
+    };
+    if (Array.isArray(item.tree)) item.tree.forEach(r => collect(r));
+    else collect(item.tree);
+    if (minX === Infinity) return;
+
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'error-annotation-group');
+    g.setAttribute('data-tree-idx', treeIdx);
+    const ax = minX;
+    const ay = minY - 28; // 标注在树上方
+
+    // 截断过长消息
+    const text = msg.length > 40 ? msg.slice(0, 38) + '…' : msg;
+    const tw = text.length * 7 + 12;
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('class', 'error-annotation-bg');
+    rect.setAttribute('x', ax - 4);
+    rect.setAttribute('y', ay - 10);
+    rect.setAttribute('width', tw);
+    rect.setAttribute('height', 18);
+    rect.setAttribute('rx', 4);
+    rect.setAttribute('ry', 4);
+    g.appendChild(rect);
+
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('class', 'error-annotation');
+    t.setAttribute('x', ax + 2);
+    t.setAttribute('y', ay + 2);
+    t.setAttribute('dominant-baseline', 'central');
+    t.textContent = '✗ ' + text;
+    g.appendChild(t);
+
     this.labelsLayer.appendChild(g);
   },
 
@@ -1976,6 +2163,7 @@ function parseInput(str) {
 function buildTree(seq) {
   // 单次构建模式：清空多树并存
   State.trees = [];
+  State.isWrongDemo = false; // 构建正常树时清除错误示例标记
   const type = State.currentType;
   log(`开始构建 ${KNOWLEDGE[type].name}，序列: [${seq.join(', ')}]`, 'action');
 
@@ -2170,6 +2358,7 @@ function switchType(type) {
   State.compareMode = null;
   State._compareTrees = null;
   State.wrongDemoIndex = 0;
+  State.isWrongDemo = false;
   Animator.reset();
   Renderer.clear();
   document.querySelectorAll('.btn-traverse').forEach(b => b.classList.remove('active'));
@@ -2274,13 +2463,15 @@ function switchType(type) {
     },
   };
 
-  // 通用操作（所有类型可用）
+  // 通用操作（所有类型可用）—— 错误演示独占一行（红色色系），对比按钮另起一行
   const commonOps = `
+    <div class="btn-row btn-row-error">
+      <button id="btnWrongDemo" class="btn btn-danger">⚠ 错误示例</button>
+    </div>
     <div class="btn-row">
-      <button id="btnWrongDemo" class="btn btn-warning">⚠ 错误演示</button>
       <button id="btnCompareMode" class="btn btn-secondary">⇄ 对比</button>
     </div>`;
-  const commonHint = '错误演示：生成非法结构让学生识别。对比模式：同序列 BST/AVL/红黑树高度对比。';
+  const commonHint = '错误示例：生成非法结构让学生识别（红色标注）。对比模式：同序列 BST/AVL/红黑树高度对比。';
 
   // 获取当前类型的工具配置
   const cfg = TOOL_CONFIG[type] || { ops: null, hint: '' };
@@ -2628,16 +2819,48 @@ function generateWrongDemo() {
   const type = State.currentType;
   const demos = WRONG_DEMOS[type];
   if (!demos || !demos.length) {
-    log('当前结构无错误演示模板，可手动双击节点修改制造错误', 'warn');
+    log('当前结构无错误示例模板，可手动双击节点修改制造错误', 'warn');
     return;
   }
   // 循环切换错误模式
   State.wrongDemoIndex = (State.wrongDemoIndex + 1) % demos.length;
   const demo = demos[State.wrongDemoIndex];
   const result = demo();
-  log(`【错误演示 #${State.wrongDemoIndex + 1}/${demos.length}】${result.msg}`, 'action');
-  if (result.tree !== undefined) State.tree = result.tree;
+  log(`【错误示例 #${State.wrongDemoIndex + 1}/${demos.length}】${result.msg}`, 'action');
+
+  // 标记错误演示状态（禁用动画）
+  State.isWrongDemo = true;
+
+  // 将错误树追加到多树并存（支持展示多棵错误示例）
+  const errorTree = result.tree;
+  if (errorTree === undefined || errorTree === null) return;
+
+  // 给错误树节点打标
+  const idx = State.trees.length;
+  const markNodes = (n) => {
+    if (!n) return;
+    n._treeIdx = idx; n._treeType = type; n._isError = true;
+    markNodes(n.left); markNodes(n.right);
+  };
+  if (Array.isArray(errorTree)) errorTree.forEach(t => markNodes(t));
+  else markNodes(errorTree);
+
+  // 若 demo 指定了 errorNodes（具体哪些节点出错），标记它们
+  if (result.errorNodes && Array.isArray(result.errorNodes)) {
+    result.errorNodes.forEach(n => { if (n) n._isErrorNode = true; });
+  }
+
+  State.trees.push({
+    type, tree: errorTree,
+    heapArr: null, unionFind: null,
+    isError: true,
+    errorMsg: result.msg,
+    errorNodes: result.errorNodes || null,
+  });
+  State.selectedTreeIdx = State.trees.length - 1;
+  State.tree = errorTree;
   Renderer.render();
+  // renderMultiTrees 内部已负责绘制错误标注，无需重复调用
   updateStatus();
   updateValidation();
 }
@@ -2967,7 +3190,7 @@ function generateRandom() {
 }
 function doClear() {
   State.tree = null; State.heapArr = null; State.unionFind = null; State.selectedNode = null;
-  State.trees = [];
+  State.trees = []; State.isWrongDemo = false; State.isWrongDemo = false;
   document.getElementById('inputSeq').value = '';
   Renderer.clear(); updateStatus();
   const el = document.getElementById('statusValid');
@@ -2976,7 +3199,11 @@ function doClear() {
   if (iv) iv.innerHTML = '';
   clearLog(); log('已清空', 'info');
 }
-function doPlay()    { if (!Animator.steps.length) { log('请先选择遍历方式或操作', 'warn'); return; } Animator.play(); log('动画播放', 'action'); }
+function doPlay()    {
+  if (State.isWrongDemo) { log('错误示例模式下不可播放动画（仅用于对比识别错误）', 'warn'); return; }
+  if (!Animator.steps.length) { log('请先选择遍历方式或操作', 'warn'); return; }
+  Animator.play(); log('动画播放', 'action');
+}
 function doPause()   { Animator.pause(); }
 function doStep()    { Animator.step(); }
 function refreshHeapClasses() {

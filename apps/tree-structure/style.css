@@ -359,6 +359,14 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
 
 /* Buttons */
 .btn-row { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+/* 错误示例按钮行：红色色系强调 */
+.btn-row-error {
+  border-left: 3px solid var(--red, #f05252);
+  padding-left: 8px;
+  margin-top: 10px;
+  background: rgba(240, 82, 82, 0.06);
+  border-radius: 0 var(--rs) var(--rs) 0;
+}
 .btn {
   cursor: pointer;
   border: 1px solid transparent;
@@ -1209,5 +1217,85 @@ textarea#inputSeq::placeholder { color: var(--text-dim); }
   font-weight: 700;
   font-family: 'JetBrains Mono', Consolas, monospace;
   text-anchor: start;
+  pointer-events: none; /* 文字不拦截事件，由外层 <g> 处理拖拽 */
+}
+/* 图例可拖拽：外层 <g> 接收 mousedown */
+.tree-legend-group {
+  pointer-events: auto;
+}
+.tree-legend-group rect {
+  pointer-events: auto;
+  cursor: move;
+}
+
+/* ===== 错误示例标注 ===== */
+/* 错误节点：红色高亮 + 红色描边 */
+.node-group.error-node circle {
+  fill: rgba(240, 82, 82, 0.30) !important;
+  stroke: #f05252 !important;
+  stroke-width: 2.5 !important;
+}
+.node-group.error-node text {
+  fill: #b91c1c !important;
+  font-weight: 800 !important;
+}
+/* 错误说明文字（画布上的红色注释） */
+.error-annotation {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #dc2626;
+  font-family: 'JetBrains Mono', Consolas, monospace;
   pointer-events: none;
+}
+.error-annotation-bg {
+  fill: rgba(254, 226, 226, 0.92);
+  stroke: #f05252;
+  stroke-width: 1;
+  rx: 4;
+  ry: 4;
+  pointer-events: none;
+}
+/* 错误示例图例：红色色系 */
+.tree-legend-group.error-legend rect {
+  fill: rgba(240, 82, 82, 0.15) !important;
+  stroke: #f05252 !important;
+}
+.tree-legend-group.error-legend text {
+  fill: #b91c1c !important;
+}
+
+/* ===== 错误示例标注 ===== */
+/* 错误节点：红色高亮 + 红色描边 */
+.node-group.error-node circle {
+  fill: rgba(240, 82, 82, 0.30) !important;
+  stroke: #f05252 !important;
+  stroke-width: 2.5 !important;
+}
+.node-group.error-node text {
+  fill: #b91c1c !important;
+  font-weight: 800 !important;
+}
+/* 错误说明文字（画布上的红色注释） */
+.error-annotation {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #dc2626;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  pointer-events: none;
+}
+.error-annotation-bg {
+  fill: rgba(254, 226, 226, 0.92);
+  stroke: #f05252;
+  stroke-width: 1;
+  rx: 4;
+  ry: 4;
+  pointer-events: none;
+}
+/* 错误示例图例：红色色系 */
+.tree-legend-group.error-legend rect {
+  fill: rgba(240, 82, 82, 0.15) !important;
+  stroke: #f05252 !important;
+}
+.tree-legend-group.error-legend text {
+  fill: #b91c1c !important;
 }
