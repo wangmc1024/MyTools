@@ -185,7 +185,24 @@
         <button id="btnCanvasReset" class="btn-canvas-tool" title="重置视图">⟲</button>
         <button id="btnCanvasFullscreen" class="btn-canvas-tool" title="全屏">⛶</button>
       </div>
-      <div class="canvas-hint">滚轮缩放 · 拖拽平移 · 双击修改 · 点击选中</div>
+      <div class="canvas-hint">滚轮缩放 · 拖拽平移 · 拖动节点=移动节点 · Shift+拖动=移动整树 · 双击=编辑 · 点击=选中</div>
+    </div>
+
+    <!-- 非模态浮动弹窗（编辑节点 / 输入值） -->
+    <div id="floatingDialog" class="fd-dialog" hidden>
+      <div class="fd-header" id="fdHeader">
+        <span class="fd-title" id="fdTitle">编辑节点</span>
+        <button class="fd-close" id="fdClose" title="关闭">×</button>
+      </div>
+      <div class="fd-body">
+        <label class="fd-label" id="fdLabel">新数值</label>
+        <input type="number" class="fd-input" id="fdInput" autocomplete="off">
+        <div class="fd-hint" id="fdHint"></div>
+      </div>
+      <div class="fd-actions">
+        <button class="btn btn-secondary" id="fdCancel">取消</button>
+        <button class="btn btn-accent" id="fdConfirm">确定</button>
+      </div>
     </div>
 
     <!-- Right Panel: Knowledge -->
