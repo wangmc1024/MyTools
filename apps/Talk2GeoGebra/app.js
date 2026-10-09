@@ -149,15 +149,15 @@ function applySettings() {
 
 function clearSettings() {
   STATE.settings = {
-    apiUri: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    apiUri: '',
     apiKey: '',
-    modelName: 'ep-20260307234016-726fd'
+    modelName: ''
   };
   saveSettingsToStorage();
-  document.getElementById('settingsApiUri').value = STATE.settings.apiUri;
-  document.getElementById('settingsApiKey').value = STATE.settings.apiKey;
-  document.getElementById('settingsModelName').value = STATE.settings.modelName;
-  logStatus('设置已清除并恢复默认', 'success');
+  document.getElementById('settingsApiUri').value = '';
+  document.getElementById('settingsApiKey').value = '';
+  document.getElementById('settingsModelName').value = '';
+  logStatus('设置已清除', 'success');
 }
 
 async function queryAICommand(input, mode) {
