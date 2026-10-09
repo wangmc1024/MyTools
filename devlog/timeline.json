@@ -302,5 +302,33 @@
       "77ea84c",
       "6daa0d5"
     ]
+  },
+  {
+    "date": "2026-09-16",
+    "title": "树结构可视化教学平台初版",
+    "icon": "🌳",
+    "type": "feature",
+    "description": "新增 tree-structure 应用，支持 13 类树结构交互构建与 408 考研知识点展示，左侧面板重构为单窗口标签页布局。",
+    "tags": ["树结构", "可视化", "408考研"],
+    "commits": ["4bed0e3", "dcaebc6"]
+  },
+  {
+    "date": "2026-09-17",
+    "title": "ChatOCR 文档识别与移动端适配",
+    "icon": "🪟",
+    "type": "feature",
+    "description": "ChatOCR 新增文档上传识别与双结果视图、多模型并发格式化；重构移动端布局，修复摄像头镜像/倒置与滚动条溢出问题。",
+    "tags": ["ChatOCR", "移动端", "文档识别"],
+    "commits": ["359cd3d", "378ebb5", "4a5a24b", "8a685e8", "c1e9ad4"]
+  },
+  {
+    "date": "2026-10-09",
+    "label": "October 2026",
+    "title": "Skills 恢复 + 收藏与脚本注册同步",
+    "icon": "🔧",
+    "type": "maintenance",
+    "description": "从 git 历史恢复 git-sync/sync-toolkit/update-devlog 三个 Claude Code skills；收藏夹新增 Hello 算法；sync-toolkit 注册南工大评教与学业导出两个油猴脚本至 tools.json/repo-tree.json。",
+    "tags": ["skills", "收藏夹", "油猴脚本", "sync-toolkit"],
+    "commits": ["6d9ec57", "88d6a99"]
   }
 ]

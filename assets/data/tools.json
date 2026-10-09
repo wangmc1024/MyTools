@@ -39,17 +39,30 @@
     "updatedAt": "2026-08-11"
   },
   {
-    "name": "评教一键勾选",
+    "name": "南工大评教一键勾选",
     "icon": "✅",
     "type": "浏览器脚本",
-    "category": "工具",
+    "category": "效率工具",
     "description": "南工大评教 Tampermonkey 脚本。右上角按钮，点击即一键全选'完全赞同'，支持动态内容监听。",
     "status": "online",
     "url": null,
-    "downloadUrl": "tempermonkeyScript/评教一键勾选.js",
+    "downloadUrl": "tempermonkeyScript/南工大评教一键勾选.js",
     "fileType": "Userscript",
     "version": "v6.0",
-    "updatedAt": "2026-08-11"
+    "updatedAt": "2026-10-09"
+  },
+  {
+    "name": "南工大学业情况导出CSV",
+    "icon": "📤",
+    "type": "浏览器脚本",
+    "category": "效率工具",
+    "description": "解析教务系统学业树并导出 CSV，非模态弹窗预览+下载，支持控制台调试。",
+    "status": "online",
+    "url": null,
+    "downloadUrl": "tempermonkeyScript/南工大学业情况导出csv.js",
+    "fileType": "Userscript",
+    "version": "v2.1",
+    "updatedAt": "2026-10-09"
   },
   {
     "name": "PyIDE",

@@ -47,7 +47,7 @@
   {
     "name": "Hello 算法",
     "icon": "📖",
-    "iconUrl": "https://www.hello-algo.com/favicon.ico",
+    "iconUrl": "https://www.hello-algo.com/assets/images/logo.svg",
     "url": "https://www.hello-algo.com/",
     "category": "学习",
     "description": "开源免费的数据结构与算法入门教程，支持动画图解与多种编程语言代码，涵盖数组、链表、树、图、排序、搜索等核心主题。",

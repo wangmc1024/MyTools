@@ -507,6 +507,16 @@
         "name": "DeepSeek问答一键导出md.js",
         "type": "file",
         "path": "tempermonkeyScript/DeepSeek问答一键导出md.js"
+      },
+      {
+        "name": "南工大学业情况导出csv.js",
+        "type": "file",
+        "path": "tempermonkeyScript/南工大学业情况导出csv.js"
+      },
+      {
+        "name": "南工大评教一键勾选.js",
+        "type": "file",
+        "path": "tempermonkeyScript/南工大评教一键勾选.js"
       }
     ]
   },
