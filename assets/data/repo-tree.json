@@ -507,11 +507,6 @@
         "name": "DeepSeek问答一键导出md.js",
         "type": "file",
         "path": "tempermonkeyScript/DeepSeek问答一键导出md.js"
-      },
-      {
-        "name": "评教一键勾选.js",
-        "type": "file",
-        "path": "tempermonkeyScript/评教一键勾选.js"
       }
     ]
   },

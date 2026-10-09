@@ -43,5 +43,14 @@
     "category": "工具",
     "description": "下一代 AI for Science 产品，探索端到端的科研新范式。支持文献检索、数据分析、LaTeX 写作、科研 agent 等。",
     "addedAt": "2026-09-09"
+  },
+  {
+    "name": "Hello 算法",
+    "icon": "📖",
+    "iconUrl": "https://www.hello-algo.com/favicon.ico",
+    "url": "https://www.hello-algo.com/",
+    "category": "学习",
+    "description": "开源免费的数据结构与算法入门教程，支持动画图解与多种编程语言代码，涵盖数组、链表、树、图、排序、搜索等核心主题。",
+    "addedAt": "2026-10-09"
   }
 ]
