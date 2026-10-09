@@ -143,7 +143,7 @@ function fetchWordFromSiliconFlow(word) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SILICON_FLOW_API_KEY,
+        'Authorization': 'Bearer ' + getSiliconFlowApiKey(),
         'Accept': 'application/json'
       },
       body: JSON.stringify({

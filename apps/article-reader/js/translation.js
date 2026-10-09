@@ -74,7 +74,7 @@ async function translateTextWithFallback(text, lang) {
 
   // 1st: Silicon Flow API (Hunyuan-MT-7B)
   try {
-    var result = await translateWithModel(SILICON_FLOW_API_URL, SILICON_FLOW_API_KEY, SILICON_FLOW_MODEL, text, lang);
+    var result = await translateWithModel(SILICON_FLOW_API_URL, getSiliconFlowApiKey(), SILICON_FLOW_MODEL, text, lang);
     if (isValidTranslation(result)) return result;
   } catch(e) {
     console.log('Silicon Flow API error:', e);
@@ -111,7 +111,7 @@ async function translateWordWithFallback(word, lang) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SILICON_FLOW_API_KEY,
+        'Authorization': 'Bearer ' + getSiliconFlowApiKey(),
         'Accept': 'application/json'
       },
       body: JSON.stringify({

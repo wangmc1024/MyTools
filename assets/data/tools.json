@@ -13,19 +13,6 @@
     "updatedAt": "2026-08-11"
   },
   {
-    "name": "English Learning Reader",
-    "icon": "📖",
-    "type": "Web Tool",
-    "category": "学习",
-    "description": "交互式英语学习阅读器，提供文章阅读与学习辅助功能。",
-    "status": "online",
-    "url": "./apps/reader-concrete/index.html",
-    "version": null,
-    "downloadUrl": null,
-    "fileType": null,
-    "updatedAt": "2026-08-11"
-  },
-  {
     "name": "DeepSeek 问答一键导出 MD",
     "icon": "📝",
     "type": "浏览器脚本",

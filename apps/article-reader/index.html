@@ -1218,6 +1218,9 @@ body::after {
       <button id="libraryBtn" class="import-btn" title="Manage articles">
         <span>☰</span> Library
       </button>
+      <button id="settingsBtn" class="import-btn" title="API Key 设置">
+        <span>⚙️</span> 设置
+      </button>
       <button id="stopAudio" class="icon-btn">
         <span>⏹</span> Stop
       </button>
@@ -1299,6 +1302,26 @@ body::after {
   <div class="library-footer" id="libraryFooter"></div>
 </div>
 
+<!-- SETTINGS MODAL (API Key) -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <div class="modal-title">⚙️ API Key 设置</div>
+    <div class="modal-desc">配置硅基流动 API Key，用于翻译和词典功能。Key 将保存在浏览器本地（localStorage）。</div>
+    <div class="modal-field">
+      <label>硅基流动 API Key <em>SiliconFlow</em></label>
+      <input type="password" class="modal-input" id="settingsSiliconflowKey" placeholder="请输入硅基流动 API Key (sk-...)" autocomplete="off" spellcheck="false">
+      <div class="modal-hint">
+        获取方式：前往 <a href="https://cloud.siliconflow.cn/i/M5LEQbCU" target="_blank" style="color:var(--accent-light);">硅基流动控制台</a> 创建 API Key。<br>
+        Key 仅保存在本地浏览器，不会上传到服务器。
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" id="settingsCancel">取消</button>
+      <button class="modal-btn modal-btn-import" id="settingsSave">保存</button>
+    </div>
+  </div>
+</div>
+
 <script src="../../assets/js/config-loader.js"></script>
 <script src="js/config.js"></script>
 <script src="js/db.js"></script>
@@ -1314,6 +1337,7 @@ body::after {
 <script src="js/tts.js"></script>
 <script src="js/import.js"></script>
 <script src="js/scroll.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/init.js"></script>
 </body>
 </html>

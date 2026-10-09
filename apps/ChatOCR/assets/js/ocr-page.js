@@ -585,21 +585,8 @@ function switchResultView(view) {
 }
 
 /* ---------- 格式化结果生成（多模型并发，先返回先展示） ---------- */
-// 三个对话模型配置：硅基流动 DeepSeek-R1 / 智谱 GLM-4.7 / Agnes 2.5
+// 格式化对话模型：Agnes AI 2.5
 const FORMAT_MODELS = [
-  {
-    name: 'DeepSeek-R1',
-    model: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
-    endpoint: 'https://api.siliconflow.cn/v1/chat/completions',
-    // 硅基流动使用用户输入的 API Key
-    getKey: () => apiKey(),
-  },
-  {
-    name: 'GLM-4.7',
-    model: 'glm-4.7-flash',
-    endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    getKey: () => '19344c09a7c047a69ae0ee36cd75c4f3.wOrnR0cm2GL2kiCD',
-  },
   {
     name: 'Agnes-2.5',
     model: 'agnes-2.5-flash',
@@ -684,9 +671,9 @@ async function generateFormattedResult() {
   const fmtPlaceholder = $('#formattedPlaceholder');
   const fmtText = $('#resultTextFormatted');
   if (fmtPlaceholder) fmtPlaceholder.style.display = 'none';
-  if (fmtText) { fmtText.style.display = ''; fmtText.innerHTML = '<p style="color:var(--text-faint);">⏳ 三模型并发请求中，谁先返回谁展示…</p>'; }
+  if (fmtText) { fmtText.style.display = ''; fmtText.innerHTML = '<p style="color:var(--text-faint);">⏳ 正在请求格式化模型…</p>'; }
 
-  setTaskStatus('✨ 正在格式化', '多模型并发');
+  setTaskStatus('✨ 正在格式化', 'Agnes-2.5');
 
   const systemPrompt = '你是一个文档格式整理助手。请将用户提供的 OCR 识别原始文本整理为结构清晰、格式规范的 Markdown 文档。要求：\n1. 修正明显的 OCR 识别错误（错别字、乱码、断词）\n2. 识别并整理标题层级（#、##、###）\n3. 表格输出为 Markdown 表格格式\n4. 列表使用 Markdown 列表格式\n5. 保留原文的段落结构和逻辑顺序\n6. 数学公式输出为 LaTeX 格式（$...$ 或 $...$）\n7. 直接输出整理后的 Markdown，不要添加额外说明';
 
@@ -694,7 +681,7 @@ async function generateFormattedResult() {
   let success = false;
 
   for (let attempt = 1; attempt <= FORMAT_MAX_ATTEMPTS; attempt++) {
-    if (fmtText) fmtText.innerHTML = `<p style="color:var(--text-faint);">⏳ 第 ${attempt}/${FORMAT_MAX_ATTEMPTS} 次尝试：三模型并发请求中…</p>`;
+    if (fmtText) fmtText.innerHTML = `<p style="color:var(--text-faint);">⏳ 第 ${attempt}/${FORMAT_MAX_ATTEMPTS} 次尝试：正在请求格式化模型…</p>`;
 
     // 每个模型独立的 AbortController，便于胜出后 abort 其他
     const controllers = FORMAT_MODELS.map(() => new AbortController());

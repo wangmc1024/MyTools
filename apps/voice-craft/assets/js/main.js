@@ -1026,22 +1026,29 @@ function handleAudioFileSelect(file) {
     document.getElementById('audioDropZone').style.display = 'none';
 }
 
-// 初始化Token配置
+// 初始化Token配置 — 加载 localStorage 中保存的 API Key
 function initializeTokenConfig() {
-    const tokenRadios = document.querySelectorAll('input[name="tokenOption"]');
     const tokenInput = document.getElementById('tokenInput');
+    if (!tokenInput) return;
 
-    tokenRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'custom') {
-                tokenInput.style.display = 'block';
-                tokenInput.required = true;
+    // 加载已保存的 API Key
+    try {
+        const savedKey = localStorage.getItem('key:voicecraft-stt');
+        if (savedKey && savedKey.trim()) {
+            tokenInput.value = savedKey.trim();
+        }
+    } catch (e) {}
+
+    // 输入时自动保存到 localStorage
+    tokenInput.addEventListener('change', function() {
+        try {
+            const val = this.value.trim();
+            if (val) {
+                localStorage.setItem('key:voicecraft-stt', val);
             } else {
-                tokenInput.style.display = 'none';
-                tokenInput.required = false;
-                tokenInput.value = '';
+                localStorage.removeItem('key:voicecraft-stt');
             }
-        });
+        } catch (e) {}
     });
 }
 
@@ -1061,12 +1068,11 @@ document.getElementById('transcriptionForm').addEventListener('submit', async fu
         return;
     }
 
-    // 获取Token配置
-    const tokenOption = document.querySelector('input[name="tokenOption"]:checked').value;
-    const customToken = document.getElementById('tokenInput').value;
+    // 获取用户输入的 API Key
+    const customToken = document.getElementById('tokenInput').value.trim();
 
-    if (tokenOption === 'custom' && !customToken.trim()) {
-        alert('请输入自定义Token');
+    if (!customToken) {
+        alert('请输入硅基流动 API Key');
         return;
     }
 
@@ -1097,19 +1103,10 @@ document.getElementById('transcriptionForm').addEventListener('submit', async fu
             formData.append('model', sttModelSelect.value);
         }
 
-        // 准备请求头 - 使用默认key或自定义key
-        const headers = {};
-        if (tokenOption === 'custom' && customToken.trim()) {
-            headers['Authorization'] = `Bearer ${customToken.trim()}`;
-        } else if (tokenOption === 'default') {
-            const config = await loadApiConfig();
-            if (config && config.silicon_flow_stt && config.silicon_flow_stt.default_api_key) {
-                headers['Authorization'] = `Bearer ${config.silicon_flow_stt.default_api_key}`;
-            } else {
-                showToast('API 配置加载失败，无法使用默认 Token，请检查 api-config.json', 'error');
-                return;
-            }
-        }
+        // 准备请求头 - 使用用户输入的硅基流动 API Key
+        const headers = {
+            'Authorization': `Bearer ${customToken}`
+        };
 
         const response = await requestWithTimeout(`https://api.siliconflow.cn/v1/audio/transcriptions`, {
             method: 'POST',

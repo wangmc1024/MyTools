@@ -7,9 +7,24 @@ var DB_NAME = 'ArticleReader';
 var DB_VERSION = 2;
 
 // Silicon Flow Translation API (primary) — populated by config-loader.js from api-config.json
-var SILICON_FLOW_API_KEY = typeof window.SILICON_FLOW_API_KEY !== 'undefined' ? window.SILICON_FLOW_API_KEY : '';
+// 优先使用用户在设置中输入的 API Key（localStorage），其次使用 config-loader 加载的值
 var SILICON_FLOW_API_URL = typeof window.SILICON_FLOW_API_URL !== 'undefined' ? window.SILICON_FLOW_API_URL : '';
 var SILICON_FLOW_MODEL = typeof window.SILICON_FLOW_MODEL !== 'undefined' ? window.SILICON_FLOW_MODEL : 'tencent/Hunyuan-MT-7B';
+
+/**
+ * 获取硅基流动 API Key：优先返回用户在设置中输入的 key（localStorage），
+ * 其次返回 config-loader 从 api-config.json 加载的 key。
+ */
+function getSiliconFlowApiKey() {
+  try {
+    var userKey = localStorage.getItem('key:siliconflow');
+    if (userKey && userKey.trim()) return userKey.trim();
+  } catch (e) {}
+  return typeof window.SILICON_FLOW_API_KEY !== 'undefined' ? window.SILICON_FLOW_API_KEY : '';
+}
+
+// 兼容性：保留 SILICON_FLOW_API_KEY 变量（初始值），但实际使用应调用 getSiliconFlowApiKey()
+var SILICON_FLOW_API_KEY = typeof window.SILICON_FLOW_API_KEY !== 'undefined' ? window.SILICON_FLOW_API_KEY : '';
 
 // Cloudflare Worker fallback
 var CLOUDFLARE_WORKER_URL = typeof window.CLOUDFLARE_WORKER_URL !== 'undefined' ? window.CLOUDFLARE_WORKER_URL : '';

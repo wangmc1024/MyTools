@@ -9,14 +9,13 @@
  *   - 如果请求携带 model=XingChenAGI/XingChenASR-V3.2-Ultra → 走 星辰 ASR V3.2 Ultra 分支（中+英+60方言·工业级）
  *   - 如果请求未携带 model 参数                              → 默认走 TeleSpeechASR 分支（新默认）
  * 
- * Token 优先级: 前端传入的自定义 token > 内置默认 token
+ * Token: 前端必须传入用户自定义的 token（通过 FormData 的 token 字段或 Authorization 头）
  */
 
 // ============================================================
 // 配置 — 统一在此维护，不分散在代码各处
 // ============================================================
 
-const DEFAULT_API_KEY = 'sk-yfvcwuoydwyhovadqzxoycatggqamgoesfenzhexgbkvboqt';
 const SILICON_FLOW_BASE_URL = 'https://api.siliconflow.cn/v1/audio/transcriptions';
 
 // 支持的模型列表（用于校验）
@@ -122,9 +121,15 @@ async function handleTranscription(request) {
     );
   }
 
-  // --- 确定 API Key（优先级: 自定义 > 默认） ---
+  // --- 确定 API Key（必须由前端传入用户自定义 token） ---
   const customToken = getFormField(reqFormData, 'token');
-  const apiKey = customToken && customToken.trim() ? customToken.trim() : DEFAULT_API_KEY;
+  if (!customToken || !customToken.trim()) {
+    return new Response(
+      JSON.stringify({ error: { message: 'API Key is required. Please provide your SiliconFlow API token.' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  const apiKey = customToken.trim();
 
   // --- 确定模型（优先级: 前端选择 > 默认） ---
   let model = getFormField(reqFormData, 'model');
