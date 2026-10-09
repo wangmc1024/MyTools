@@ -102,18 +102,5 @@
     "version": null,
     "fileType": null,
     "updatedAt": "2026-08-11"
-  },
-  {
-    "name": "树结构可视化教学平台",
-    "icon": "🌳",
-    "type": "Web Tool",
-    "category": "学习",
-    "description": "408考研级树结构全品类可视化教学平台。涵盖二叉树/满二叉树/完全二叉树/线索二叉树/BST/堆/AVL/红黑树/B树/B+树/B*树/森林/并查集共13类结构，支持交互构建、拖拽、遍历动画、结构校验、知识点面板。",
-    "status": "online",
-    "url": "./apps/tree-structure/index.html",
-    "version": null,
-    "downloadUrl": null,
-    "fileType": null,
-    "updatedAt": "2026-09-16"
   }
 ]
